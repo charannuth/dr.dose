@@ -101,3 +101,29 @@ export function bouquetColorsForMinDays(minDays: number): string[] {
   if (minDays < 100) return ['#7c3aed', '#facc15', '#fb923c', '#f472b6', '#f8fafc']
   return ['#7c3aed', '#facc15', '#fb923c', '#f472b6', '#f8fafc', '#ef4444']
 }
+
+export type TulipCelebrationVariant =
+  | 'purple'
+  | 'yellow'
+  | 'orange'
+  | 'pink'
+  | 'white'
+  | 'red'
+
+/** Map bouquet hex colors to celebration tulip variants. */
+export function tulipCelebrationVariantForColor(hex: string): TulipCelebrationVariant {
+  switch (hex.toLowerCase()) {
+    case '#facc15':
+      return 'yellow'
+    case '#fb923c':
+      return 'orange'
+    case '#f472b6':
+      return 'pink'
+    case '#f8fafc':
+      return 'white'
+    case '#ef4444':
+      return 'red'
+    default:
+      return 'purple'
+  }
+}

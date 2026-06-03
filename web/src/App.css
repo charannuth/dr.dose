@@ -4031,6 +4031,91 @@ textarea:focus-visible {
   filter: drop-shadow(0 6px 16px color-mix(in srgb, #7c3aed 35%, transparent));
 }
 
+.streak-celebration-bouquet-3 .streak-tulip-svg {
+  width: 12rem;
+}
+
+.streak-celebration-bouquet-4 .streak-tulip-svg {
+  width: 13rem;
+}
+
+.streak-celebration-bouquet-5 .streak-tulip-svg {
+  width: 14rem;
+}
+
+.streak-celebration-bouquet-6 .streak-tulip-svg {
+  width: 15rem;
+}
+
+.streak-tulip-bloom-tiered {
+  --bloom-seq: 0;
+}
+
+.streak-tulip-bloom-tiered .streak-tulip-bud {
+  animation-delay: calc(1.35s + var(--bloom-seq) * 0.55s);
+}
+
+.streak-tulip-bloom-tiered .streak-tulip-petal-1 {
+  animation-delay: calc(1.4s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-1 {
+  animation-delay: calc(1.65s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-2 {
+  animation-delay: calc(1.52s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-2 {
+  animation-delay: calc(1.77s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-3 {
+  animation-delay: calc(1.64s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-3 {
+  animation-delay: calc(1.89s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-4 {
+  animation-delay: calc(1.76s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-4 {
+  animation-delay: calc(2.01s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-5 {
+  animation-delay: calc(1.88s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-5 {
+  animation-delay: calc(2.13s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-6 {
+  animation-delay: calc(2s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-petal-shine-6 {
+  animation-delay: calc(2.25s + var(--bloom-seq) * 0.55s);
+}
+
+.streak-tulip-bloom-tiered .streak-tulip-center-ring {
+  animation-delay: calc(2.35s + var(--bloom-seq) * 0.55s);
+}
+
+.streak-tulip-bloom-tiered .streak-tulip-center {
+  animation-delay: calc(2.45s + var(--bloom-seq) * 0.55s);
+}
+
+.streak-tulip-bloom-tiered .streak-tulip-pollen-1 {
+  animation-delay: calc(2.65s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-pollen-2 {
+  animation-delay: calc(2.72s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-pollen-3 {
+  animation-delay: calc(2.79s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-pollen-4 {
+  animation-delay: calc(2.86s + var(--bloom-seq) * 0.55s);
+}
+.streak-tulip-bloom-tiered .streak-tulip-pollen-5 {
+  animation-delay: calc(2.93s + var(--bloom-seq) * 0.55s);
+}
+
 [data-theme='dark'] .streak-tulip-svg {
   color: #a78bfa;
 }
