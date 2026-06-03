@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  clearStreakCelebratedToday,
   markStreakCelebratedToday,
   wasStreakCelebratedToday,
 } from '../lib/streakCelebration'
@@ -54,6 +55,10 @@ export function useStreakCelebration(
 
     const prev = prevRef.current
     if (!prev) return
+
+    if (prev.todayComplete && !stats.todayComplete) {
+      clearStreakCelebratedToday(userId)
+    }
 
     const becameCompleteToday = stats.todayComplete && !prev.todayComplete
     const alreadyCelebrated = wasStreakCelebratedToday(userId)

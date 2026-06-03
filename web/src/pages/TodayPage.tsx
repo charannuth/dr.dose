@@ -62,6 +62,7 @@ export function TodayPage() {
   const [addScheduleType, setAddScheduleType] = useState<MedicationScheduleType>('scheduled')
   const [editing, setEditing] = useState<Medication | null>(null)
   const [streakStats, setStreakStats] = useState<StreakStats | null>(null)
+  const [badgeReplayKey, setBadgeReplayKey] = useState(0)
   const [missedDoses, setMissedDoses] = useState<MissedDoseItem[]>([])
   const [missedBannerDismissed, setMissedBannerDismissed] = useState(() =>
     isMissedDosesBannerDismissed(todayLocalDate()),
@@ -178,6 +179,7 @@ export function TodayPage() {
       await markDoseTaken(user.id, med.id, scheduleTime)
       await reload()
       await refreshStreakStats()
+      setBadgeReplayKey((k) => k + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log dose')
     } finally {
@@ -194,6 +196,7 @@ export function TodayPage() {
       await undoDose(slot.doseLogId, med.id)
       await reload()
       await refreshStreakStats()
+      setBadgeReplayKey((k) => k + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not undo dose')
     } finally {
@@ -209,6 +212,8 @@ export function TodayPage() {
     try {
       await markPrnDoseTaken(user.id, med.id, payload)
       await reload()
+      await refreshStreakStats()
+      setBadgeReplayKey((k) => k + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log dose')
     } finally {
@@ -310,7 +315,9 @@ export function TodayPage() {
         <section className="today-summary">
           <h2>Today</h2>
           <p>{summaryText}</p>
-          {todayTab === 'scheduled' && <StreakSnippet stats={streakStats} />}
+          {todayTab === 'scheduled' && (
+            <StreakSnippet stats={streakStats} badgeReplayKey={badgeReplayKey} />
+          )}
         </section>
 
         <div

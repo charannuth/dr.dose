@@ -14,3 +14,8 @@ export function wasStreakCelebratedToday(userId: string, date = todayLocalDate()
 export function markStreakCelebratedToday(userId: string, date = todayLocalDate()): void {
   localStorage.setItem(celebrationKey(userId, date), '1')
 }
+
+/** Allow the bloom modal to play again after undoing today's last dose. */
+export function clearStreakCelebratedToday(userId: string, date = todayLocalDate()): void {
+  localStorage.removeItem(celebrationKey(userId, date))
+}

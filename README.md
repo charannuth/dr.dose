@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-03** (`c99b86e`) — Replay streak badge bloom on dose mark and undo.
+
 - **2026-06-03** (`f1e1e15`) — Fix web streak badges updating at each milestone tier.
 
 - **2026-05-29** (`4b74454`) — Add mobile doctor visits, local reminders, streak parity, and profile photos.

@@ -3,7 +3,14 @@ import { StreakBadgeIcon } from './StreakBadgeIcon'
 import { getActiveStreakBadge, getDisplayStreakDays } from '../lib/streakBadges'
 import type { StreakStats } from '../lib/streaks'
 
-export function StreakSnippet({ stats }: { stats: StreakStats | null }) {
+export function StreakSnippet({
+  stats,
+  badgeReplayKey = 0,
+}: {
+  stats: StreakStats | null
+  /** Increment to replay the tulip bloom (e.g. after mark taken / undo). */
+  badgeReplayKey?: number
+}) {
   if (!stats?.hasMedications) return null
 
   const displayStreak = getDisplayStreakDays(stats)
@@ -13,11 +20,16 @@ export function StreakSnippet({ stats }: { stats: StreakStats | null }) {
     <p className="streak-snippet">
       {activeBadge && (
         <span
-          key={activeBadge.id}
+          key={badgeReplayKey}
           className="streak-snippet-badge streak-badge-earned streak-snippet-badge-pop"
           title={activeBadge.description}
         >
-          <StreakBadgeIcon earned minDays={activeBadge.minDays} animate />
+          <StreakBadgeIcon
+            earned
+            minDays={activeBadge.minDays}
+            animate
+            replayKey={badgeReplayKey}
+          />
         </span>
       )}
       {displayStreak > 0 ? (
