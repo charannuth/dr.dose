@@ -69,6 +69,7 @@ export function StreakBadgeIcon({
   return (
     <svg
       className={`streak-badge-icon${earned ? ' earned' : ''}${wide ? ' streak-badge-icon-wide' : ''}${animate ? '' : ' streak-badge-icon-static'}${className ? ` ${className}` : ''}`}
+      data-tulips={colors.length}
       viewBox={wide ? '0 0 48 40' : '0 0 32 40'}
       fill="none"
       aria-hidden

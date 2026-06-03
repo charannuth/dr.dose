@@ -8,13 +8,12 @@ export function StreakSnippet({ stats }: { stats: StreakStats | null }) {
 
   const displayStreak = getDisplayStreakDays(stats)
   const activeBadge = displayStreak > 0 ? getActiveStreakBadge(displayStreak) : null
-  const badgeKey = activeBadge ? `${activeBadge.id}-${displayStreak}-${stats.todayComplete}` : null
 
   return (
     <p className="streak-snippet">
-      {activeBadge && badgeKey && (
+      {activeBadge && (
         <span
-          key={badgeKey}
+          key={activeBadge.id}
           className="streak-snippet-badge streak-badge-earned streak-snippet-badge-pop"
           title={activeBadge.description}
         >

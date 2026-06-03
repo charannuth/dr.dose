@@ -87,6 +87,11 @@ export function isStreakCelebrationMilestone(streakDays: number): boolean {
   return STREAK_CELEBRATION_MILESTONES.includes(streakDays)
 }
 
+/** Number of tulips shown for a badge tier (bouquet grows at 7+ days). */
+export function bouquetTulipCount(minDays: number): number {
+  return bouquetColorsForMinDays(minDays).length
+}
+
 /** Tulip colors for a badge tier (bouquet grows at 7+ days). */
 export function bouquetColorsForMinDays(minDays: number): string[] {
   if (minDays < 7) return ['#7c3aed']

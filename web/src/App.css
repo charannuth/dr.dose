@@ -897,9 +897,29 @@ textarea:focus-visible {
 }
 
 .streak-snippet-badge .streak-badge-icon {
-  width: 1.45rem;
   height: 1.8rem;
+  width: 1.45rem;
   overflow: visible;
+}
+
+.streak-snippet-badge .streak-badge-icon[data-tulips='2'] {
+  width: 2.1rem;
+}
+
+.streak-snippet-badge .streak-badge-icon[data-tulips='3'] {
+  width: 2.65rem;
+}
+
+.streak-snippet-badge .streak-badge-icon[data-tulips='4'] {
+  width: 2.95rem;
+}
+
+.streak-snippet-badge .streak-badge-icon[data-tulips='5'] {
+  width: 3.2rem;
+}
+
+.streak-snippet-badge .streak-badge-icon[data-tulips='6'] {
+  width: 3.45rem;
 }
 
 .streak-snippet-badge-pop {
@@ -917,19 +937,16 @@ textarea:focus-visible {
   }
 }
 
-.streak-badge-icon-static.streak-badge-earned .streak-badge-stem,
-.streak-snippet-badge .streak-badge-earned .streak-badge-stem {
+.streak-badge-icon-static.streak-badge-earned .streak-badge-stem {
   stroke-dashoffset: 0;
 }
 
-.streak-badge-icon-static.streak-badge-earned .streak-badge-petal,
-.streak-snippet-badge .streak-badge-earned .streak-badge-petal {
+.streak-badge-icon-static.streak-badge-earned .streak-badge-petal {
   opacity: 1;
   transform: none;
 }
 
-.streak-badge-icon-static.streak-badge-earned .streak-badge-center,
-.streak-snippet-badge .streak-badge-earned .streak-badge-center {
+.streak-badge-icon-static.streak-badge-earned .streak-badge-center {
   transform: scale(1);
 }
 
@@ -4528,6 +4545,19 @@ textarea:focus-visible {
   height: 1.35rem;
 }
 
+.streak-badge-chip .streak-badge-icon[data-tulips='3'] {
+  width: 1.85rem;
+}
+
+.streak-badge-chip .streak-badge-icon[data-tulips='4'] {
+  width: 2rem;
+}
+
+.streak-badge-chip .streak-badge-icon[data-tulips='5'],
+.streak-badge-chip .streak-badge-icon[data-tulips='6'] {
+  width: 2.15rem;
+}
+
 .streak-badge-earned .streak-badge-tulip-2 .streak-badge-stem {
   animation-delay: 0.2s;
 }
@@ -4774,6 +4804,22 @@ textarea:focus-visible {
 .streak-badge-tile-catalog .streak-badge-icon {
   width: 2.5rem;
   height: 3rem;
+}
+
+.streak-badge-tile-catalog .streak-badge-icon[data-tulips='3'] {
+  width: 2.85rem;
+}
+
+.streak-badge-tile-catalog .streak-badge-icon[data-tulips='4'] {
+  width: 3.15rem;
+}
+
+.streak-badge-tile-catalog .streak-badge-icon[data-tulips='5'] {
+  width: 3.4rem;
+}
+
+.streak-badge-tile-catalog .streak-badge-icon[data-tulips='6'] {
+  width: 3.65rem;
 }
 
 .streak-badge-tile-catalog .streak-badge-label {

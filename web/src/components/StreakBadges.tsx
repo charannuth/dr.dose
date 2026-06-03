@@ -30,7 +30,7 @@ function BadgeTile({
       className={`streak-badge-tile${earned ? ' streak-badge-earned' : ' streak-badge-locked'}${catalog ? ' streak-badge-tile-catalog' : ''}`}
       title={badge.description}
     >
-      <StreakBadgeIcon earned={earned} minDays={badge.minDays} />
+      <StreakBadgeIcon earned={earned} minDays={badge.minDays} animate={false} />
       {catalog ? (
         <>
           <span className="streak-badge-label">{badge.label}</span>
@@ -99,7 +99,7 @@ export function StreakBadges({
           <ul className="streak-badge-row">
             {earned.map((badge) => (
               <li key={badge.id} className="streak-badge-chip" title={badge.description}>
-                <StreakBadgeIcon earned minDays={badge.minDays} />
+                <StreakBadgeIcon earned minDays={badge.minDays} animate={false} />
                 <span>{badge.minDays}d</span>
               </li>
             ))}
