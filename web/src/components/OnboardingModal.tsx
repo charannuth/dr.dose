@@ -4,17 +4,24 @@ import { setOnboardingDone } from '../lib/settings'
 type OnboardingModalProps = {
   userId: string
   onDone: () => void
+  onStartTour: () => void
   onAddMedication: () => void
 }
 
 export function OnboardingModal({
   userId,
   onDone,
+  onStartTour,
   onAddMedication,
 }: OnboardingModalProps) {
   function finish() {
     setOnboardingDone(userId)
     onDone()
+  }
+
+  function handleTour() {
+    setOnboardingDone(userId)
+    onStartTour()
   }
 
   function handleAdd() {
@@ -40,9 +47,12 @@ export function OnboardingModal({
             notes; <Link to="/streaks" onClick={finish}>Streaks</Link> for tulip badges.
           </li>
         </ol>
-        <div className="form-actions">
+        <div className="form-actions onboarding-modal-actions">
           <button type="button" className="btn btn-ghost" onClick={finish}>
             Skip for now
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={handleTour}>
+            Show me around
           </button>
           <button type="button" className="btn btn-primary" onClick={handleAdd}>
             Add first medication

@@ -25,7 +25,12 @@ export function Header({ onAddClick }: HeaderProps) {
       <div className="header-actions">
         <ThemeToggle />
         {showAdd && (
-          <button type="button" className="btn btn-secondary" onClick={onAddClick}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-tour="add-medication"
+            onClick={onAddClick}
+          >
             Add medication
           </button>
         )}

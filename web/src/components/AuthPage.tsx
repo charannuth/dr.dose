@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { EmailOtpVerification } from './EmailOtpVerification'
 import { useAuth } from '../hooks/useAuth'
-import { authErrorMessage } from '../lib/authErrors'
+import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors'
+import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult'
 
 type AuthMode =
   | 'signin'
@@ -31,10 +32,14 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [emailAlreadyInUse, setEmailAlreadyInUse] = useState(false)
+  const [rateLimited, setRateLimited] = useState(false)
 
   function resetMessages() {
     setError(null)
     setMessage(null)
+    setEmailAlreadyInUse(false)
+    setRateLimited(false)
   }
 
   function switchMode(next: AuthMode) {
@@ -75,14 +80,20 @@ export function AuthPage() {
       }
 
       if (mode === 'signup') {
-        const { needsVerification } = await signUp(email, password)
-        if (needsVerification) {
+        const result = await signUp(email, password)
+        if (result.status === 'email_already_registered') {
+          setEmailAlreadyInUse(true)
+          setError(EMAIL_ALREADY_IN_USE_MESSAGE)
+          return
+        }
+        if (result.status === 'needs_verification') {
           switchMode('signup-verify')
           setMessage('We emailed you an 8-digit verification code.')
         }
         return
       }
     } catch (err) {
+      setRateLimited(isAuthRateLimited(err))
       setError(authErrorMessage(err))
     } finally {
       setBusy(false)
@@ -238,6 +249,31 @@ export function AuthPage() {
               )}
 
               {error && <p className="form-error">{error}</p>}
+              {rateLimited && mode === 'signup' && (
+                <p className="auth-rate-limit-hint">
+                  This usually happens after several test sign-ups in a row. Check your inbox
+                  and spam for an 8-digit code from a previous attempt — if you have one, you
+                  do not need to sign up again.
+                </p>
+              )}
+              {emailAlreadyInUse && mode === 'signup' && (
+                <p className="auth-existing-account-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => switchMode('signin')}
+                  >
+                    Sign in instead
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => switchMode('forgot')}
+                  >
+                    Forgot password
+                  </button>
+                </p>
+              )}
               {message && <p className="form-success">{message}</p>}
 
               <button type="submit" className="btn btn-primary" disabled={busy}>

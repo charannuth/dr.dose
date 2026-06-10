@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { bouquetColorsForMinDays } from '../lib/streakBadges'
 
 type StreakBadgeIconProps = {
@@ -69,30 +68,12 @@ export function StreakBadgeIcon({
 }: StreakBadgeIconProps) {
   const colors = bouquetColorsForMinDays(minDays)
   const wide = colors.length > 1
-  const [playing, setPlaying] = useState(animate)
-
-  useEffect(() => {
-    if (!animate || replayKey === 0) return
-    setPlaying(false)
-    let inner = 0
-    const outer = requestAnimationFrame(() => {
-      inner = requestAnimationFrame(() => setPlaying(true))
-    })
-    return () => {
-      cancelAnimationFrame(outer)
-      cancelAnimationFrame(inner)
-    }
-  }, [replayKey, animate])
-
-  useEffect(() => {
-    if (replayKey === 0) setPlaying(animate)
-  }, [animate, replayKey])
-
-  const showBloom = animate && playing
+  const animationKey = replayKey > 0 ? replayKey : 'initial'
 
   return (
     <svg
-      className={`streak-badge-icon${earned ? ' earned' : ''}${wide ? ' streak-badge-icon-wide' : ''}${showBloom ? '' : ' streak-badge-icon-static'}${className ? ` ${className}` : ''}`}
+      key={animationKey}
+      className={`streak-badge-icon${earned ? ' earned' : ''}${wide ? ' streak-badge-icon-wide' : ''}${animate ? '' : ' streak-badge-icon-static'}${className ? ` ${className}` : ''}`}
       data-tulips={colors.length}
       viewBox={wide ? '0 0 48 40' : '0 0 32 40'}
       fill="none"

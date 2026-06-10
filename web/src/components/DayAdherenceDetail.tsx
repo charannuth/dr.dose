@@ -39,7 +39,7 @@ export function DayAdherenceDetail({
     if (detail && panelRef.current) {
       panelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
-  }, [detail?.date])
+  }, [detail])
 
   if (!detail && !loading && !error) return null
 

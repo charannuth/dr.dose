@@ -1,9 +1,9 @@
 import { createContext } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 
-export type SignUpResult = {
-  needsVerification: boolean
-}
+import type { SignUpResult } from '../lib/signUpResult'
+
+export type { SignUpResult }
 
 export type AuthContextValue = {
   session: Session | null

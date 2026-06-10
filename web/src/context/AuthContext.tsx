@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { Session } from '@supabase/supabase-js'
 import { avatarStoragePath, deleteAvatar, uploadAvatar } from '../lib/avatar'
 import { supabase } from '../lib/supabase'
-import { AuthContext, type AuthContextValue, type SignUpResult } from './auth-context'
+import { evaluateSignUpResponse } from '../lib/signUpResult'
+import { AuthContext, type AuthContextValue } from './auth-context'
 
 function authRedirectUrl() {
   return `${window.location.origin}/`
@@ -43,11 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+  const signUp = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase is not configured')
     const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) throw error
-    return { needsVerification: data.session === null }
+    return evaluateSignUpResponse(data, error)
   }, [])
 
   const verifySignupOtp = useCallback(async (email: string, token: string) => {

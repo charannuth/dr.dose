@@ -14,6 +14,7 @@ import { BrandLogo } from './BrandLogo';
 import { EmailOtpVerification } from './EmailOtpVerification';
 import { useAuth } from '../hooks/useAuth';
 import { authErrorMessage } from '../lib/authErrors';
+import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
@@ -112,6 +113,26 @@ function makeAuthStyles(colors: ColorPalette) {
     toggleDivider: {
       color: colors.textMuted,
     },
+    existingAccountRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: spacing.sm,
+    },
+    secondaryButton: {
+      flex: 1,
+      minWidth: 120,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+    },
+    secondaryButtonText: {
+      color: colors.text,
+      fontWeight: '600' as const,
+      fontSize: 14,
+    },
     linkText: {
       color: colors.accent,
       fontSize: 14,
@@ -157,10 +178,12 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [emailAlreadyInUse, setEmailAlreadyInUse] = useState(false);
 
   function resetMessages() {
     setError(null);
     setMessage(null);
+    setEmailAlreadyInUse(false);
   }
 
   function switchMode(next: AuthMode) {
@@ -200,8 +223,13 @@ export function AuthScreen() {
       }
 
       if (mode === 'signup') {
-        const { needsVerification } = await signUp(email, password);
-        if (needsVerification) {
+        const result = await signUp(email, password);
+        if (result.status === 'email_already_registered') {
+          setEmailAlreadyInUse(true);
+          setError(EMAIL_ALREADY_IN_USE_MESSAGE);
+          return;
+        }
+        if (result.status === 'needs_verification') {
           switchMode('signup-verify');
           setMessage('We emailed you an 8-digit verification code.');
         }
@@ -367,6 +395,22 @@ export function AuthScreen() {
                 ) : null}
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
+                {emailAlreadyInUse && mode === 'signup' ? (
+                  <View style={styles.existingAccountRow}>
+                    <Pressable
+                      style={styles.secondaryButton}
+                      onPress={() => switchMode('signin')}
+                    >
+                      <Text style={styles.secondaryButtonText}>Sign in instead</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.secondaryButton}
+                      onPress={() => switchMode('forgot')}
+                    >
+                      <Text style={styles.secondaryButtonText}>Forgot password</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
                 {message ? <Text style={styles.success}>{message}</Text> : null}
 
                 <Pressable

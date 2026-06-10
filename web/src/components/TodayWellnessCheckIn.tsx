@@ -61,7 +61,11 @@ export function TodayWellnessCheckIn() {
   const complete = saved != null && isWellnessLogFilled(saved)
 
   return (
-    <section className="wellness-card wellness-checkin" aria-labelledby="checkin-title">
+    <section
+      className="wellness-card wellness-checkin"
+      data-tour="wellness-checkin"
+      aria-labelledby="checkin-title"
+    >
       <div className="wellness-checkin-header">
         <div>
           <h3 id="checkin-title">Daily check-in</h3>

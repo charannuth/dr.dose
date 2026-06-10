@@ -312,7 +312,7 @@ export function TodayPage() {
   return (
     <>
       <main className="page dashboard">
-        <section className="today-summary">
+        <section className="today-summary" data-tour="today-summary">
           <h2>Today</h2>
           <p>{summaryText}</p>
           {todayTab === 'scheduled' && (
@@ -324,6 +324,7 @@ export function TodayPage() {
           className="today-tabs"
           role="tablist"
           aria-label="Medication schedule type"
+          data-tour="today-tabs"
         >
           <button
             type="button"
@@ -346,6 +347,7 @@ export function TodayPage() {
             aria-selected={todayTab === 'as_needed'}
             aria-controls="today-panel-prn"
             className={`today-tab${todayTab === 'as_needed' ? ' active' : ''}`}
+            data-tour="today-tab-prn"
             onClick={() => setTodayTab('as_needed')}
           >
             As needed

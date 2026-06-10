@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-10** (`9ac747e`) — Add web demo tour, signup UX fixes, and ESLint CI repair.
+
 - **2026-06-03** (`22d17bf`) — Scale celebration bouquet tulips by streak milestone tier.
 
 - **2026-06-03** (`c99b86e`) — Replay streak badge bloom on dose mark and undo.

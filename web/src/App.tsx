@@ -6,8 +6,10 @@ import { useAuth } from './hooks/useAuth'
 import { AppLayout } from './components/AppLayout'
 import { AuthPage } from './components/AuthPage'
 import { ConfigGuard } from './components/ConfigGuard'
+import { DemoTour } from './components/DemoTour'
 import { OnboardingModal } from './components/OnboardingModal'
 import { userHasMedications } from './lib/medications'
+import { isDemoTourDone, setDemoTourDone } from './lib/demoTour'
 import { isOnboardingDone, setOnboardingDone } from './lib/settings'
 import { AccountPage } from './pages/AccountPage'
 import { HelpPage } from './pages/HelpPage'
@@ -25,6 +27,8 @@ function AuthenticatedRoutes({ user }: { user: User }) {
   const navigate = useNavigate()
   const [onboardingReady, setOnboardingReady] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showDemoTour, setShowDemoTour] = useState(false)
+  const [openAddAfterTour, setOpenAddAfterTour] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -33,6 +37,7 @@ function AuthenticatedRoutes({ user }: { user: User }) {
       if (isOnboardingDone(user.id)) {
         if (active) {
           setShowOnboarding(false)
+          setShowDemoTour(false)
           setOnboardingReady(true)
         }
         return
@@ -42,7 +47,11 @@ function AuthenticatedRoutes({ user }: { user: User }) {
         const hasMeds = await userHasMedications(user.id)
         if (hasMeds) {
           setOnboardingDone(user.id)
-          if (active) setShowOnboarding(false)
+          setDemoTourDone(user.id)
+          if (active) {
+            setShowOnboarding(false)
+            setShowDemoTour(false)
+          }
         } else if (active) {
           setShowOnboarding(true)
         }
@@ -58,6 +67,23 @@ function AuthenticatedRoutes({ user }: { user: User }) {
     }
   }, [user.id])
 
+  function startDemoTour(openAddOnFinish = false) {
+    setOpenAddAfterTour(openAddOnFinish)
+    setShowOnboarding(false)
+    setShowDemoTour(true)
+    if (window.location.pathname !== '/') {
+      navigate('/')
+    }
+  }
+
+  function finishDemoTour() {
+    setShowDemoTour(false)
+    if (openAddAfterTour) {
+      setOpenAddAfterTour(false)
+      navigate('/', { state: { openAdd: true } })
+    }
+  }
+
   if (!onboardingReady) {
     return <p className="loading-screen">Loading…</p>
   }
@@ -67,11 +93,19 @@ function AuthenticatedRoutes({ user }: { user: User }) {
       {showOnboarding && (
         <OnboardingModal
           userId={user.id}
-          onDone={() => setShowOnboarding(false)}
-          onAddMedication={() => {
+          onDone={() => {
+            setDemoTourDone(user.id)
             setShowOnboarding(false)
-            navigate('/', { state: { openAdd: true } })
           }}
+          onStartTour={() => startDemoTour(false)}
+          onAddMedication={() => startDemoTour(true)}
+        />
+      )}
+      {showDemoTour && !isDemoTourDone(user.id) && (
+        <DemoTour
+          active={showDemoTour}
+          userId={user.id}
+          onComplete={finishDemoTour}
         />
       )}
       <Routes>

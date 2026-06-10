@@ -136,7 +136,7 @@ export async function fetchWeightSettings(userId: string): Promise<WeightSetting
   }
 
   // Seed baseline from medical_records if they exist.
-  let medical: MedicalRecord | null = null
+  let medical: MedicalRecord | null
   try {
     const res = await supabase
       .from('medical_records')

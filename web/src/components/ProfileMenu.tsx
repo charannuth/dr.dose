@@ -214,6 +214,7 @@ export function ProfileMenu() {
       <button
         type="button"
         className={`profile-trigger${visible ? ' profile-trigger-open' : ''}`}
+        data-tour="profile-menu"
         aria-expanded={visible}
         aria-controls={sidebarId}
         aria-haspopup="dialog"
