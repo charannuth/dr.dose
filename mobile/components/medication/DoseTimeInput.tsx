@@ -4,7 +4,11 @@ import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
-import { normalizeTime12Display } from '../../lib/doseTimeInput';
+import {
+  extractTimeDigits,
+  formatTime12MaskFromDigits,
+  normalizeTime12Display,
+} from '../../lib/doseTimeInput';
 
 type Props = {
   time12: string;
@@ -47,6 +51,11 @@ export function DoseTimeInput({ time12, period, label, onChange }: Props) {
   const styles = useThemedStyles(makeDoseTimeStyles);
   const { colors } = useTheme();
 
+  function handleTimeChange(raw: string) {
+    const digits = extractTimeDigits(raw);
+    onChange({ time12: formatTime12MaskFromDigits(digits), period });
+  }
+
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
@@ -54,18 +63,20 @@ export function DoseTimeInput({ time12, period, label, onChange }: Props) {
         <TextInput
           style={styles.timeInput}
           value={time12}
-          onChangeText={(t) => onChange({ time12: t, period })}
+          onChangeText={handleTimeChange}
           onBlur={() => {
             if (!time12.trim()) return;
             try {
               onChange({ time12: normalizeTime12Display(time12), period });
             } catch {
-              // keep partial
+              // keep partial until user fixes or taps Next
             }
           }}
-          placeholder="8:00"
+          placeholder="00:00"
           placeholderTextColor={colors.textMuted}
-          keyboardType="numbers-and-punctuation"
+          keyboardType="number-pad"
+          inputMode="numeric"
+          autoComplete="off"
           maxLength={5}
         />
         <View style={styles.periodWrap}>
