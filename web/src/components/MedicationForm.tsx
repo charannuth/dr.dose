@@ -8,6 +8,7 @@ import {
 } from '../lib/dates'
 import { normalizeTime12Display } from '../lib/doseTimeInput'
 import { DoseTimeInput } from './DoseTimeInput'
+import { IsoDateInput } from './IsoDateInput'
 import { getErrorMessage } from '../lib/errors'
 import {
   isMedicationRouteId,
@@ -606,11 +607,10 @@ export function MedicationForm({
           <div className="med-wizard-panel-inner">
             <label>
               Start date *
-              <input
-                type="date"
-                required
+              <IsoDateInput
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
+                aria-label="Medication start date"
               />
             </label>
             <label className="checkbox-row">
@@ -627,12 +627,10 @@ export function MedicationForm({
             {hasEndDate && (
               <label>
                 End date
-                <input
-                  type="date"
-                  required={hasEndDate}
-                  min={startDate}
+                <IsoDateInput
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={setEndDate}
+                  aria-label="Medication end date"
                 />
               </label>
             )}

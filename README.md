@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-11** (`52f54f9`) — Fix profile form resets, add ISO date masking, and tune reminder bootstrap.
+
 - **2026-06-11** (`c19053a`) — Format mobile dose time input with numeric keypad.
 
 - **2026-06-10** (`ee4649b`) — Add iOS production setup, EAS config, and legal pages.

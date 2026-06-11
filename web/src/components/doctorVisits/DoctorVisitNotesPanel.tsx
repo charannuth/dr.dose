@@ -1,4 +1,5 @@
 import type { DoctorVisitInput } from '../../lib/doctorVisits'
+import { IsoDateInput } from '../IsoDateInput'
 
 type DoctorVisitNotesPanelProps = {
   value: DoctorVisitInput
@@ -55,10 +56,10 @@ export function DoctorVisitNotesPanel({
 
           <label className="cycle-notes-label">
             Follow-up date (optional)
-            <input
-              type="date"
+            <IsoDateInput
               value={value.follow_up_date}
-              onChange={(e) => setField('follow_up_date', e.target.value)}
+              onChange={(follow_up_date) => setField('follow_up_date', follow_up_date)}
+              aria-label="Follow-up date"
             />
           </label>
         </fieldset>

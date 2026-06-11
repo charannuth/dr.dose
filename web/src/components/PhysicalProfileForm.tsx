@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { HeightWeightFields } from './HeightWeightFields'
+import { IsoDateInput } from './IsoDateInput'
+import { todayLocalDate } from '../lib/dates'
 import { GENDER_OPTIONS, ageFromDateOfBirth } from '../lib/profileStats'
 import type { BodyMetricUnit } from '../lib/bodyMetrics'
 import type { PhysicalProfileInput } from '../lib/physicalProfile'
@@ -41,11 +43,11 @@ export function PhysicalProfileForm({
 
       <label className="tracking-field">
         Date of birth
-        <input
-          type="date"
+        <IsoDateInput
           value={value.date_of_birth}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => patch({ date_of_birth: e.target.value })}
+          maxDate={todayLocalDate()}
+          onChange={(date_of_birth) => patch({ date_of_birth })}
+          aria-label="Date of birth"
         />
         {value.date_of_birth && ageFromDateOfBirth(value.date_of_birth) != null && (
           <span className="field-hint">Age {ageFromDateOfBirth(value.date_of_birth)} years</span>

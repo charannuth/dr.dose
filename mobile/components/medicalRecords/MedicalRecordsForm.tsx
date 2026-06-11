@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { IsoDateInput } from '../IsoDateInput';
+import { todayLocalDate } from '../../lib/dates';
 import { useRouter } from 'expo-router';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
@@ -66,12 +68,11 @@ export function MedicalRecordsForm({
       </Pressable>
 
       <Text style={trackingStyles.label}>Date of birth (YYYY-MM-DD)</Text>
-      <TextInput
+      <IsoDateInput
         style={trackingStyles.input}
         value={value.date_of_birth}
         onChangeText={(date_of_birth) => patch({ date_of_birth })}
-        placeholder="1990-01-15"
-        autoCapitalize="none"
+        maxDate={todayLocalDate()}
       />
       {age != null ? <Text style={trackingStyles.hint}>Age {age} years</Text> : null}
 

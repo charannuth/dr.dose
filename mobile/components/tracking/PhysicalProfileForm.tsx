@@ -1,4 +1,6 @@
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { IsoDateInput } from '../IsoDateInput';
+import { todayLocalDate } from '../../lib/dates';
 import { useRouter } from 'expo-router';
 import { spacing } from '../../constants/theme';
 import { GENDER_OPTIONS, ageFromDateOfBirth } from '../../lib/profileStats';
@@ -47,12 +49,11 @@ export function PhysicalProfileForm({
       </Pressable>
 
       <Text style={trackingStyles.label}>Date of birth (YYYY-MM-DD)</Text>
-      <TextInput
+      <IsoDateInput
         style={trackingStyles.input}
         value={value.date_of_birth}
         onChangeText={(date_of_birth) => patch({ date_of_birth })}
-        placeholder="1990-01-15"
-        autoCapitalize="none"
+        maxDate={todayLocalDate()}
       />
       {age != null ? (
         <Text style={trackingStyles.hint}>Age {age} years</Text>

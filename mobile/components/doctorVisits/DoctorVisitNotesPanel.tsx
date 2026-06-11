@@ -1,4 +1,5 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { IsoDateInput } from '../IsoDateInput';
 import type { DoctorVisitInput } from '../../lib/doctorVisits';
 import { useTrackingStyles } from '../tracking/trackingStyles';
 
@@ -49,13 +50,10 @@ export function DoctorVisitNotesPanel({
       />
 
       <Text style={track.label}>Follow-up date (optional)</Text>
-      <TextInput
+      <IsoDateInput
         style={track.input}
         value={value.follow_up_date}
         onChangeText={(text) => setField('follow_up_date', text)}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={track.hint.color}
-        autoCapitalize="none"
         editable={!busy && canSave}
       />
 

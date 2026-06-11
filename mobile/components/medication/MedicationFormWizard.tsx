@@ -49,6 +49,7 @@ import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { DosageStepPanel } from './DosageStepPanel';
+import { IsoDateInput } from '../IsoDateInput';
 import { DoseTimeInput } from './DoseTimeInput';
 import { MedicationNameInput } from './MedicationNameInput';
 import { MedicationSafetyPanel } from './MedicationSafetyPanel';
@@ -435,7 +436,7 @@ export function MedicationFormWizard({
         return (
           <View style={styles.panel}>
             <Text style={styles.fieldLabel}>Start date * (YYYY-MM-DD)</Text>
-            <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} />
+            <IsoDateInput style={styles.input} value={startDate} onChangeText={setStartDate} />
             <View style={styles.switchRow}>
               <Text style={styles.fieldLabel}>Set an end date</Text>
               <Switch value={hasEndDate} onValueChange={setHasEndDate} />
@@ -443,7 +444,7 @@ export function MedicationFormWizard({
             {hasEndDate ? (
               <>
                 <Text style={styles.fieldLabel}>End date (YYYY-MM-DD)</Text>
-                <TextInput style={styles.input} value={endDate} onChangeText={setEndDate} />
+                <IsoDateInput style={styles.input} value={endDate} onChangeText={setEndDate} />
               </>
             ) : null}
             <Text style={styles.hint}>

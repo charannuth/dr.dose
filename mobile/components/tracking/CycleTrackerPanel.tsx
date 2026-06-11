@@ -46,6 +46,8 @@ import {
   type FlowLevel,
 } from '../../lib/tracking/cycle';
 import { CycleDayStrip } from './CycleDayStrip';
+import { IsoDateInput } from '../IsoDateInput';
+import { tryNormalizeIsoDate } from '../../lib/isoDateInput';
 import { ChipMultiSelect } from './ChipMultiSelect';
 import { useTrackingStyles } from './trackingStyles';
 
@@ -84,6 +86,8 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [periodEndDraft, setPeriodEndDraft] = useState(today);
+  const [periodStartDraft, setPeriodStartDraft] = useState('');
+  const [lastEndedDraft, setLastEndedDraft] = useState('');
   const [fixExpanded, setFixExpanded] = useState(false);
 
   const logMonth = useMemo(() => {
@@ -108,8 +112,22 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
   }, [user, logMonth]);
 
   useEffect(() => {
-    if (openPeriod) setPeriodEndDraft(today);
-  }, [openPeriod?.id, today]);
+    if (openPeriod) {
+      setPeriodEndDraft(today);
+      setPeriodStartDraft(openPeriod.started_on);
+    }
+  }, [openPeriod?.id, openPeriod?.started_on, today]);
+
+  const lastClosedPeriod = useMemo(
+    () => periods.find((p) => p.ended_on != null) ?? null,
+    [periods],
+  );
+
+  useEffect(() => {
+    if (lastClosedPeriod?.ended_on) {
+      setLastEndedDraft(lastClosedPeriod.ended_on);
+    }
+  }, [lastClosedPeriod?.id, lastClosedPeriod?.ended_on]);
 
   useEffect(() => {
     if (!user) return;
@@ -190,7 +208,6 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
     }
   }
 
-  const lastClosedPeriod = periods.find((p) => p.ended_on);
   const selectedDayHasOptional =
     cycleDayHasOptionalData(selectedLog) ||
     symptomsPre.length > 0 ||
@@ -231,17 +248,19 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
       {openPeriod ? (
         <>
           <Text style={trackingStyles.label}>Period started (YYYY-MM-DD)</Text>
-          <TextInput
+          <IsoDateInput
             style={trackingStyles.input}
-            value={openPeriod.started_on}
+            value={periodStartDraft}
             editable={!busy}
-            onChangeText={(next) => {
-              if (!next || next === openPeriod.started_on || !user) return;
-              void runAction(() => updatePeriodStart(user.id, openPeriod.id, next));
+            onChangeText={setPeriodStartDraft}
+            onBlur={() => {
+              const normalized = tryNormalizeIsoDate(periodStartDraft);
+              if (!normalized || normalized === openPeriod.started_on || !user) return;
+              void runAction(() => updatePeriodStart(user.id, openPeriod.id, normalized));
             }}
           />
           <Text style={trackingStyles.label}>Period end date</Text>
-          <TextInput
+          <IsoDateInput
             style={trackingStyles.input}
             value={periodEndDraft}
             editable={!busy}
@@ -297,14 +316,23 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
       {!openPeriod && lastClosedPeriod?.ended_on ? (
         <>
           <Text style={trackingStyles.label}>Last period ended</Text>
-          <TextInput
+          <IsoDateInput
             style={trackingStyles.input}
-            value={lastClosedPeriod.ended_on}
+            value={lastEndedDraft}
             editable={!busy}
-            onChangeText={(next) => {
-              if (!next || next === lastClosedPeriod.ended_on || !user) return;
+            onChangeText={setLastEndedDraft}
+            onBlur={() => {
+              const normalized = tryNormalizeIsoDate(lastEndedDraft);
+              if (
+                !normalized ||
+                !lastClosedPeriod.ended_on ||
+                normalized === lastClosedPeriod.ended_on ||
+                !user
+              ) {
+                return;
+              }
               void runAction(() =>
-                updatePeriodEnd(user.id, lastClosedPeriod.id, next),
+                updatePeriodEnd(user.id, lastClosedPeriod.id, normalized),
               );
             }}
           />

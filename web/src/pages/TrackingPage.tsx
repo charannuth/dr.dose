@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useTrackingCalendarData } from '../hooks/useTrackingCalendarData'
 import { PhysicalProfileForm } from '../components/PhysicalProfileForm'
@@ -14,7 +14,7 @@ import {
   type CalendarSourceId,
 } from '../lib/tracking/calendarSources'
 import type { CalendarViewRange } from '../lib/tracking/calendarRange'
-import type { BodyMetricUnit } from '../lib/bodyMetrics'
+import { normalizeBodyMetricUnit, type BodyMetricUnit } from '../lib/bodyMetrics'
 import { todayLocalDate } from '../lib/dates'
 import { updateBodyMetricUnits } from '../lib/medicalRecords'
 import {
@@ -59,26 +59,29 @@ export function TrackingPage() {
   const [calendarRange, setCalendarRange] = useState<CalendarViewRange>('month')
   const [calendarSource, setCalendarSource] = useState<CalendarSourceId | null>(null)
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0)
+  const profileDirtyRef = useRef(false)
+  const userId = user?.id
 
   const reload = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     const [record, trackers] = await Promise.all([
-      fetchMedicalRecord(user.id),
-      fetchEnabledTrackers(user.id),
+      fetchMedicalRecord(userId),
+      fetchEnabledTrackers(userId),
     ])
     setMedicalRecord(record)
-    const filled = isPhysicalProfileFilled(physicalProfileFromRecord(record))
-    setProfileDraft(physicalProfileFromRecord(record))
+    if (!profileDirtyRef.current) {
+      const filled = isPhysicalProfileFilled(physicalProfileFromRecord(record))
+      setProfileDraft(physicalProfileFromRecord(record))
+      setProfileExpanded(!filled)
+    }
     setEnabled(trackers)
     setActiveTracker((prev) =>
       prev && trackers.includes(prev) ? prev : trackers[0] ?? null,
     )
-    // If the profile is filled, default to a "saved" summary view on next login.
-    setProfileExpanded(!filled)
-  }, [user])
+  }, [userId])
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     let active = true
     reload()
       .catch((err: unknown) => {
@@ -92,7 +95,12 @@ export function TrackingPage() {
     return () => {
       active = false
     }
-  }, [user, reload])
+  }, [userId, reload])
+
+  function handleProfileDraftChange(next: PhysicalProfileInput) {
+    profileDirtyRef.current = true
+    setProfileDraft(next)
+  }
 
   useEffect(() => {
     setCalendarSource((prev) =>
@@ -139,37 +147,47 @@ export function TrackingPage() {
   }
 
   async function handleHeightUnitChange(unit: BodyMetricUnit) {
+    profileDirtyRef.current = true
     setProfileDraft((d) => ({ ...d, height_unit: unit }))
-    if (!user) return
+    if (!userId) return
     try {
-      const saved = await updateBodyMetricUnits(user.id, { height_unit: unit })
+      const saved = await updateBodyMetricUnits(userId, { height_unit: unit })
       setMedicalRecord(saved)
-      setProfileDraft(physicalProfileFromRecord(saved))
+      setProfileDraft((d) => ({
+        ...d,
+        height_unit: normalizeBodyMetricUnit(saved.height_unit),
+      }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save unit preference')
     }
   }
 
   async function handleWeightUnitChange(unit: BodyMetricUnit) {
+    profileDirtyRef.current = true
     setProfileDraft((d) => ({ ...d, weight_unit: unit }))
-    if (!user) return
+    if (!userId) return
     try {
-      const saved = await updateBodyMetricUnits(user.id, { weight_unit: unit })
+      const saved = await updateBodyMetricUnits(userId, { weight_unit: unit })
       setMedicalRecord(saved)
-      setProfileDraft(physicalProfileFromRecord(saved))
+      setProfileDraft((d) => ({
+        ...d,
+        weight_unit: normalizeBodyMetricUnit(saved.weight_unit),
+      }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save unit preference')
     }
   }
 
   async function handleSaveProfile() {
-    if (!user) return
+    if (!userId) return
     setProfileBusy(true)
     setMessage(null)
     setError(null)
     try {
-      const saved = await upsertPhysicalProfile(user.id, profileDraft, medicalRecord)
+      const saved = await upsertPhysicalProfile(userId, profileDraft, medicalRecord)
       setMedicalRecord(saved)
+      setProfileDraft(physicalProfileFromRecord(saved))
+      profileDirtyRef.current = false
       setMessage('Physical profile saved.')
       setProfileExpanded(false)
     } catch (err) {
@@ -298,7 +316,7 @@ export function TrackingPage() {
             {profileExpanded && (
               <PhysicalProfileForm
                 value={profileDraft}
-                onChange={setProfileDraft}
+                onChange={handleProfileDraftChange}
                 onHeightUnitChange={(unit) => void handleHeightUnitChange(unit)}
                 onWeightUnitChange={(unit) => void handleWeightUnitChange(unit)}
                 onSubmit={() => void handleSaveProfile()}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -87,14 +87,16 @@ export default function MedicalRecordsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const draftDirtyRef = useRef(false);
+  const userId = user?.id;
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let active = true;
 
-    fetchMedicalRecord(user.id)
+    fetchMedicalRecord(userId)
       .then((record) => {
-        if (!active) return;
+        if (!active || draftDirtyRef.current) return;
         const next = recordToInput(record);
         setDraft(next);
         setExpanded(!isMedicalRecordFilled(next));
@@ -111,37 +113,52 @@ export default function MedicalRecordsScreen() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [userId]);
+
+  function handleDraftChange(next: MedicalRecordInput) {
+    draftDirtyRef.current = true;
+    setDraft(next);
+  }
 
   async function handleHeightUnitChange(unit: BodyMetricUnit) {
+    draftDirtyRef.current = true;
     setDraft((d) => ({ ...d, height_unit: unit }));
-    if (!user) return;
+    if (!userId) return;
     try {
-      const saved = await updateBodyMetricUnits(user.id, { height_unit: unit });
-      setDraft(recordToInput(saved));
+      const saved = await updateBodyMetricUnits(userId, { height_unit: unit });
+      setDraft((d) => ({
+        ...d,
+        height_unit: normalizeBodyMetricUnit(saved.height_unit),
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save unit preference');
     }
   }
 
   async function handleWeightUnitChange(unit: BodyMetricUnit) {
+    draftDirtyRef.current = true;
     setDraft((d) => ({ ...d, weight_unit: unit }));
-    if (!user) return;
+    if (!userId) return;
     try {
-      const saved = await updateBodyMetricUnits(user.id, { weight_unit: unit });
-      setDraft(recordToInput(saved));
+      const saved = await updateBodyMetricUnits(userId, { weight_unit: unit });
+      setDraft((d) => ({
+        ...d,
+        weight_unit: normalizeBodyMetricUnit(saved.weight_unit),
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save unit preference');
     }
   }
 
   async function handleSave() {
-    if (!user) return;
+    if (!userId) return;
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      await upsertMedicalRecord(user.id, draft);
+      const saved = await upsertMedicalRecord(userId, draft);
+      setDraft(recordToInput(saved));
+      draftDirtyRef.current = false;
       setMessage('Medical record saved.');
       setExpanded(false);
     } catch (err) {
@@ -287,7 +304,7 @@ export default function MedicalRecordsScreen() {
               ) : (
                 <MedicalRecordsForm
                   value={draft}
-                  onChange={setDraft}
+                  onChange={handleDraftChange}
                   onHeightUnitChange={(unit) => void handleHeightUnitChange(unit)}
                   onWeightUnitChange={(unit) => void handleWeightUnitChange(unit)}
                   onSubmit={() => void handleSave()}
