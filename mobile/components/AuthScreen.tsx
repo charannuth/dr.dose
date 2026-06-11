@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLogo } from './BrandLogo';
 import { EmailOtpVerification } from './EmailOtpVerification';
 import { useAuth } from '../hooks/useAuth';
-import { authErrorMessage } from '../lib/authErrors';
+import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors';
 import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
@@ -145,6 +145,11 @@ function makeAuthStyles(colors: ColorPalette) {
       color: colors.textMuted,
       textAlign: 'center' as const,
     },
+    rateLimitHint: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textMuted,
+    },
   };
 }
 
@@ -179,11 +184,13 @@ export function AuthScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [emailAlreadyInUse, setEmailAlreadyInUse] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
 
   function resetMessages() {
     setError(null);
     setMessage(null);
     setEmailAlreadyInUse(false);
+    setRateLimited(false);
   }
 
   function switchMode(next: AuthMode) {
@@ -235,6 +242,7 @@ export function AuthScreen() {
         }
       }
     } catch (err) {
+      setRateLimited(isAuthRateLimited(err));
       setError(authErrorMessage(err));
     } finally {
       setBusy(false);
@@ -395,6 +403,13 @@ export function AuthScreen() {
                 ) : null}
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
+                {rateLimited && mode === 'signup' ? (
+                  <Text style={styles.rateLimitHint}>
+                    This usually happens after several test sign-ups in a row. Check your inbox and
+                    spam for an 8-digit code from a previous attempt — if you have one, you do not
+                    need to sign up again.
+                  </Text>
+                ) : null}
                 {emailAlreadyInUse && mode === 'signup' ? (
                   <View style={styles.existingAccountRow}>
                     <Pressable

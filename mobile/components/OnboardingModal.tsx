@@ -9,6 +9,8 @@ type Props = {
   userId: string;
   visible: boolean;
   onDone: () => void;
+  onStartTour: () => void;
+  onAddMedication: () => void;
 };
 
 function makeStyles(colors: ColorPalette) {
@@ -36,6 +38,15 @@ function makeStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
     },
     ghostText: { color: colors.textMuted, fontWeight: '800' as const },
+    secondaryBtn: {
+      borderRadius: radii.md,
+      paddingVertical: 14,
+      alignItems: 'center' as const,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    secondaryText: { color: colors.text, fontWeight: '800' as const, fontSize: 16 },
     primaryBtn: {
       backgroundColor: colors.accent,
       borderRadius: radii.md,
@@ -46,7 +57,7 @@ function makeStyles(colors: ColorPalette) {
   };
 }
 
-export function OnboardingModal({ userId, visible, onDone }: Props) {
+export function OnboardingModal({ userId, visible, onDone, onStartTour, onAddMedication }: Props) {
   const router = useRouter();
   const styles = useThemedStyles(makeStyles);
 
@@ -55,10 +66,14 @@ export function OnboardingModal({ userId, visible, onDone }: Props) {
     onDone();
   }
 
+  function handleTour() {
+    void setOnboardingDone(userId);
+    onStartTour();
+  }
+
   function handleAdd() {
     void setOnboardingDone(userId);
-    onDone();
-    router.push('/medications/new');
+    onAddMedication();
   }
 
   return (
@@ -77,14 +92,18 @@ export function OnboardingModal({ userId, visible, onDone }: Props) {
               3. Build a streak by logging every scheduled dose each day.
             </Text>
             <Text style={styles.item}>
-              4. Use <Text style={styles.link} onPress={finish}>History</Text> for your calendar
-              and daily notes; <Text style={styles.link} onPress={finish}>Streaks</Text> for tulip
+              4. Use <Text style={styles.link} onPress={() => router.push('/history')}>History</Text>{' '}
+              for your calendar and daily notes;{' '}
+              <Text style={styles.link} onPress={() => router.push('/streaks')}>Streaks</Text> for tulip
               badges.
             </Text>
           </View>
           <View style={styles.actions}>
             <Pressable style={styles.ghostBtn} onPress={finish}>
               <Text style={styles.ghostText}>Skip for now</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryBtn} onPress={handleTour}>
+              <Text style={styles.secondaryText}>Show me around</Text>
             </Pressable>
             <Pressable style={styles.primaryBtn} onPress={handleAdd}>
               <Text style={styles.primaryText}>Add first medication</Text>

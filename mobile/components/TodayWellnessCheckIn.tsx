@@ -16,6 +16,7 @@ import {
 import { todayLocalDate } from '../lib/dates';
 import { WellnessDisclaimer } from './WellnessDisclaimer';
 import { WellnessDailyForm } from './WellnessDailyForm';
+import { useDemoTourTarget } from '../context/DemoTourTargetsContext';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
@@ -119,6 +120,7 @@ export function TodayWellnessCheckIn() {
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const tourRef = useDemoTourTarget('wellness-checkin');
 
   async function handleSave() {
     if (!user) return;
@@ -143,7 +145,7 @@ export function TodayWellnessCheckIn() {
 
   if (loading) {
     return (
-      <View style={styles.card}>
+      <View ref={tourRef} collapsable={false} style={styles.card}>
         <Text style={styles.h3}>Daily check-in</Text>
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.accent} />
@@ -156,7 +158,7 @@ export function TodayWellnessCheckIn() {
   const complete = saved != null && isWellnessLogFilled(saved);
 
   return (
-    <View style={styles.card}>
+    <View ref={tourRef} collapsable={false} style={styles.card}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.h3}>Daily check-in</Text>

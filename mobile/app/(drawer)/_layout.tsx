@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +12,13 @@ import { DrawerContentScrollView, DrawerItemList } from 'expo-router/build/react
 import { useAuth } from '../../hooks/useAuth';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
 import { OnboardingModal } from '../../components/OnboardingModal';
-import { isOnboardingDone } from '../../lib/settings';
+import { DemoTour } from '../../components/DemoTour';
+import {
+  DemoTourTargetsProvider,
+  useDemoTourTargets,
+} from '../../context/DemoTourTargetsContext';
+import { setDemoTourDone } from '../../lib/demoTour';
+import { isOnboardingDone, setOnboardingDone } from '../../lib/settings';
 import { fetchMedicationsWithStatus } from '../../lib/medications';
 import { useReminderBootstrap } from '../../hooks/useReminderBootstrap';
 import { useNotificationResponses } from '../../hooks/useNotificationResponses';
@@ -117,14 +123,36 @@ function DrawerContent(
 }
 
 export default function DrawerLayout() {
+  return (
+    <DemoTourTargetsProvider>
+      <DrawerLayoutInner />
+    </DemoTourTargetsProvider>
+  );
+}
+
+function DrawerLayoutInner() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { registerTarget, unregisterTarget } = useDemoTourTargets();
+  const addMedRef = useRef<View>(null);
+  const menuRef = useRef<View>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showDemoTour, setShowDemoTour] = useState(false);
+  const [openAddAfterTour, setOpenAddAfterTour] = useState(false);
 
   useReminderBootstrap(user?.id);
   useNotificationResponses();
+
+  useEffect(() => {
+    registerTarget('add-medication', addMedRef);
+    registerTarget('profile-menu', menuRef);
+    return () => {
+      unregisterTarget('add-medication');
+      unregisterTarget('profile-menu');
+    };
+  }, [registerTarget, unregisterTarget]);
 
   useEffect(() => {
     if (!user) return;
@@ -136,8 +164,8 @@ export default function DrawerLayout() {
       const meds = await fetchMedicationsWithStatus(user.id);
       if (!active) return;
       if (meds.length > 0) {
-        const { setOnboardingDone } = await import('../../lib/settings');
         await setOnboardingDone(user.id);
+        await setDemoTourDone(user.id);
         return;
       }
       setShowOnboarding(true);
@@ -147,6 +175,21 @@ export default function DrawerLayout() {
       active = false;
     };
   }, [user?.id]);
+
+  function startDemoTour(openAddOnFinish = false) {
+    setOpenAddAfterTour(openAddOnFinish);
+    setShowOnboarding(false);
+    setShowDemoTour(true);
+    router.navigate('/');
+  }
+
+  function finishDemoTour() {
+    setShowDemoTour(false);
+    if (openAddAfterTour) {
+      setOpenAddAfterTour(false);
+      router.push('/medications/new');
+    }
+  }
 
   const titleByRoute: Record<string, string> = {
     index: 'Today',
@@ -166,8 +209,16 @@ export default function DrawerLayout() {
         <OnboardingModal
           userId={user.id}
           visible={showOnboarding}
-          onDone={() => setShowOnboarding(false)}
+          onDone={() => {
+            void setDemoTourDone(user.id);
+            setShowOnboarding(false);
+          }}
+          onStartTour={() => startDemoTour(false)}
+          onAddMedication={() => startDemoTour(true)}
         />
+      ) : null}
+      {user && showDemoTour ? (
+        <DemoTour active={showDemoTour} userId={user.id} onComplete={finishDemoTour} />
       ) : null}
       <Drawer
         drawerContent={(props) => <DrawerContent {...props} styles={styles} />}
@@ -181,11 +232,15 @@ export default function DrawerLayout() {
           drawerInactiveTintColor: colors.textMuted,
           drawerActiveBackgroundColor: colors.pendingBg,
           headerLeft: () => (
-            <Hamburger onPress={() => navigation.toggleDrawer()} styles={styles} />
+            <View ref={menuRef} collapsable={false}>
+              <Hamburger onPress={() => navigation.toggleDrawer()} styles={styles} />
+            </View>
           ),
           headerRight: () =>
             route.name === 'index' ? (
-              <Plus onPress={() => router.push('/medications/new')} styles={styles} />
+              <View ref={addMedRef} collapsable={false}>
+                <Plus onPress={() => router.push('/medications/new')} styles={styles} />
+              </View>
             ) : null,
           headerTitle: () => (
             <HeaderTitle

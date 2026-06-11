@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -19,6 +19,7 @@ import { RefillBanner } from '../../components/banners/RefillBanner';
 import { InteractionAlert } from '../../components/banners/InteractionAlert';
 import { TodayWellnessCheckIn } from '../../components/TodayWellnessCheckIn';
 import { useAuth } from '../../hooks/useAuth';
+import { useDemoTourTarget, useDemoTourTargets } from '../../context/DemoTourTargetsContext';
 import {
   deleteMedication,
   fetchMedicationsWithStatus,
@@ -180,6 +181,11 @@ export default function TodayScreen() {
   const styles = useThemedStyles(makeTodayStyles);
   const { user } = useAuth();
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const summaryRef = useDemoTourTarget('today-summary');
+  const tabsRef = useDemoTourTarget('today-tabs');
+  const prnTabRef = useDemoTourTarget('today-tab-prn');
+  const { registerScrollToTarget, unregisterScrollToTarget } = useDemoTourTargets();
   const [medications, setMedications] = useState<MedicationWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -197,6 +203,27 @@ export default function TodayScreen() {
   useEffect(() => {
     isMissedDosesBannerDismissed().then(setMissedBannerDismissed).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    registerScrollToTarget('today-summary', () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    registerScrollToTarget('today-tabs', () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    registerScrollToTarget('today-tab-prn', () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    registerScrollToTarget('wellness-checkin', () => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => {
+      unregisterScrollToTarget('today-summary');
+      unregisterScrollToTarget('today-tabs');
+      unregisterScrollToTarget('today-tab-prn');
+      unregisterScrollToTarget('wellness-checkin');
+    };
+  }, [registerScrollToTarget, unregisterScrollToTarget]);
 
   const loadAll = useCallback(async () => {
     if (!user) return;
@@ -418,12 +445,13 @@ export default function TodayScreen() {
         <StreakCelebration streakDays={celebrationStreak} onDismiss={dismissCelebration} />
       ) : null}
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
-        <View style={styles.summary}>
+        <View ref={summaryRef} collapsable={false} style={styles.summary}>
           <Text style={styles.summaryTitle}>Today</Text>
           <Text style={styles.summaryText}>{summaryText}</Text>
           {todayTab === 'scheduled' ? (
@@ -449,7 +477,7 @@ export default function TodayScreen() {
         ) : null}
         <InteractionAlert medicationNames={medications.map((m) => m.name)} />
 
-        <View style={styles.tabs}>
+        <View ref={tabsRef} collapsable={false} style={styles.tabs}>
           <Pressable
             style={[styles.tab, todayTab === 'scheduled' && styles.tabActive]}
             onPress={() => setTodayTab('scheduled')}
@@ -470,10 +498,11 @@ export default function TodayScreen() {
               </View>
             ) : null}
           </Pressable>
-          <Pressable
-            style={[styles.tab, todayTab === 'as_needed' && styles.tabActive]}
-            onPress={() => setTodayTab('as_needed')}
-          >
+          <View ref={prnTabRef} collapsable={false} style={{ flex: 1 }}>
+            <Pressable
+              style={[styles.tab, todayTab === 'as_needed' && styles.tabActive]}
+              onPress={() => setTodayTab('as_needed')}
+            >
             <Text style={[styles.tabText, todayTab === 'as_needed' && styles.tabTextActive]}>
               As needed
             </Text>
@@ -490,6 +519,7 @@ export default function TodayScreen() {
               </View>
             ) : null}
           </Pressable>
+          </View>
         </View>
 
         {error ? (
