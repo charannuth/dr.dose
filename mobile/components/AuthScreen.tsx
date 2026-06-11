@@ -14,6 +14,11 @@ import { BrandLogo } from './BrandLogo';
 import { EmailOtpVerification } from './EmailOtpVerification';
 import { useAuth } from '../hooks/useAuth';
 import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors';
+import {
+  PASSWORD_REQUIREMENTS_HINT,
+  validatePassword,
+  validatePasswordMatch,
+} from '../lib/passwordPolicy';
 import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
@@ -150,6 +155,12 @@ function makeAuthStyles(colors: ColorPalette) {
       lineHeight: 20,
       color: colors.textMuted,
     },
+    passwordHint: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
   };
 }
 
@@ -195,7 +206,24 @@ export function AuthScreen() {
 
   function switchMode(next: AuthMode) {
     resetMessages();
+    setPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
     setMode(next);
+  }
+
+  function assertNewPassword(passwordValue: string, confirmValue: string): boolean {
+    const policy = validatePassword(passwordValue);
+    if (!policy.ok) {
+      setError(policy.message);
+      return false;
+    }
+    const match = validatePasswordMatch(passwordValue, confirmValue);
+    if (!match.ok) {
+      setError(match.message);
+      return false;
+    }
+    return true;
   }
 
   async function handleSubmit() {
@@ -211,14 +239,7 @@ export function AuthScreen() {
       }
 
       if (mode === 'forgot-reset') {
-        if (newPassword.length < 6) {
-          setError('Password must be at least 6 characters.');
-          return;
-        }
-        if (newPassword !== confirmPassword) {
-          setError('Passwords do not match.');
-          return;
-        }
+        if (!assertNewPassword(newPassword, confirmPassword)) return;
         await updatePassword(newPassword);
         setMessage('Password updated. You are signed in.');
         return;
@@ -230,6 +251,7 @@ export function AuthScreen() {
       }
 
       if (mode === 'signup') {
+        if (!assertNewPassword(password, confirmPassword)) return;
         const result = await signUp(email, password);
         if (result.status === 'email_already_registered') {
           setEmailAlreadyInUse(true);
@@ -371,9 +393,26 @@ export function AuthScreen() {
                       autoComplete={mode === 'signin' ? 'password' : 'new-password'}
                       value={password}
                       onChangeText={setPassword}
-                      placeholder="At least 6 characters"
+                      placeholder={
+                        mode === 'signup' ? 'Create a strong password' : 'Your password'
+                      }
                       placeholderTextColor={colors.textMuted}
                     />
+                    {mode === 'signup' ? (
+                      <>
+                        <Text style={styles.label}>Confirm password</Text>
+                        <TextInput
+                          style={styles.input}
+                          secureTextEntry
+                          autoComplete="new-password"
+                          value={confirmPassword}
+                          onChangeText={setConfirmPassword}
+                          placeholder="Repeat your password"
+                          placeholderTextColor={colors.textMuted}
+                        />
+                        <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
+                      </>
+                    ) : null}
                   </>
                 ) : null}
 
@@ -386,7 +425,7 @@ export function AuthScreen() {
                       autoComplete="new-password"
                       value={newPassword}
                       onChangeText={setNewPassword}
-                      placeholder="At least 6 characters"
+                      placeholder="Create a strong password"
                       placeholderTextColor={colors.textMuted}
                     />
                     <Text style={styles.label}>Confirm password</Text>
@@ -396,9 +435,10 @@ export function AuthScreen() {
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
-                      placeholder="Repeat password"
+                      placeholder="Repeat your password"
                       placeholderTextColor={colors.textMuted}
                     />
+                    <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
                   </>
                 ) : null}
 

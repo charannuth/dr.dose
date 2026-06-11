@@ -1,28 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type DemoTourArrow =
-  | 'curve-up-left'
-  | 'curve-up-right'
-  | 'curve-down-left'
-  | 'curve-down-right';
-
 export type DemoTourPlacement = 'top' | 'bottom' | 'left' | 'right';
+
+export type DemoTourDrawerMode = 'closed' | 'open';
 
 export type DemoTourTargetId =
   | 'add-medication'
   | 'today-tabs'
   | 'today-tab-prn'
-  | 'today-summary'
   | 'wellness-checkin'
-  | 'profile-menu';
+  | 'profile-menu'
+  | 'drawer-streaks'
+  | 'drawer-nav';
 
 export type DemoTourStep = {
   id: string;
   target: DemoTourTargetId;
   title: string;
   body: string;
-  arrow: DemoTourArrow;
   placement: DemoTourPlacement;
+  drawer?: DemoTourDrawerMode;
 };
 
 export const DEMO_TOUR_STEPS: DemoTourStep[] = [
@@ -31,48 +28,56 @@ export const DEMO_TOUR_STEPS: DemoTourStep[] = [
     target: 'add-medication',
     title: 'Add your medications',
     body: 'Tap + to enter each medicine, dose times (12-hour + AM/PM), and optional refill counts.',
-    arrow: 'curve-up-right',
     placement: 'bottom',
+    drawer: 'closed',
   },
   {
     id: 'daily-schedule',
     target: 'today-tabs',
     title: 'Daily schedule',
     body: 'Medications with fixed reminder times appear here. Mark each dose taken as you go through the day.',
-    arrow: 'curve-down-left',
     placement: 'bottom',
+    drawer: 'closed',
   },
   {
     id: 'as-needed',
     target: 'today-tab-prn',
     title: 'As needed (PRN)',
     body: 'Rescue inhalers, pain relievers, and other PRN meds live on this tab — log a dose only when you take one.',
-    arrow: 'curve-down-right',
     placement: 'bottom',
-  },
-  {
-    id: 'today-streak',
-    target: 'today-summary',
-    title: 'Streaks & progress',
-    body: 'Log every scheduled dose today to grow your streak and unlock tulip badges. Finish the day to keep it going.',
-    arrow: 'curve-up-left',
-    placement: 'bottom',
+    drawer: 'closed',
   },
   {
     id: 'wellness-checkin',
     target: 'wellness-checkin',
     title: 'Daily check-in',
     body: 'Optional evening log for sleep, energy, and symptoms — helpful to review with your clinician.',
-    arrow: 'curve-up-right',
     placement: 'top',
+    drawer: 'closed',
   },
   {
     id: 'profile-menu',
     target: 'profile-menu',
-    title: 'Menu & more',
-    body: 'Open the menu for History (calendar of doses), Streaks, Wellness, doctor visits, and drug safety checks.',
-    arrow: 'curve-down-right',
+    title: 'Open the menu',
+    body: 'Tap ≡ to open the side menu. History, Streaks, Tracking, and the rest of the app live here.',
     placement: 'right',
+    drawer: 'closed',
+  },
+  {
+    id: 'streaks',
+    target: 'drawer-streaks',
+    title: 'Streaks & progress',
+    body: 'Track your adherence streak and unlock tulip badges as you log scheduled doses day after day.',
+    placement: 'right',
+    drawer: 'open',
+  },
+  {
+    id: 'menu-more',
+    target: 'drawer-nav',
+    title: 'Everything else',
+    body: 'All other features and categories — Wellness, Tracking, doctor visits, drug safety, and account settings — are in this menu.',
+    placement: 'right',
+    drawer: 'open',
   },
 ];
 

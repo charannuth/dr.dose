@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { registerDemoTourMenu, unregisterDemoTourMenu } from '../lib/demoTourMenu'
 import { ProfileAvatar } from './ProfileAvatar'
 
 const navItems = [
@@ -79,6 +80,20 @@ export function ProfileMenu() {
   useEffect(() => {
     return () => cancelScheduledClose()
   }, [cancelScheduledClose])
+
+  useEffect(() => {
+    registerDemoTourMenu(
+      () => {
+        setPinned(true)
+        openMenu()
+      },
+      () => {
+        setPinned(false)
+        closeMenu()
+      },
+    )
+    return () => unregisterDemoTourMenu()
+  }, [openMenu, closeMenu])
 
   useEffect(() => {
     if (!mounted || visible) return
@@ -178,12 +193,13 @@ export function ProfileMenu() {
                 </div>
               </div>
 
-              <nav className="profile-nav profile-sidebar-nav">
+              <nav className="profile-nav profile-sidebar-nav" data-tour="drawer-nav">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.end}
+                    data-tour={item.to === '/streaks' ? 'drawer-streaks' : undefined}
                     className={({ isActive }) =>
                       `profile-nav-link${isActive ? ' active' : ''}`
                     }

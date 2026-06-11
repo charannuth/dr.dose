@@ -182,7 +182,6 @@ export default function TodayScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
-  const summaryRef = useDemoTourTarget('today-summary');
   const tabsRef = useDemoTourTarget('today-tabs');
   const prnTabRef = useDemoTourTarget('today-tab-prn');
   const { registerScrollToTarget, unregisterScrollToTarget } = useDemoTourTargets();
@@ -205,9 +204,6 @@ export default function TodayScreen() {
   }, []);
 
   useEffect(() => {
-    registerScrollToTarget('today-summary', () => {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    });
     registerScrollToTarget('today-tabs', () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     });
@@ -218,7 +214,6 @@ export default function TodayScreen() {
       scrollRef.current?.scrollToEnd({ animated: true });
     });
     return () => {
-      unregisterScrollToTarget('today-summary');
       unregisterScrollToTarget('today-tabs');
       unregisterScrollToTarget('today-tab-prn');
       unregisterScrollToTarget('wellness-checkin');
@@ -451,7 +446,7 @@ export default function TodayScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
-        <View ref={summaryRef} collapsable={false} style={styles.summary}>
+        <View style={styles.summary}>
           <Text style={styles.summaryTitle}>Today</Text>
           <Text style={styles.summaryText}>{summaryText}</Text>
           {todayTab === 'scheduled' ? (

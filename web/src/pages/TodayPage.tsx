@@ -312,7 +312,7 @@ export function TodayPage() {
   return (
     <>
       <main className="page dashboard">
-        <section className="today-summary" data-tour="today-summary">
+        <section className="today-summary">
           <h2>Today</h2>
           <p>{summaryText}</p>
           {todayTab === 'scheduled' && (

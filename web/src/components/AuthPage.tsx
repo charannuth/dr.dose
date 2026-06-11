@@ -2,6 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { EmailOtpVerification } from './EmailOtpVerification'
 import { useAuth } from '../hooks/useAuth'
 import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors'
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIREMENTS_HINT,
+  validatePassword,
+  validatePasswordMatch,
+} from '../lib/passwordPolicy'
 import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult'
 
 type AuthMode =
@@ -44,7 +50,24 @@ export function AuthPage() {
 
   function switchMode(next: AuthMode) {
     resetMessages()
+    setPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
     setMode(next)
+  }
+
+  function assertNewPassword(passwordValue: string, confirmValue: string): boolean {
+    const policy = validatePassword(passwordValue)
+    if (!policy.ok) {
+      setError(policy.message)
+      return false
+    }
+    const match = validatePasswordMatch(passwordValue, confirmValue)
+    if (!match.ok) {
+      setError(match.message)
+      return false
+    }
+    return true
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -61,14 +84,7 @@ export function AuthPage() {
       }
 
       if (mode === 'forgot-reset') {
-        if (newPassword.length < 6) {
-          setError('Password must be at least 6 characters.')
-          return
-        }
-        if (newPassword !== confirmPassword) {
-          setError('Passwords do not match.')
-          return
-        }
+        if (!assertNewPassword(newPassword, confirmPassword)) return
         await updatePassword(newPassword)
         setMessage('Password updated. You are signed in.')
         return
@@ -80,6 +96,7 @@ export function AuthPage() {
       }
 
       if (mode === 'signup') {
+        if (!assertNewPassword(password, confirmPassword)) return
         const result = await signUp(email, password)
         if (result.status === 'email_already_registered') {
           setEmailAlreadyInUse(true)
@@ -206,19 +223,37 @@ export function AuthPage() {
               )}
 
               {(mode === 'signin' || mode === 'signup') && (
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    autoComplete={
-                      mode === 'signin' ? 'current-password' : 'new-password'
-                    }
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </label>
+                <>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      autoComplete={
+                        mode === 'signin' ? 'current-password' : 'new-password'
+                      }
+                      required
+                      minLength={mode === 'signup' ? PASSWORD_MIN_LENGTH : 1}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </label>
+                  {mode === 'signup' ? (
+                    <>
+                      <label>
+                        Confirm password
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          minLength={PASSWORD_MIN_LENGTH}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                      </label>
+                      <p className="auth-password-hint">{PASSWORD_REQUIREMENTS_HINT}</p>
+                    </>
+                  ) : null}
+                </>
               )}
 
               {mode === 'forgot-reset' && (
@@ -229,7 +264,7 @@ export function AuthPage() {
                       type="password"
                       autoComplete="new-password"
                       required
-                      minLength={6}
+                      minLength={PASSWORD_MIN_LENGTH}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                     />
@@ -240,11 +275,12 @@ export function AuthPage() {
                       type="password"
                       autoComplete="new-password"
                       required
-                      minLength={6}
+                      minLength={PASSWORD_MIN_LENGTH}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                   </label>
+                  <p className="auth-password-hint">{PASSWORD_REQUIREMENTS_HINT}</p>
                 </>
               )}
 

@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import {
   DEMO_TOUR_STEPS,
   setDemoTourDone,
-  type DemoTourPlacement,
   type DemoTourStep,
 } from '../lib/demoTour'
-import { DemoTourArrow } from './DemoTourArrow'
+import { demoTourCloseMenu, demoTourOpenMenu } from '../lib/demoTourMenu'
+import { DemoTourPointer } from './DemoTourPointer'
 
 type Rect = {
   top: number
@@ -39,10 +39,10 @@ function measureTarget(selector: string): Rect | null {
 
 function tooltipPosition(
   target: Rect,
-  placement: DemoTourPlacement,
+  placement: DemoTourStep['placement'],
   tooltipWidth: number,
   tooltipHeight: number,
-): { top: number; left: number } {
+): Rect {
   const vw = window.innerWidth
   const vh = window.innerHeight
 
@@ -71,7 +71,16 @@ function tooltipPosition(
 
   left = Math.max(VIEWPORT_PAD, Math.min(left, vw - tooltipWidth - VIEWPORT_PAD))
   top = Math.max(VIEWPORT_PAD, Math.min(top, vh - tooltipHeight - VIEWPORT_PAD))
-  return { top, left }
+  return { top, left, width: tooltipWidth, height: tooltipHeight }
+}
+
+async function prepareStep(step: DemoTourStep) {
+  if (step.drawer === 'open') {
+    demoTourOpenMenu()
+  } else {
+    demoTourCloseMenu()
+  }
+  await new Promise((r) => setTimeout(r, step.drawer === 'open' ? 350 : 150))
 }
 
 export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
@@ -83,21 +92,22 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
   const total = DEMO_TOUR_STEPS.length
 
   const finish = useCallback(() => {
+    demoTourCloseMenu()
     setDemoTourDone(userId)
     setStepIndex(0)
     setTargetRect(null)
     onComplete()
   }, [userId, onComplete])
 
-  const updateMeasurements = useCallback(() => {
+  const updateMeasurements = useCallback(async () => {
     if (!active || !step) return
+    await prepareStep(step)
     const el = document.querySelector(step.target)
     if (el) {
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }
-    requestAnimationFrame(() => {
-      setTargetRect(measureTarget(step.target))
-    })
+    await new Promise((r) => setTimeout(r, 200))
+    setTargetRect(measureTarget(step.target))
   }, [active, step])
 
   useLayoutEffect(() => {
@@ -105,14 +115,14 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
       setTargetRect(null)
       return
     }
-    updateMeasurements()
+    void updateMeasurements()
   }, [active, stepIndex, updateMeasurements])
 
   useEffect(() => {
     if (!active) return
 
     function onLayoutChange() {
-      updateMeasurements()
+      void updateMeasurements()
     }
 
     window.addEventListener('resize', onLayoutChange)
@@ -156,10 +166,10 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
 
   if (!active || !step) return null
 
-  const tooltipPos =
+  const tooltipRect =
     targetRect != null
       ? tooltipPosition(targetRect, step.placement, tooltipBox.width, tooltipBox.height)
-      : { top: '50%', left: '50%' }
+      : null
 
   return createPortal(
     <div className="demo-tour-layer" role="presentation">
@@ -183,14 +193,18 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
         />
       )}
 
+      {targetRect && tooltipRect ? (
+        <DemoTourPointer tooltip={tooltipRect} target={targetRect} placement={step.placement} />
+      ) : null}
+
       <div
         className="demo-tour-tooltip"
         role="dialog"
         aria-modal="true"
         aria-labelledby="demo-tour-title"
         style={
-          typeof tooltipPos.top === 'number'
-            ? { top: tooltipPos.top, left: tooltipPos.left }
+          tooltipRect
+            ? { top: tooltipRect.top, left: tooltipRect.left }
             : {
                 top: '50%',
                 left: '50%',
@@ -209,7 +223,6 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <DemoTourArrow variant={step.arrow} className={`demo-tour-arrow-${step.placement}`} />
         <p className="demo-tour-step-label">
           Step {stepIndex + 1} of {total}
         </p>

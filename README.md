@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-10** (`9014af3`) — Add signup password requirements and refine demo tour pointers.
+
 - **2026-06-10** (`61049ee`) — Add mobile demo tour and signup rate-limit hint parity.
 
 - **2026-06-10** (`9ac747e`) — Add web demo tour, signup UX fixes, and ESLint CI repair.

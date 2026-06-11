@@ -1258,36 +1258,12 @@ textarea:focus-visible {
   pointer-events: auto;
 }
 
-.demo-tour-arrow {
-  position: absolute;
-  width: 2.5rem;
-  height: 3.5rem;
-  color: var(--text);
-  opacity: 0.92;
-}
-
-.demo-tour-arrow-bottom {
-  top: -3.25rem;
-  left: 50%;
-  transform: translateX(-30%);
-}
-
-.demo-tour-arrow-top {
-  bottom: -3.25rem;
-  left: 50%;
-  transform: translateX(-30%) rotate(180deg);
-}
-
-.demo-tour-arrow-right {
-  left: -2.75rem;
-  top: 50%;
-  transform: translateY(-50%) rotate(-90deg);
-}
-
-.demo-tour-arrow-left {
-  right: -2.75rem;
-  top: 50%;
-  transform: translateY(-50%) rotate(90deg);
+.demo-tour-pointer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--accent);
 }
 
 .demo-tour-step-label {
@@ -2066,6 +2042,13 @@ textarea:focus-visible {
 }
 
 .auth-rate-limit-hint {
+  margin: 0 0 0.75rem;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.auth-password-hint {
   margin: 0 0 0.75rem;
   font-size: var(--text-sm);
   line-height: 1.5;

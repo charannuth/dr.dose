@@ -17,12 +17,17 @@ import {
   DemoTourTargetsProvider,
   useDemoTourTargets,
 } from '../../context/DemoTourTargetsContext';
-import { setDemoTourDone } from '../../lib/demoTour';
+import { setDemoTourDone, type DemoTourStep } from '../../lib/demoTour';
 import { isOnboardingDone, setOnboardingDone } from '../../lib/settings';
 import { fetchMedicationsWithStatus } from '../../lib/medications';
 import { useReminderBootstrap } from '../../hooks/useReminderBootstrap';
 import { useNotificationResponses } from '../../hooks/useNotificationResponses';
 import { useTheme } from '../../context/ThemeProvider';
+
+type DrawerContentProps = Parameters<typeof DrawerItemList>[0] & {
+  styles: ReturnType<typeof makeStyles>;
+  colors: ColorPalette;
+};
 
 function Hamburger({
   onPress,
@@ -77,13 +82,61 @@ function HeaderTitle({
   );
 }
 
-function DrawerContent(
-  props: Parameters<typeof DrawerItemList>[0] & { styles: ReturnType<typeof makeStyles> },
-) {
+function DrawerNavItem({
+  label,
+  focused,
+  onPress,
+  colors,
+}: {
+  label: string;
+  focused: boolean;
+  onPress: () => void;
+  colors: ColorPalette;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: focused }}
+      style={{
+        marginHorizontal: spacing.sm,
+        marginVertical: 2,
+        paddingVertical: 11,
+        paddingHorizontal: spacing.md,
+        borderRadius: radii.md,
+        backgroundColor: focused ? colors.pendingBg : 'transparent',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: focused ? ('700' as const) : ('500' as const),
+          color: focused ? colors.accent : colors.textMuted,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function DrawerContent(props: DrawerContentProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-  const { styles, ...drawerProps } = props;
+  const { styles, colors, state, navigation, descriptors, ...drawerProps } = props;
+  const streaksRef = useRef<View>(null);
+  const navRef = useRef<View>(null);
+  const { registerTarget, unregisterTarget } = useDemoTourTargets();
+
+  useEffect(() => {
+    registerTarget('drawer-streaks', streaksRef);
+    registerTarget('drawer-nav', navRef);
+    return () => {
+      unregisterTarget('drawer-streaks');
+      unregisterTarget('drawer-nav');
+    };
+  }, [registerTarget, unregisterTarget]);
 
   return (
     <DrawerContentScrollView
@@ -104,12 +157,36 @@ function DrawerContent(
         </View>
       </View>
 
-      <DrawerItemList {...drawerProps} />
+      <View ref={navRef} collapsable={false}>
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const label = options.drawerLabel ?? options.title ?? route.name;
+          const focused = state.index === index;
+          const item = (
+            <DrawerNavItem
+              label={String(label)}
+              focused={focused}
+              colors={colors}
+              onPress={() => navigation.navigate(route.name)}
+            />
+          );
+
+          if (route.name === 'streaks') {
+            return (
+              <View key={route.key} ref={streaksRef} collapsable={false}>
+                {item}
+              </View>
+            );
+          }
+
+          return <View key={route.key}>{item}</View>;
+        })}
+      </View>
 
       <Pressable
         onPress={async () => {
           await signOut();
-          drawerProps.navigation.closeDrawer();
+          navigation.closeDrawer();
           router.replace('/login');
         }}
         style={styles.signOutRow}
@@ -138,6 +215,7 @@ function DrawerLayoutInner() {
   const { registerTarget, unregisterTarget } = useDemoTourTargets();
   const addMedRef = useRef<View>(null);
   const menuRef = useRef<View>(null);
+  const drawerNavRef = useRef<{ openDrawer: () => void; closeDrawer: () => void } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDemoTour, setShowDemoTour] = useState(false);
   const [openAddAfterTour, setOpenAddAfterTour] = useState(false);
@@ -183,7 +261,19 @@ function DrawerLayoutInner() {
     router.navigate('/');
   }
 
+  function prepareTourStep(step: DemoTourStep) {
+    if (step.drawer === 'open') {
+      drawerNavRef.current?.openDrawer();
+    } else {
+      drawerNavRef.current?.closeDrawer();
+    }
+    if (step.drawer === 'closed') {
+      router.navigate('/');
+    }
+  }
+
   function finishDemoTour() {
+    drawerNavRef.current?.closeDrawer();
     setShowDemoTour(false);
     if (openAddAfterTour) {
       setOpenAddAfterTour(false);
@@ -218,10 +308,18 @@ function DrawerLayoutInner() {
         />
       ) : null}
       {user && showDemoTour ? (
-        <DemoTour active={showDemoTour} userId={user.id} onComplete={finishDemoTour} />
+        <DemoTour
+          active={showDemoTour}
+          userId={user.id}
+          onComplete={finishDemoTour}
+          onPrepareStep={prepareTourStep}
+        />
       ) : null}
       <Drawer
-        drawerContent={(props) => <DrawerContent {...props} styles={styles} />}
+        drawerContent={(props) => {
+          drawerNavRef.current = props.navigation;
+          return <DrawerContent {...props} styles={styles} colors={colors} />;
+        }}
         screenOptions={({ navigation, route }) => ({
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,

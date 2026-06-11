@@ -11,19 +11,19 @@ import {
 import {
   DEMO_TOUR_STEPS,
   setDemoTourDone,
-  type DemoTourPlacement,
   type DemoTourStep,
 } from '../lib/demoTour';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useDemoTourTargets, type TourRect } from '../context/DemoTourTargetsContext';
-import { DemoTourArrow } from './DemoTourArrow';
+import { DemoTourPointer } from './DemoTourPointer';
 
 type DemoTourProps = {
   active: boolean;
   userId: string;
   onComplete: () => void;
+  onPrepareStep?: (step: DemoTourStep) => void | Promise<void>;
 };
 
 const TOOLTIP_GAP = 14;
@@ -32,10 +32,10 @@ const SPOTLIGHT_PAD = 6;
 
 function tooltipPosition(
   target: TourRect,
-  placement: DemoTourPlacement,
+  placement: DemoTourStep['placement'],
   tooltipWidth: number,
   tooltipHeight: number,
-): { top: number; left: number } {
+): TourRect {
   const { width: vw, height: vh } = Dimensions.get('window');
 
   let top: number;
@@ -63,7 +63,7 @@ function tooltipPosition(
 
   left = Math.max(VIEWPORT_PAD, Math.min(left, vw - tooltipWidth - VIEWPORT_PAD));
   top = Math.max(VIEWPORT_PAD, Math.min(top, vh - tooltipHeight - VIEWPORT_PAD));
-  return { top, left };
+  return { top, left, width: tooltipWidth, height: tooltipHeight };
 }
 
 function makeStyles(colors: ColorPalette) {
@@ -144,21 +144,7 @@ function makeStyles(colors: ColorPalette) {
   });
 }
 
-function arrowStyle(placement: DemoTourPlacement) {
-  switch (placement) {
-    case 'top':
-      return { position: 'absolute' as const, bottom: -72, left: 28 };
-    case 'left':
-      return { position: 'absolute' as const, right: -56, top: 20 };
-    case 'right':
-      return { position: 'absolute' as const, left: -56, top: 20 };
-    case 'bottom':
-    default:
-      return { position: 'absolute' as const, top: -72, left: 28 };
-  }
-}
-
-export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
+export function DemoTour({ active, userId, onComplete, onPrepareStep }: DemoTourProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { measureTarget, scrollToTarget } = useDemoTourTargets();
@@ -179,11 +165,13 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
 
   const refreshTarget = useCallback(async () => {
     if (!active || !step) return;
+    await onPrepareStep?.(step);
+    await new Promise((r) => setTimeout(r, step.drawer === 'open' ? 450 : 250));
     scrollToTarget(step.target);
-    await new Promise((r) => setTimeout(r, 350));
+    await new Promise((r) => setTimeout(r, 300));
     const rect = await measureTarget(step.target);
     setTargetRect(rect);
-  }, [active, step, scrollToTarget, measureTarget]);
+  }, [active, step, scrollToTarget, measureTarget, onPrepareStep]);
 
   useEffect(() => {
     if (!active) {
@@ -223,11 +211,13 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
       }
     : null;
 
-  const tooltipPos = targetRect
+  const tooltipRect = targetRect
     ? tooltipPosition(targetRect, step.placement, tooltipBox.width, tooltipBox.height)
     : {
         top: windowSize.height / 2 - tooltipBox.height / 2,
         left: windowSize.width / 2 - tooltipBox.width / 2,
+        width: tooltipBox.width,
+        height: tooltipBox.height,
       };
 
   return (
@@ -293,15 +283,19 @@ export function DemoTour({ active, userId, onComplete }: DemoTourProps) {
           <Pressable style={styles.scrim} onPress={finish} accessibilityLabel="Skip tour" />
         )}
 
+        {targetRect ? (
+          <DemoTourPointer
+            tooltip={tooltipRect}
+            target={targetRect}
+            placement={step.placement}
+            color={colors.accent}
+          />
+        ) : null}
+
         <View
-          style={[styles.tooltip, { top: tooltipPos.top, left: tooltipPos.left }]}
+          style={[styles.tooltip, { top: tooltipRect.top, left: tooltipRect.left }]}
           onLayout={onTooltipLayout}
         >
-          <DemoTourArrow
-            variant={step.arrow}
-            color={colors.accent}
-            style={arrowStyle(step.placement)}
-          />
           <Text style={styles.stepLabel}>
             Step {stepIndex + 1} of {total}
           </Text>
