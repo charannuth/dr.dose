@@ -1,22 +1,31 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Dr. Dose",
+    "slug": "dr-dose",
     "scheme": "medicine-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0891b2"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.charannuth.drdose",
+      "buildNumber": "1",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "Dr. Dose sends reminders when your scheduled medication doses are due, including when the app is closed or your phone is locked.",
         "NSPhotoLibraryUsageDescription": "Dr. Dose uses your photo library so you can choose a profile picture.",
-        "NSCameraUsageDescription": "Dr. Dose uses the camera so you can take a profile picture."
+        "NSCameraUsageDescription": "Dr. Dose uses the camera so you can take a profile picture.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.charannuth.drdose",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

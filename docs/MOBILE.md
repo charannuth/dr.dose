@@ -107,3 +107,7 @@ Deep linking: `app.json` sets `scheme` to `medicine-tracker` (`medicine-tracker:
 | `package.json` `main` | `expo-router/entry` |
 
 After changing native config or plugins, run `npx expo prebuild` (or `expo run:ios`, which prebuilds when needed) so `ios/` / `android/` stay in sync.
+
+## Production (TestFlight / App Store)
+
+See **[MOBILE_PRODUCTION.md](../docs/MOBILE_PRODUCTION.md)** for EAS Build, Apple Developer setup, App Store Connect metadata, and Supabase redirect URLs for the native app.

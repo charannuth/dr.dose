@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-10** (`ee4649b`) — Add iOS production setup, EAS config, and legal pages.
+
 - **2026-06-10** (`9014af3`) — Add signup password requirements and refine demo tour pointers.
 
 - **2026-06-10** (`61049ee`) — Add mobile demo tour and signup rate-limit hint parity.
@@ -137,7 +139,7 @@ Dr. Dose aims to be the central hub between patients, pharmacies, and healthcare
 |--------|--------|
 | Web (v1) | **Available** (`web/`) — [deploy guide](docs/DEPLOY.md) |
 | Database | Migrations **002–016** — see [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
-| iOS / Android | Planned (after push + shared logic) |
+| iOS / Android | In progress — [mobile production guide](docs/MOBILE_PRODUCTION.md) |
 | Pharmacy integrations | Long-term |
 
 **Stack:** [React](https://react.dev) · [Vite](https://vite.dev) · [Supabase](https://supabase.com) (Auth + PostgreSQL + Storage) · [RxNorm](https://www.nlm.nih.gov/research/umls/rxnorm/index.html) (drug name lookup)
@@ -150,6 +152,7 @@ Dr. Dose aims to be the central hub between patients, pharmacies, and healthcare
 | [docs/MIGRATIONS.md](docs/MIGRATIONS.md) | Database migrations 002–016 + verify SQL |
 | [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) | Auth, env vars, first-time setup |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Vercel deploy |
+| [docs/MOBILE_PRODUCTION.md](docs/MOBILE_PRODUCTION.md) | iOS TestFlight & App Store (EAS) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Shipped vs planned (**including native mobile**) |
 
 ---

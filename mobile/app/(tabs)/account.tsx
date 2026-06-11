@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LegalLinks } from '../../components/LegalLinks';
 import { AccountMedicationsSection } from '../../components/account/AccountMedicationsSection';
 import { ProfilePictureEditor } from '../../components/account/ProfilePictureEditor';
 import { ProfileStreakSummary } from '../../components/account/ProfileStreakSummary';
@@ -435,6 +436,18 @@ export default function AccountScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+          <LegalLinks
+            colors={colors}
+            styles={{
+              legalRow: styles.legalRow,
+              legalLink: styles.link,
+              legalMuted: styles.legalMuted,
+            }}
+          />
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Sign-in</Text>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Email</Text>
@@ -575,5 +588,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     },
     errorBannerText: { color: colors.error, fontWeight: '700' },
     footerLink: { textAlign: 'center', marginTop: spacing.sm },
+    legalRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 4,
+    },
+    legalMuted: { color: colors.textMuted, fontSize: 14 },
   });
 }

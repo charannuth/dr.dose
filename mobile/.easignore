@@ -1,0 +1,8 @@
+# Keep EAS upload small — source and docs only; native dirs are generated at build time.
+.git/
+.github/
+../docs/
+../supabase/
+../web/
+*.md
+!README.md

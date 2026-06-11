@@ -2088,6 +2088,22 @@ textarea:focus-visible {
   line-height: 1.5;
 }
 
+.auth-legal-links {
+  margin: 1rem 0 0;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.auth-legal-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.auth-legal-links a:hover {
+  text-decoration: underline;
+}
+
 .setup-card ol {
   margin: 1rem 0;
   padding-left: 1.25rem;

@@ -21,6 +21,8 @@ import { MedicalRecordsPage } from './pages/MedicalRecordsPage'
 import { DoctorVisitsPage } from './pages/DoctorVisitsPage'
 import { StreaksPage } from './pages/StreaksPage'
 import { WellnessPage } from './pages/WellnessPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { TermsPage } from './pages/TermsPage'
 import './App.css'
 
 function AuthenticatedRoutes({ user }: { user: User }) {
@@ -121,6 +123,8 @@ function AuthenticatedRoutes({ user }: { user: User }) {
           <Route path="doctor-visits" element={<DoctorVisitsPage />} />
           <Route path="wellness" element={<WellnessPage />} />
           <Route path="help" element={<HelpPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="terms" element={<TermsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -135,11 +139,17 @@ function AppRoutes() {
     return <p className="loading-screen">Loading…</p>
   }
 
-  if (!user) {
-    return <AuthPage />
-  }
-
-  return <AuthenticatedRoutes key={user.id} user={user} />
+  return (
+    <Routes>
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      {!user ? (
+        <Route path="*" element={<AuthPage />} />
+      ) : (
+        <Route path="/*" element={<AuthenticatedRoutes key={user.id} user={user} />} />
+      )}
+    </Routes>
+  )
 }
 
 export default function App() {

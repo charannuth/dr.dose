@@ -356,6 +356,12 @@ export function AuthPage() {
           </p>
         )}
 
+        <p className="auth-legal-links">
+          <a href="/privacy">Privacy policy</a>
+          {' · '}
+          <a href="/terms">Terms of use</a>
+        </p>
+
         <p className="disclaimer">
           For personal use only. Not medical advice — always follow your
           healthcare provider&apos;s instructions.

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
+import { LegalLinks } from '../../components/LegalLinks';
 import { radii, spacing } from '../../constants/theme';
 
 const RXNORM_URL = 'https://www.nlm.nih.gov/research/umls/rxnorm/index.html';
@@ -119,6 +120,15 @@ export default function HelpScreen() {
           </Text>
         </View>
 
+        <LegalLinks
+          colors={colors}
+          styles={{
+            legalRow: styles.legalRow,
+            legalLink: styles.link,
+            legalMuted: styles.legalMuted,
+          }}
+        />
+
         <Pressable onPress={() => router.push('/(drawer)')}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>
         </Pressable>
@@ -155,5 +165,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     em: { fontStyle: 'italic' },
     link: { color: colors.accent, fontWeight: '700' },
     footerLink: { textAlign: 'center', marginTop: spacing.sm },
+    legalRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    legalMuted: { color: colors.textMuted, fontSize: 14 },
   });
 }

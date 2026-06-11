@@ -96,6 +96,10 @@ export function HelpPage() {
       </section>
 
       <p className="page-footer-hint">
+        <Link to="/privacy">Privacy policy</Link>
+        {' · '}
+        <Link to="/terms">Terms of use</Link>
+        {' · '}
         <Link to="/">Back to Today</Link>
       </p>
     </main>

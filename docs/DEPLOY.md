@@ -28,6 +28,8 @@ After you have the Vercel URL:
 
 Save. Password reset and sign-in redirects will work in production.
 
+**Mobile app (TestFlight / App Store):** also add `medicine-tracker://**` to **Redirect URLs** so native password-reset deep links work. Full iOS release steps: **[MOBILE_PRODUCTION.md](MOBILE_PRODUCTION.md)**.
+
 ## Database (only if not done yet)
 
 In Supabase **SQL Editor**, run in order:
