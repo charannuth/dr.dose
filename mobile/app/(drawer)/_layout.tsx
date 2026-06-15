@@ -1,22 +1,17 @@
-import 'react-native-gesture-handler';
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'expo-router/drawer';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { DrawerContentScrollView, type DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
-import { DrawerContentScrollView, DrawerItemList } from 'expo-router/build/react-navigation/drawer';
 import { useAuth } from '../../hooks/useAuth';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { DemoTour } from '../../components/DemoTour';
-import {
-  DemoTourTargetsProvider,
-  useDemoTourTargets,
-} from '../../context/DemoTourTargetsContext';
+import { useDemoTourTargets } from '../../context/DemoTourTargetsContext';
 import { setDemoTourDone, type DemoTourStep } from '../../lib/demoTour';
 import { isOnboardingDone, setOnboardingDone } from '../../lib/settings';
 import { routes } from '../../lib/routes';
@@ -25,7 +20,7 @@ import { useReminderBootstrap } from '../../hooks/useReminderBootstrap';
 import { useNotificationResponses } from '../../hooks/useNotificationResponses';
 import { useTheme } from '../../context/ThemeProvider';
 
-type DrawerContentProps = Parameters<typeof DrawerItemList>[0] & {
+type DrawerContentProps = DrawerContentComponentProps & {
   styles: ReturnType<typeof makeStyles>;
   colors: ColorPalette;
 };
@@ -201,16 +196,26 @@ function DrawerContent(props: DrawerContentProps) {
 }
 
 export default function DrawerLayout() {
-  return (
-    <DemoTourTargetsProvider>
-      <DrawerLayoutInner />
-    </DemoTourTargetsProvider>
-  );
+  const { user, loading } = useAuth();
+
+  // "/" resolves to this layout — never mount the native Drawer until signed in.
+  if (loading) {
+    return null;
+  }
+
+  if (!user) {
+    return <Redirect href={routes.login} />;
+  }
+
+  return <DrawerLayoutInner user={user} />;
 }
 
-function DrawerLayoutInner() {
+function DrawerLayoutInner({
+  user,
+}: {
+  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+}) {
   const router = useRouter();
-  const { user } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { registerTarget, unregisterTarget } = useDemoTourTargets();
