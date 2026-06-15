@@ -12,6 +12,7 @@ import { useDoctorVisitsCalendarData } from '../../hooks/useDoctorVisitsCalendar
 import { DoctorVisitsPanel } from '../../components/doctorVisits/DoctorVisitsPanel';
 import { TrackingCalendar } from '../../components/tracking/TrackingCalendar';
 import { todayLocalDate } from '../../lib/dates';
+import { routes } from '../../lib/routes';
 import { CALENDAR_SOURCE_ALL } from '../../lib/tracking/calendarSources';
 import type { CalendarSourceMeta } from '../../lib/tracking/calendarSources';
 import type { CalendarViewRange } from '../../lib/tracking/calendarRange';
@@ -79,7 +80,7 @@ export default function DoctorVisitsScreen() {
             Schedule upcoming appointments and save notes after your visit — for your own records,
             not a clinical chart.
           </Text>
-          <Pressable style={styles.linkBtn} onPress={() => router.push('/wellness')}>
+          <Pressable style={styles.linkBtn} onPress={() => router.push(routes.wellness)}>
             <Text style={styles.linkBtnText}>Prepare wellness report</Text>
           </Pressable>
         </View>

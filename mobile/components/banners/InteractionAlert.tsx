@@ -8,6 +8,7 @@ import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useRouter } from 'expo-router';
+import { routes } from '../../lib/routes';
 
 function makeStyles(colors: ColorPalette) {
   return {
@@ -69,7 +70,7 @@ export function InteractionAlert({ medicationNames }: { medicationNames: string[
 
   return (
     <Pressable
-      onPress={() => router.push('/interactions')}
+      onPress={() => router.push(routes.interactions)}
       style={[
         styles.banner,
         major > 0 ? styles.error : styles.warning,

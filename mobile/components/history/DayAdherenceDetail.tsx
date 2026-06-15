@@ -13,6 +13,7 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { formatDisplayDate, formatTakenTime, todayLocalDate } from '../../lib/dates';
 import { groupDaySlotsByMedication, type DayDetail } from '../../lib/dayDetail';
 import { formatWellnessLogSummary } from '../../lib/wellness';
+import { routes } from '../../lib/routes';
 import type { StreakDayStatus } from '../../lib/streaks';
 
 const STATUS_LABEL: Record<StreakDayStatus, string> = {
@@ -268,7 +269,7 @@ export function DayAdherenceDetail({
             <Pressable
               onPress={() =>
                 router.push({
-                  pathname: '/wellness',
+                  pathname: routes.wellness,
                   params: { wellnessDate: detail.date },
                 })
               }
@@ -283,7 +284,7 @@ export function DayAdherenceDetail({
 
           <View style={styles.actions}>
             {isToday && detail.hasScheduledMeds && takenCount < totalCount ? (
-              <Pressable style={styles.primaryBtn} onPress={() => router.push('/')}>
+              <Pressable style={styles.primaryBtn} onPress={() => router.push(routes.today)}>
                 <Text style={styles.primaryBtnText}>Log doses on Today</Text>
               </Pressable>
             ) : null}
@@ -292,7 +293,7 @@ export function DayAdherenceDetail({
                 style={styles.ghostBtn}
                 onPress={() =>
                   router.push({
-                    pathname: '/history',
+                    pathname: routes.history,
                     params: { historyDate: detail.date },
                   })
                 }

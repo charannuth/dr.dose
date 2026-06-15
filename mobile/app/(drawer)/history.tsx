@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { routes } from '../../lib/routes';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
@@ -279,7 +280,7 @@ export default function HistoryScreen() {
             <Text style={styles.sub}>
               No doses logged yet in the last {STREAK_CALENDAR_DAYS} days.
             </Text>
-            <Pressable style={styles.primaryBtn} onPress={() => router.push('/')}>
+            <Pressable style={styles.primaryBtn} onPress={() => router.push(routes.today)}>
               <Text style={styles.primaryBtnText}>Go to Today</Text>
             </Pressable>
           </View>
@@ -287,7 +288,7 @@ export default function HistoryScreen() {
 
         <Text style={styles.footer}>
           Tulip badges and streak milestones are on{' '}
-          <Text style={styles.footerLink} onPress={() => router.push('/streaks')}>
+          <Text style={styles.footerLink} onPress={() => router.push(routes.streaks)}>
             Streaks
           </Text>
           .

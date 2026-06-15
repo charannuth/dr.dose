@@ -3,6 +3,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
+import { routes } from '../../lib/routes';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { LegalLinks } from '../../components/LegalLinks';
 import { radii, spacing } from '../../constants/theme';
@@ -93,7 +94,7 @@ export default function HelpScreen() {
           <Text style={styles.sectionTitle}>Reminders & missed doses</Text>
           <Text style={styles.body}>
             Enable <Text style={styles.strong}>dose reminders</Text> in{' '}
-            <Text style={styles.link} onPress={() => router.push('/(tabs)/account')}>
+            <Text style={styles.link} onPress={() => router.push(routes.account)}>
               Account
             </Text>
             . On iPhone, you get lock-screen alerts at each scheduled dose time, even when the app is
@@ -129,7 +130,7 @@ export default function HelpScreen() {
           }}
         />
 
-        <Pressable onPress={() => router.push('/(drawer)')}>
+        <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>
         </Pressable>
       </ScrollView>

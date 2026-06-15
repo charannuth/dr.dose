@@ -19,6 +19,7 @@ import {
 } from '../../context/DemoTourTargetsContext';
 import { setDemoTourDone, type DemoTourStep } from '../../lib/demoTour';
 import { isOnboardingDone, setOnboardingDone } from '../../lib/settings';
+import { routes } from '../../lib/routes';
 import { fetchMedicationsWithStatus } from '../../lib/medications';
 import { useReminderBootstrap } from '../../hooks/useReminderBootstrap';
 import { useNotificationResponses } from '../../hooks/useNotificationResponses';
@@ -187,7 +188,7 @@ function DrawerContent(props: DrawerContentProps) {
         onPress={async () => {
           await signOut();
           navigation.closeDrawer();
-          router.replace('/login');
+          router.replace(routes.login);
         }}
         style={styles.signOutRow}
         accessibilityRole="button"
@@ -258,7 +259,7 @@ function DrawerLayoutInner() {
     setOpenAddAfterTour(openAddOnFinish);
     setShowOnboarding(false);
     setShowDemoTour(true);
-    router.navigate('/');
+    router.navigate(routes.today);
   }
 
   function prepareTourStep(step: DemoTourStep) {
@@ -268,7 +269,7 @@ function DrawerLayoutInner() {
       drawerNavRef.current?.closeDrawer();
     }
     if (step.drawer === 'closed') {
-      router.navigate('/');
+      router.navigate(routes.today);
     }
   }
 
@@ -277,7 +278,7 @@ function DrawerLayoutInner() {
     setShowDemoTour(false);
     if (openAddAfterTour) {
       setOpenAddAfterTour(false);
-      router.push('/medications/new');
+      router.push(routes.medicationNew);
     }
   }
 
@@ -337,7 +338,7 @@ function DrawerLayoutInner() {
           headerRight: () =>
             route.name === 'index' ? (
               <View ref={addMedRef} collapsable={false}>
-                <Plus onPress={() => router.push('/medications/new')} styles={styles} />
+                <Plus onPress={() => router.push(routes.medicationNew)} styles={styles} />
               </View>
             ) : null,
           headerTitle: () => (

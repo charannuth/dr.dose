@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchMedProgressSnapshot, type MedProgressSnapshot } from '../../lib/tracking/medProgress';
+import { routes } from '../../lib/routes';
 import { useTrackingStyles } from './trackingStyles';
 
 export function MedProgressPanel() {
@@ -61,7 +62,7 @@ export function MedProgressPanel() {
             <Text style={trackingStyles.cardValue}>
               {streak.currentStreak} day{streak.currentStreak === 1 ? '' : 's'}
             </Text>
-            <Pressable onPress={() => router.push('/(drawer)/streaks')}>
+            <Pressable onPress={() => router.push(routes.streaks)}>
               <Text style={trackingStyles.ghostBtnText}>View streaks →</Text>
             </Pressable>
           </View>
@@ -70,16 +71,16 @@ export function MedProgressPanel() {
           <View style={[trackingStyles.card, { flex: 1, minWidth: 140 }]}>
             <Text style={trackingStyles.cardLabel}>Refills</Text>
             <Text style={trackingStyles.cardValue}>{refillAlerts.length} low</Text>
-            <Pressable onPress={() => router.push('/(drawer)/account')}>
+            <Pressable onPress={() => router.push(routes.account)}>
               <Text style={trackingStyles.ghostBtnText}>Update supply →</Text>
             </Pressable>
           </View>
         ) : null}
       </View>
-      <Pressable style={trackingStyles.primaryBtn} onPress={() => router.push('/(drawer)')}>
+      <Pressable style={trackingStyles.primaryBtn} onPress={() => router.push(routes.today)}>
         <Text style={trackingStyles.primaryBtnText}>Go to Today</Text>
       </Pressable>
-      <Pressable style={trackingStyles.secondaryBtn} onPress={() => router.push('/(drawer)/history')}>
+      <Pressable style={trackingStyles.secondaryBtn} onPress={() => router.push(routes.history)}>
         <Text style={trackingStyles.secondaryBtnText}>View history</Text>
       </Pressable>
     </View>

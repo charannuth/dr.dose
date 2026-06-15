@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { StreakStats } from '../lib/streaks';
+import { routes } from '../lib/routes';
 import { getActiveStreakBadge, getDisplayStreakDays } from '../lib/streakBadges';
 import type { ColorPalette } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -110,7 +111,7 @@ export function StreakSnippet({
           .{' '}
         </Text>
         <Pressable
-          onPress={() => router.push('/streaks')}
+          onPress={() => router.push(routes.streaks)}
           accessibilityRole="link"
           hitSlop={8}
         >

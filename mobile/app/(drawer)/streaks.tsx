@@ -15,6 +15,7 @@ import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
 import { useStreakStats } from '../../hooks/useStreakStats';
+import { routes } from '../../lib/routes';
 import type { StreakStats } from '../../lib/streaks';
 import { StreakCard } from '../../components/streaks/StreakCard';
 import { StreakBadges } from '../../components/streaks/StreakBadges';
@@ -131,7 +132,7 @@ export default function StreaksScreen() {
                 <Text style={styles.sub}>
                   Add medications with dose times on Today to start tracking streaks.
                 </Text>
-                <Pressable style={styles.primaryBtn} onPress={() => router.push('/')}>
+                <Pressable style={styles.primaryBtn} onPress={() => router.push(routes.today)}>
                   <Text style={styles.primaryBtnText}>Go to Today</Text>
                 </Pressable>
               </View>
@@ -147,7 +148,7 @@ export default function StreaksScreen() {
 
         <Text style={styles.footer}>
           Tap days on{' '}
-          <Text style={styles.footerLink} onPress={() => router.push('/history')}>
+          <Text style={styles.footerLink} onPress={() => router.push(routes.history)}>
             History
           </Text>{' '}
           to see doses logged, missed slots, and wellness notes.

@@ -6,6 +6,7 @@ import { spacing } from '../../constants/theme';
 import { GENDER_OPTIONS, ageFromDateOfBirth } from '../../lib/profileStats';
 import type { BodyMetricUnit } from '../../lib/bodyMetrics';
 import type { PhysicalProfileInput } from '../../lib/physicalProfile';
+import { routes } from '../../lib/routes';
 import { HeightWeightFields } from './HeightWeightFields';
 import { SelectField } from './SelectField';
 import { useTrackingStyles } from './trackingStyles';
@@ -42,7 +43,7 @@ export function PhysicalProfileForm({
         Update anytime — helpful for growing teens, weight changes, and tracking context.
         Also editable under Medical records.
       </Text>
-      <Pressable onPress={() => router.push('/(drawer)/medical-records')}>
+      <Pressable onPress={() => router.push(routes.medicalRecords)}>
         <Text style={[trackingStyles.ghostBtnText, { marginBottom: spacing.md }]}>
           Open medical records →
         </Text>

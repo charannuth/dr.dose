@@ -6,6 +6,7 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useWellnessMedBriefings } from '../../hooks/useWellnessMedBriefings';
 import { severityLabel } from '../../lib/drugInteractions';
 import type { ActiveMedicationSummary } from '../../lib/wellnessReport';
+import { routes } from '../../lib/routes';
 
 function formatStartDate(dateStr: string): string {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString(undefined, {
@@ -68,7 +69,7 @@ export function WellnessMedBriefings({ medications }: Props) {
         <Text style={styles.body}>
           When you add a medication, briefing cards appear here with educational side effects
           and substance notes.{' '}
-          <Text style={styles.link} onPress={() => router.push('/')}>
+          <Text style={styles.link} onPress={() => router.push(routes.today)}>
             Add a medication
           </Text>
           .
@@ -141,7 +142,7 @@ export function WellnessMedBriefings({ medications }: Props) {
           </View>
         ))}
 
-      <Pressable onPress={() => router.push('/(drawer)/interactions')}>
+      <Pressable onPress={() => router.push(routes.interactions)}>
         <Text style={styles.link}>Full drug safety check</Text>
       </Pressable>
     </View>

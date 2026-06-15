@@ -14,6 +14,7 @@ import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { routes } from '../../lib/routes';
 import { useAuth } from '../../hooks/useAuth';
 import { useMedicalRecordAllergies } from '../../hooks/useMedicalRecordAllergies';
 import { checkDrugAllergies, type AllergyWarning } from '../../lib/allergyCheck';
@@ -372,7 +373,7 @@ export default function InteractionsScreen() {
             allergy. Always confirm with your doctor or pharmacist.{' '}
             <Text
               style={styles.link}
-              onPress={() => router.push('/(drawer)/medical-records')}
+              onPress={() => router.push(routes.medicalRecords)}
             >
               Update medical records
             </Text>{' '}
@@ -392,7 +393,7 @@ export default function InteractionsScreen() {
               Add allergies and conditions (e.g. asthma) in{' '}
               <Text
                 style={styles.link}
-                onPress={() => router.push('/(drawer)/medical-records')}
+                onPress={() => router.push(routes.medicalRecords)}
               >
                 Medical records
               </Text>{' '}
@@ -415,7 +416,7 @@ export default function InteractionsScreen() {
                   No active medications today.{' '}
                   <Text
                     style={styles.link}
-                    onPress={() => router.push('/(modals)/medications/new')}
+                    onPress={() => router.push(routes.medicationNew)}
                   >
                     Add medications
                   </Text>{' '}
@@ -464,7 +465,7 @@ export default function InteractionsScreen() {
                   Based on your{' '}
                   <Text
                     style={styles.link}
-                    onPress={() => router.push('/(drawer)/medical-records')}
+                    onPress={() => router.push(routes.medicalRecords)}
                   >
                     medical record
                   </Text>{' '}
@@ -578,7 +579,7 @@ export default function InteractionsScreen() {
           </>
         ) : null}
 
-        <Pressable onPress={() => router.push('/(drawer)')}>
+        <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>
         </Pressable>
       </ScrollView>

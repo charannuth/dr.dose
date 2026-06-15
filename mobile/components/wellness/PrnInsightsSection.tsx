@@ -4,6 +4,7 @@ import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import type { PrnInsightsSummary } from '../../lib/prnInsights';
+import { routes } from '../../lib/routes';
 
 function makeStyles(colors: ColorPalette) {
   return {
@@ -53,7 +54,7 @@ export function PrnInsightsSection({
         <Text style={styles.hint}>
           When you log as-needed doses on Today, patterns appear here for your doctor visit.
         </Text>
-        <Pressable onPress={() => router.push('/')}>
+        <Pressable onPress={() => router.push(routes.today)}>
           <Text style={styles.link}>Log on Today</Text>
         </Pressable>
       </View>

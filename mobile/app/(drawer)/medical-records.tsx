@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { routes } from '../../lib/routes';
 import { MedicalRecordsForm } from '../../components/medicalRecords/MedicalRecordsForm';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
@@ -209,11 +210,11 @@ export default function MedicalRecordsScreen() {
             {!filled ? (
               <Text style={styles.emptyHint}>
                 Add your allergies so we can flag possible matches when you add medications on{' '}
-                <Text style={styles.link} onPress={() => router.push('/(drawer)')}>
+                <Text style={styles.link} onPress={() => router.push(routes.today)}>
                   Today
                 </Text>{' '}
                 or run a{' '}
-                <Text style={styles.link} onPress={() => router.push('/(drawer)/interactions')}>
+                <Text style={styles.link} onPress={() => router.push(routes.interactions)}>
                   drug safety check
                 </Text>
                 .

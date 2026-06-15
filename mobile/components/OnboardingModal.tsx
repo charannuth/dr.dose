@@ -4,6 +4,7 @@ import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { setOnboardingDone } from '../lib/settings';
+import { routes } from '../lib/routes';
 
 type Props = {
   userId: string;
@@ -92,9 +93,9 @@ export function OnboardingModal({ userId, visible, onDone, onStartTour, onAddMed
               3. Build a streak by logging every scheduled dose each day.
             </Text>
             <Text style={styles.item}>
-              4. Use <Text style={styles.link} onPress={() => router.push('/history')}>History</Text>{' '}
+              4. Use <Text style={styles.link} onPress={() => router.push(routes.history)}>History</Text>{' '}
               for your calendar and daily notes;{' '}
-              <Text style={styles.link} onPress={() => router.push('/streaks')}>Streaks</Text> for tulip
+              <Text style={styles.link} onPress={() => router.push(routes.streaks)}>Streaks</Text> for tulip
               badges.
             </Text>
           </View>

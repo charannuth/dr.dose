@@ -14,6 +14,7 @@ import {
   upsertWellnessLog,
 } from '../lib/wellness';
 import { todayLocalDate } from '../lib/dates';
+import { routes } from '../lib/routes';
 import { WellnessDisclaimer } from './WellnessDisclaimer';
 import { WellnessDailyForm } from './WellnessDailyForm';
 import { useDemoTourTarget } from '../context/DemoTourTargetsContext';
@@ -166,7 +167,7 @@ export function TodayWellnessCheckIn() {
             Log sleep, energy, and symptoms to discuss with your clinician — best done in the evening.
           </Text>
         </View>
-        <Pressable onPress={() => router.push('/wellness')} style={styles.linkBtn}>
+        <Pressable onPress={() => router.push(routes.wellness)} style={styles.linkBtn}>
           <Text style={styles.linkText}>Wellness →</Text>
         </Pressable>
       </View>

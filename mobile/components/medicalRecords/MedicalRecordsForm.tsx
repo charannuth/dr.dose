@@ -13,6 +13,7 @@ import {
 } from '../../lib/allergyCheck';
 import type { BodyMetricUnit } from '../../lib/bodyMetrics';
 import type { MedicalRecordInput } from '../../lib/medicalRecords';
+import { routes } from '../../lib/routes';
 import { GENDER_OPTIONS, ageFromDateOfBirth } from '../../lib/profileStats';
 import { HeightWeightFields } from '../tracking/HeightWeightFields';
 import { SelectField } from '../tracking/SelectField';
@@ -61,7 +62,7 @@ export function MedicalRecordsForm({
       <Text style={trackingStyles.hint}>
         Optional basics — also editable on Tracking. Update weight and height anytime.
       </Text>
-      <Pressable onPress={() => router.push('/(drawer)/tracking')}>
+      <Pressable onPress={() => router.push(routes.tracking)}>
         <Text style={[trackingStyles.ghostBtnText, { marginBottom: spacing.sm }]}>
           Open tracking →
         </Text>

@@ -15,6 +15,7 @@ import {
   migrateMedicationToAsNeeded,
   migrateMedicationToScheduled,
 } from '../../lib/medications';
+import { routes } from '../../lib/routes';
 import { isAsNeededMed, scheduleTypeLabel } from '../../lib/medicationSchedule';
 import type { MedicationWithStatus } from '../../lib/types';
 import { radii, spacing } from '../../constants/theme';
@@ -151,14 +152,14 @@ export function AccountMedicationsSection() {
         <Text style={styles.sectionTitle}>Medications</Text>
         <Pressable
           style={styles.addBtn}
-          onPress={() => router.push('/(modals)/medications/new')}
+          onPress={() => router.push(routes.medicationNew)}
         >
           <Text style={styles.addBtnText}>Add</Text>
         </Pressable>
       </View>
       <Text style={styles.hint}>
         Manage your list here. Log daily doses on{' '}
-        <Text style={styles.link} onPress={() => router.push('/(drawer)')}>
+        <Text style={styles.link} onPress={() => router.push(routes.today)}>
           Today
         </Text>
         .
@@ -220,7 +221,7 @@ export function AccountMedicationsSection() {
                   </Text>
                 </Pressable>
               )}
-              <Pressable onPress={() => router.push(`/(modals)/medications/${med.id}`)}>
+              <Pressable onPress={() => router.push(routes.medicationEdit(med.id))}>
                 <Text style={styles.actionText}>Edit</Text>
               </Pressable>
               <Pressable onPress={() => confirmDelete(med)}>

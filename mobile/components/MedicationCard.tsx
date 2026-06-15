@@ -12,6 +12,7 @@ import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
 import { useRouter } from 'expo-router';
+import { routes } from '../lib/routes';
 
 type MedicationCardProps = {
   medication: MedicationWithStatus;
@@ -407,7 +408,7 @@ export function MedicationCard({
           </Pressable>
         ) : null}
         <Pressable
-          onPress={() => router.push(`/medications/${medication.id}`)}
+          onPress={() => router.push(routes.medicationEdit(medication.id))}
           style={styles.ghostBtn}
         >
           <Text style={styles.ghostText}>Edit</Text>

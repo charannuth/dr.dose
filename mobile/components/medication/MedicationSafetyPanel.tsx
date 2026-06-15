@@ -13,6 +13,7 @@ import {
 } from '../../lib/medicationSafetyReview';
 import { useMedicalRecordAllergies } from '../../hooks/useMedicalRecordAllergies';
 import { useAuth } from '../../hooks/useAuth';
+import { routes } from '../../lib/routes';
 
 type Props = {
   drugName: string;
@@ -129,7 +130,7 @@ export function MedicationSafetyPanel({ drugName, existingMedicationNames }: Pro
       {allergies.length === 0 && conditions.length === 0 ? (
         <Text style={styles.hint}>
           No allergies or conditions on file.{' '}
-          <Text style={styles.link} onPress={() => router.push('/medical-records')}>
+          <Text style={styles.link} onPress={() => router.push(routes.medicalRecords)}>
             Add your medical record
           </Text>{' '}
           to personalize safety checks.

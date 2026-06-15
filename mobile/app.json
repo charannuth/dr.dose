@@ -32,7 +32,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -58,6 +61,13 @@
           "cameraPermission": "Dr. Dose uses the camera so you can take a profile picture."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4f332941-2f35-4a7c-9664-b231dabc961c"
+      }
+    },
+    "owner": "charannuth"
   }
 }

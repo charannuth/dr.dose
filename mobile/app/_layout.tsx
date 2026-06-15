@@ -1,6 +1,7 @@
 import 'react-native-reanimated';
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { routes } from '../lib/routes';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../context/AuthProvider';
 import { ThemeProvider, useTheme } from '../context/ThemeProvider';
@@ -20,9 +21,9 @@ function RootNavigator() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!user && !inAuthGroup) {
-      router.replace('/login');
+      router.replace(routes.login);
     } else if (user && inAuthGroup) {
-      router.replace('/');
+      router.replace(routes.today);
     }
   }, [user, loading, segments, router]);
 

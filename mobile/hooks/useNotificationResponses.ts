@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { getExpoNotifications } from '../lib/expoNotifications';
+import { routes } from '../lib/routes';
 
 type NotificationData = {
   screen?: string;
@@ -10,8 +11,8 @@ type NotificationData = {
 
 function routeForNotificationData(data: NotificationData | undefined): string | null {
   if (!data) return null;
-  if (data.screen === 'doctor-visits') return '/doctor-visits';
-  if (data.screen === 'today' || data.medicationId) return '/';
+  if (data.screen === 'doctor-visits') return routes.doctorVisits;
+  if (data.screen === 'today' || data.medicationId) return routes.today;
   return null;
 }
 
