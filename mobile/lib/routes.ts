@@ -1,6 +1,6 @@
 /** Canonical in-app routes — always use drawer shell or modals, never legacy (tabs). */
 export const routes = {
-  today: '/(drawer)',
+  today: '/(drawer)/today',
   history: '/(drawer)/history',
   tracking: '/(drawer)/tracking',
   account: '/(drawer)/account',

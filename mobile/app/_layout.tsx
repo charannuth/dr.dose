@@ -12,10 +12,6 @@ import { ConfigGuard } from '../components/ConfigGuard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { useAuth } from '../hooks/useAuth';
 
-export const unstable_settings = {
-  initialRouteName: '(auth)',
-};
-
 function RootNavigator() {
   const { user, loading } = useAuth();
   const { isDark } = useTheme();
@@ -42,6 +38,7 @@ function RootNavigator() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(drawer)" />
         <Stack.Screen name="(modals)" options={{ presentation: 'modal' }} />

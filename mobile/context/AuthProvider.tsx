@@ -24,7 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(data.session);
         setLoading(false);
       }
+    }).catch(() => {
+      if (mounted) setLoading(false);
     });
+
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 8000);
 
     const {
       data: { subscription },
@@ -35,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);

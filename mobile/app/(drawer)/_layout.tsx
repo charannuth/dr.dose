@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
+import { LoadingScreen } from '../../components/LoadingScreen';
 import { useAuth } from '../../hooks/useAuth';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
 import { OnboardingModal } from '../../components/OnboardingModal';
@@ -200,7 +201,7 @@ export default function DrawerLayout() {
 
   // "/" resolves to this layout — never mount the native Drawer until signed in.
   if (loading) {
-    return null;
+    return <LoadingScreen />;
   }
 
   if (!user) {
@@ -288,7 +289,7 @@ function DrawerLayoutInner({
   }
 
   const titleByRoute: Record<string, string> = {
-    index: 'Today',
+    today: 'Today',
     history: 'History',
     tracking: 'Tracking',
     wellness: 'Wellness',
@@ -341,7 +342,7 @@ function DrawerLayoutInner({
             </View>
           ),
           headerRight: () =>
-            route.name === 'index' ? (
+            route.name === 'today' ? (
               <View ref={addMedRef} collapsable={false}>
                 <Plus onPress={() => router.push(routes.medicationNew)} styles={styles} />
               </View>
@@ -354,7 +355,7 @@ function DrawerLayoutInner({
           ),
         })}
       >
-        <Drawer.Screen name="index" options={{ title: 'Today' }} />
+        <Drawer.Screen name="today" options={{ title: 'Today' }} />
         <Drawer.Screen name="history" options={{ title: 'History' }} />
         <Drawer.Screen name="wellness" options={{ title: 'Wellness' }} />
         <Drawer.Screen name="doctor-visits" options={{ title: 'Doctor visits' }} />
