@@ -10,7 +10,7 @@ export const routes = {
   medicalRecords: '/(drawer)/medical-records',
   interactions: '/(drawer)/interactions',
   help: '/(drawer)/help',
-  login: '/login',
+  login: '/(auth)/login',
   medicationNew: '/(modals)/medications/new',
   medicationEdit: (id: string) => `/(modals)/medications/${id}` as const,
 } as const;

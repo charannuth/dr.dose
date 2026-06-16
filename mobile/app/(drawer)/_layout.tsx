@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'expo-router/drawer';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/build/react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -198,14 +198,16 @@ function DrawerContent(props: DrawerContentProps) {
 
 export default function DrawerLayout() {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // "/" resolves to this layout — never mount the native Drawer until signed in.
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(routes.login);
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
     return <LoadingScreen />;
-  }
-
-  if (!user) {
-    return <Redirect href={routes.login} />;
   }
 
   return <DrawerLayoutInner user={user} />;
