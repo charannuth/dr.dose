@@ -60,7 +60,8 @@
           "cameraPermission": "Dr. Dose uses the camera so you can take a profile picture."
         }
       ],
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "extra": {
       "router": {},

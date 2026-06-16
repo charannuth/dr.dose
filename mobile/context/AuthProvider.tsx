@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { evaluateSignUpResponse } from '../lib/signUpResult';
 import { AuthContext, type AuthContextValue } from './auth-context';
@@ -8,6 +8,23 @@ import { supabase } from '../lib/supabase';
 
 function authRedirectUrl() {
   return Linking.createURL('/');
+}
+
+/** Supabase may mutate session in place; clone so React state updates propagate. */
+function sessionWithUser(session: Session | null, user: User | null): Session | null {
+  if (!session || !user) return session;
+  return {
+    ...session,
+    user: {
+      ...user,
+      user_metadata: { ...user.user_metadata },
+    },
+  };
+}
+
+function cloneSession(session: Session | null): Session | null {
+  if (!session) return null;
+  return sessionWithUser(session, session.user);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -21,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data }) => {
       if (mounted) {
-        setSession(data.session);
+        setSession(cloneSession(data.session));
         setLoading(false);
       }
     }).catch(() => {
@@ -35,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+      setSession(cloneSession(nextSession));
       setLoading(false);
     });
 
@@ -108,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
     const { data } = await supabase.auth.getSession();
-    setSession(data.session);
+    setSession(cloneSession(data.session));
   }, []);
 
   const signOut = useCallback(async () => {
@@ -119,17 +136,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshSession = useCallback(async () => {
     if (!supabase) return;
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data.session) {
+      setSession(cloneSession(data.session));
+      return;
+    }
+    const { data: fallback } = await supabase.auth.getSession();
+    setSession(cloneSession(fallback.session));
   }, []);
 
   const updateDisplayName = useCallback(
     async (displayName: string) => {
       if (!supabase) throw new Error('Supabase is not configured');
-      const { error } = await supabase.auth.updateUser({
+      const { data, error } = await supabase.auth.updateUser({
         data: { display_name: displayName.trim() },
       });
       if (error) throw error;
+      if (data.user) {
+        setSession((prev) => sessionWithUser(prev, data.user));
+        return;
+      }
       await refreshSession();
     },
     [refreshSession],
@@ -142,13 +168,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userId) throw new Error('You must be signed in');
 
       const avatarUrl = await uploadAvatar(userId, image);
-      const { error } = await supabase.auth.updateUser({
+      const { data, error } = await supabase.auth.updateUser({
         data: {
           avatar_url: avatarUrl,
           avatar_path: avatarStoragePath(userId),
         },
       });
       if (error) throw error;
+      if (data.user) {
+        setSession((prev) => sessionWithUser(prev, data.user));
+        return;
+      }
       await refreshSession();
     },
     [session?.user?.id, refreshSession],
@@ -165,10 +195,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       /* file may already be gone */
     }
 
-    const { error } = await supabase.auth.updateUser({
+    const { data, error } = await supabase.auth.updateUser({
       data: { avatar_url: null, avatar_path: null },
     });
     if (error) throw error;
+    if (data.user) {
+      setSession((prev) => sessionWithUser(prev, data.user));
+      return;
+    }
     await refreshSession();
   }, [session?.user?.id, refreshSession]);
 
