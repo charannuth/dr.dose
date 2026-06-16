@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-16** (`1614b8d`) — Fix splash screen stuck black by hiding from root layout.
+
 - **2026-06-16** (`afe90b8`) — Ship stable cold start: login at /, stack nav, error boundary.
 
 - **2026-06-15** (`56fbcaa`) — Fix release black screen by replacing Redirect with imperative navigation.

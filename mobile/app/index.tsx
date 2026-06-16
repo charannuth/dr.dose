@@ -1,24 +1,15 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { AuthScreen } from '../components/AuthScreen';
 import { useAuth } from '../hooks/useAuth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { routes } from '../lib/routes';
 
-void SplashScreen.preventAutoHideAsync().catch(() => {});
-
 /** Login lives at `/` — no Redirect, no route hop on cold start. */
 export default function Index() {
   const router = useRouter();
   const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading) {
-      void SplashScreen.hideAsync();
-    }
-  }, [loading]);
 
   useEffect(() => {
     if (!loading && user) {
