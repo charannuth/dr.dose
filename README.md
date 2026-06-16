@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-15** (`2d03a0d`) — Remove duplicate auth index route that conflicted with app/index.
+
 - **2026-06-15** (`70f42e2`) — Fix TestFlight native launch crash on cold start.
 
 - **2026-06-15** (`a8b5d1c`) — Fix EAS bundle failure by using expo-router drawer imports.
