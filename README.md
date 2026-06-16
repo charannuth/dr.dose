@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-15** (`a8b5d1c`) — Fix EAS bundle failure by using expo-router drawer imports.
+
 - **2026-06-15** (`6b4ae82`) — Fix TestFlight launch crash and EAS build tooling.
 
 - **2026-06-15** (`62f1114`) — Consolidate mobile navigation to drawer and link EAS project.

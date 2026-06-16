@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DrawerContentScrollView, type DrawerContentComponentProps } from '@react-navigation/drawer';
+import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/build/react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';

@@ -13,6 +13,7 @@ import { rescheduleAllReminders } from '../lib/reminders';
 export function useReminderBootstrap(userId: string | undefined) {
   useEffect(() => {
     if (!userId) return;
+    const uid = userId;
 
     async function sync() {
       const { enabled } = await getReminders();
@@ -20,7 +21,7 @@ export function useReminderBootstrap(userId: string | undefined) {
       const granted = await requestNotificationPermission();
       if (!granted) return;
       try {
-        await rescheduleAllReminders(userId);
+        await rescheduleAllReminders(uid);
       } catch {
         // ignore scheduling errors on bootstrap
       }
