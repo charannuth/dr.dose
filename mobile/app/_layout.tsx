@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
@@ -8,6 +7,7 @@ import { AuthProvider } from '../context/AuthProvider';
 import { ThemeProvider, useTheme } from '../context/ThemeProvider';
 import { DemoTourTargetsProvider } from '../context/DemoTourTargetsContext';
 import { ConfigGuard } from '../components/ConfigGuard';
+import { RootErrorBoundary } from '../components/RootErrorBoundary';
 
 function ThemedStatusBar() {
   const { isDark } = useTheme();
@@ -18,16 +18,18 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <ConfigGuard>
-            <AuthProvider>
-              <DemoTourTargetsProvider>
-                <ThemedStatusBar />
-                <Stack screenOptions={{ headerShown: false }} />
-              </DemoTourTargetsProvider>
-            </AuthProvider>
-          </ConfigGuard>
-        </ThemeProvider>
+        <RootErrorBoundary>
+          <ThemeProvider>
+            <ConfigGuard>
+              <AuthProvider>
+                <DemoTourTargetsProvider>
+                  <ThemedStatusBar />
+                  <Stack screenOptions={{ headerShown: false }} />
+                </DemoTourTargetsProvider>
+              </AuthProvider>
+            </ConfigGuard>
+          </ThemeProvider>
+        </RootErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

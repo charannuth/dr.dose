@@ -59,7 +59,8 @@
           "photosPermission": "Dr. Dose uses your photo library so you can choose a profile picture.",
           "cameraPermission": "Dr. Dose uses the camera so you can take a profile picture."
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "extra": {
       "router": {},
