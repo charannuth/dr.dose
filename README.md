@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-17** (`24c15a8`) — Configure EAS iOS submit with ascAppId for non-interactive submission.
+
 - **2026-06-16** (`221c4a1`) — Add project pause handoff doc for resuming TestFlight work later.
 
 - **2026-06-16** (`c395bd3`) — Fix TestFlight launch and restore mobile navigation for production builds.
