@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-20** (`4c1e299`) — Fix keyboard dismissing on every keystroke in medication dosage step.
+
 - **2026-06-17** (`f209cb4`) — Update project handoff: build 16 on TestFlight, ready to submit for review.
 
 - **2026-06-17** (`24c15a8`) — Configure EAS iOS submit with ascAppId for non-interactive submission.

@@ -61,40 +61,42 @@ function makeDosagePanelStyles(colors: ColorPalette) {
   };
 }
 
-export function DosageStepPanel({ route, scheduleType, values, onChange }: Props) {
+function FieldLabel({ children }: { children: string }) {
+  const styles = useThemedStyles(makeDosagePanelStyles);
+  return <Text style={styles.label}>{children}</Text>;
+}
+
+function TextField({
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  multiline,
+}: {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad';
+  multiline?: boolean;
+}) {
   const styles = useThemedStyles(makeDosagePanelStyles);
   const { colors } = useTheme();
+  return (
+    <TextInput
+      style={[styles.input, multiline && styles.textarea]}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textMuted}
+      keyboardType={keyboardType}
+      multiline={multiline}
+    />
+  );
+}
+
+export function DosageStepPanel({ route, scheduleType, values, onChange }: Props) {
+  const styles = useThemedStyles(makeDosagePanelStyles);
   const hint = dosageStepHint(route, scheduleType);
-
-  function FieldLabel({ children }: { children: string }) {
-    return <Text style={styles.label}>{children}</Text>;
-  }
-
-  function TextField({
-    value,
-    onChangeText,
-    placeholder,
-    keyboardType,
-    multiline,
-  }: {
-    value: string;
-    onChangeText: (t: string) => void;
-    placeholder?: string;
-    keyboardType?: 'default' | 'numeric' | 'decimal-pad';
-    multiline?: boolean;
-  }) {
-    return (
-      <TextInput
-        style={[styles.input, multiline && styles.textarea]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        keyboardType={keyboardType}
-        multiline={multiline}
-      />
-    );
-  }
 
   if (scheduleType === 'as_needed') {
     return (
