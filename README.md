@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-23** (`1d49652`) — Replace placeholder Expo icon with final Dr. Dose mascot app icon.
+
 - **2026-06-20** (`4c1e299`) — Fix keyboard dismissing on every keystroke in medication dosage step.
 
 - **2026-06-17** (`f209cb4`) — Update project handoff: build 16 on TestFlight, ready to submit for review.
