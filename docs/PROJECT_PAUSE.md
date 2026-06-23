@@ -1,16 +1,23 @@
 # Dr. Dose — project paused (resume guide)
 
-Last updated: **June 17, 2026, 8:03 PM ET**  
-Code on GitHub: **up to date** (`main` @ `39a1a3e`)
+Last updated: **June 23, 2026, 4:19 PM ET**  
+Code on GitHub: **up to date** (`main`)
 
 Use this doc when you return to finish App Store shipping (or after the Mac wipe).
 
 ---
 
-## Current status: build 16 on TestFlight, ready to submit for review
+## Current status: build 17 SUBMITTED — 🟡 Waiting for Review
 
-- **Build 16** (first build with all launch fixes) **built, submitted to App Store Connect, and verified working on a real iPhone via TestFlight** — app launches cleanly (no black screen/crash), drawer works, login works, fully functional.
-- All App Store metadata is essentially complete; **last step is uploading iPad screenshots and clicking Submit for Review** (going with "ship now", iPhone layout, iPad support left on as-is).
+- **Build 17** (final icon + keyboard/dosage focus fix) is uploaded and the **1.0.0 version is "Waiting for Review"** in App Store Connect — confirmed via the version page status badge on June 23, 2026.
+- Nothing left to do but wait for Apple. Typical review is **~24–48h**; emails arrive at each status change (In Review → Approved → Ready for Sale / Pending Developer Release).
+- **Build 16** was the first fully-working TestFlight build; **build 17** added the production app icon (fixed App Store rejection 2.3.8) and the dosage-step keyboard focus fix.
+
+### If Apple approves
+- With auto-release, it goes live shortly after approval. If manual release was chosen, click **Release** on the version page.
+
+### If Apple rejects
+- Read the rejection in **App Review** / Resolution Center, fix, then rebuild + resubmit (see cheat sheet). Demo account must work: `testuser.drdose@gmail.com` / `TestUser@123`.
 
 ---
 
@@ -32,11 +39,9 @@ Use this doc when you return to finish App Store shipping (or after the Mac wipe
 
 ## What’s left (in order)
 
-1. App Store Connect → 1.0.0 → upload the **iPad 13" screenshots** (from Desktop) to the iPad slot.
-2. Confirm build 16 selected + "Automatically release this version" chosen.
-3. Click **Add for Review → Submit for Review**.
-4. Wait for Apple review (~24–48h). With auto-release, it goes live shortly after approval.
-5. **After launch (1.0.1):** do an iPad layout pass — constrain content screens to a centered max-width (~700px) so cards/inputs/buttons don't stretch full-width on iPad. Login + modals already look good; content screens (My account, Today, Add medication) look stretched. Then cloud rebuild + submit as 1.0.1.
+1. **Wait for Apple review** (~24–48h). Watch email / the 1.0.0 status badge.
+2. On approval: confirm it goes "Ready for Sale" (auto-release) or click **Release** (manual).
+3. **After launch (1.0.1):** do an iPad layout pass — constrain content screens to a centered max-width (~700px) so cards/inputs/buttons don't stretch full-width on iPad. Login + modals already look good; content screens (My account, Today, Add medication) look stretched. Then cloud rebuild + submit as 1.0.1.
 
 ### Re-build from scratch if needed (e.g. after Mac wipe)
 ```bash
@@ -82,7 +87,8 @@ npm run submit:ios              # eas submit, now fully automated via ascAppId
 | 11 | Finished + ASC | Crashes on launch (`expo-modules-core` ABI); no drawer fix |
 | 12–14 | Canceled | Stuck in queue during Expo NPM-cache outage (Jun 16) |
 | 15 | Not created | buildNumber bumped to 15 then upload blocked by sandbox; re-ran as 16 |
-| **16** | **Finished + ASC + TestFlight ✅** | First build with all fixes; verified working on real iPhone; commit `c006cf2` |
+| 16 | Finished + ASC + TestFlight ✅ | First build with all fixes; verified working on real iPhone; commit `c006cf2` |
+| **17** | **Finished + ASC + Submitted ✅** | Final app icon (fixes 2.3.8) + dosage keyboard focus fix; 1.0.0 Waiting for Review (Jun 23) |
 
 ---
 
