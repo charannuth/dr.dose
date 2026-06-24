@@ -23,6 +23,7 @@ import { StreaksPage } from './pages/StreaksPage'
 import { WellnessPage } from './pages/WellnessPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
+import { SupportPage } from './pages/SupportPage'
 import './App.css'
 
 function AuthenticatedRoutes({ user }: { user: User }) {
@@ -125,6 +126,7 @@ function AuthenticatedRoutes({ user }: { user: User }) {
           <Route path="help" element={<HelpPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="terms" element={<TermsPage />} />
+          <Route path="support" element={<SupportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -143,6 +145,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/support" element={<SupportPage />} />
       {!user ? (
         <Route path="*" element={<AuthPage />} />
       ) : (
