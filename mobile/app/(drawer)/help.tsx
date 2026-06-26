@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeProvider';
 import { routes } from '../../lib/routes';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { LegalLinks } from '../../components/LegalLinks';
+import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import { radii, spacing } from '../../constants/theme';
 
 const RXNORM_URL = 'https://www.nlm.nih.gov/research/umls/rxnorm/index.html';
@@ -120,6 +121,8 @@ export default function HelpScreen() {
             medical problems.
           </Text>
         </View>
+
+        <MedicalSourcesCard />
 
         <LegalLinks
           colors={colors}

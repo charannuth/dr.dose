@@ -23,6 +23,7 @@ import { WellnessTrendsSection } from '../../components/wellness/WellnessTrendsS
 import { PrnInsightsSection } from '../../components/wellness/PrnInsightsSection';
 import { WellnessExportReport } from '../../components/wellness/WellnessExportReport';
 import { WellnessMedBriefings } from '../../components/wellness/WellnessMedBriefings';
+import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import {
   formatWellnessLogSummary,
   isWellnessLogFilled,
@@ -278,6 +279,8 @@ export default function WellnessScreen() {
         </View>
 
         <WellnessMedBriefings medications={activeMeds} />
+
+        <MedicalSourcesCard />
       </ScrollView>
     </SafeAreaView>
   );

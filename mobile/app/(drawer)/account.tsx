@@ -52,7 +52,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 ];
 
 export default function AccountScreen() {
-  const { user, signOut, updateDisplayName } = useAuth();
+  const { user, signOut, updateDisplayName, deleteAccount } = useAuth();
   const router = useRouter();
   const { colors, themeMode, setThemeMode } = useTheme();
   const { stats: streakStats, loading: streakLoading, error: streakError } = useStreakStats(
@@ -68,6 +68,7 @@ export default function AccountScreen() {
     'granted' | 'denied' | 'undetermined'
   >('undetermined');
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
@@ -212,6 +213,49 @@ export default function AccountScreen() {
     } catch {
       /* ignore */
     }
+  }
+
+  async function runDeleteAccount() {
+    setDeleting(true);
+    try {
+      await cancelAllLocalReminders();
+      await deleteAccount();
+      // deleteAccount signs out; the auth listener routes back to sign-in.
+    } catch (err) {
+      setDeleting(false);
+      Alert.alert(
+        'Could not delete account',
+        err instanceof Error ? err.message : 'Please try again.',
+      );
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Permanently delete account?',
+      'This erases your account and all of your data — medications, dose history, wellness logs, medical records, doctor visits, and tracking. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Your account and all associated data will be permanently erased.',
+              [
+                { text: 'Keep my account', style: 'cancel' },
+                {
+                  text: 'Delete forever',
+                  style: 'destructive',
+                  onPress: () => void runDeleteAccount(),
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   }
 
   const simNote = simulatorReminderNote();
@@ -465,6 +509,23 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Delete account</Text>
+          <Text style={styles.hint}>
+            Permanently delete your account and all associated data. This action cannot be
+            undone.
+          </Text>
+          <Pressable
+            style={[styles.deleteBtn, deleting && styles.btnDisabled]}
+            disabled={deleting}
+            onPress={confirmDeleteAccount}
+          >
+            <Text style={styles.deleteText}>
+              {deleting ? 'Deleting…' : 'Delete account'}
+            </Text>
+          </Pressable>
+        </View>
+
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Go to Today</Text>
         </Pressable>
@@ -568,6 +629,16 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
       alignItems: 'center',
     },
     signOutText: { fontWeight: '700', color: colors.error, fontSize: 16 },
+    deleteBtn: {
+      marginTop: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.error,
+      borderRadius: radii.md,
+      paddingVertical: 12,
+      alignItems: 'center',
+      backgroundColor: colors.errorBg,
+    },
+    deleteText: { fontWeight: '800', color: colors.error, fontSize: 16 },
     teaserRow: { gap: spacing.sm },
     teaser: {
       backgroundColor: colors.surface,

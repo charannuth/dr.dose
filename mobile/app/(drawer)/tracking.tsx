@@ -23,6 +23,7 @@ import { WeightTrackerPanel } from '../../components/tracking/WeightTrackerPanel
 import { TrackingCalendar } from '../../components/tracking/TrackingCalendar';
 import { SelectField } from '../../components/tracking/SelectField';
 import { useTrackingStyles } from '../../components/tracking/trackingStyles';
+import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import {
   calendarSourceOptions,
   calendarSupportFor,
@@ -481,6 +482,8 @@ export default function TrackingScreen() {
             </View>
           </>
         )}
+
+        <MedicalSourcesCard />
       </ScrollView>
     </SafeAreaView>
   );

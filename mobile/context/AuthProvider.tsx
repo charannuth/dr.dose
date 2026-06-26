@@ -134,6 +134,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    if (!supabase) throw new Error('Supabase is not configured');
+    const { error } = await supabase.rpc('delete_user_account');
+    if (error) throw error;
+    // Account is gone; clear the now-invalid local session.
+    await supabase.auth.signOut();
+  }, []);
+
   const refreshSession = useCallback(async () => {
     if (!supabase) return;
     const { data, error } = await supabase.auth.refreshSession();
@@ -223,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateDisplayName,
       updateProfileAvatar,
       removeProfileAvatar,
+      deleteAccount,
     }),
     [
       session,
@@ -239,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateDisplayName,
       updateProfileAvatar,
       removeProfileAvatar,
+      deleteAccount,
     ],
   );
 

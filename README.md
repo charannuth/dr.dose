@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-26** (`700880a`) — Add in-app account deletion and medical citations for App Store review
+
 - **2026-06-24** (`94fb891`) — Add public support page for App Store support URL
 
 - **2026-06-23** (`5eac1fd`) — docs: build 17 submitted, 1.0.0 waiting for review

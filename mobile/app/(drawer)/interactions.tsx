@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MedicationNameInput } from '../../components/medication/MedicationNameInput';
+import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
@@ -578,6 +579,8 @@ export default function InteractionsScreen() {
             </View>
           </>
         ) : null}
+
+        <MedicalSourcesCard />
 
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>

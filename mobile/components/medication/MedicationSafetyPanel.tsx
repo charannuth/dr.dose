@@ -14,6 +14,7 @@ import {
 import { useMedicalRecordAllergies } from '../../hooks/useMedicalRecordAllergies';
 import { useAuth } from '../../hooks/useAuth';
 import { routes } from '../../lib/routes';
+import { MedicalSourcesCard } from '../MedicalSourcesCard';
 
 type Props = {
   drugName: string;
@@ -205,6 +206,8 @@ export function MedicationSafetyPanel({ drugName, existingMedicationNames }: Pro
       >
         <Text style={styles.aiBtnText}>Ask AI about this medication (coming soon)</Text>
       </Pressable>
+
+      <MedicalSourcesCard />
     </View>
   );
 }

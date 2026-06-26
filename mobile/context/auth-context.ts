@@ -21,6 +21,7 @@ export type AuthContextValue = {
   updateDisplayName: (displayName: string) => Promise<void>;
   updateProfileAvatar: (image: Blob | ArrayBuffer) => Promise<void>;
   removeProfileAvatar: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
