@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -54,6 +54,7 @@ import { DoseTimeInput } from './DoseTimeInput';
 import { MedicationNameInput } from './MedicationNameInput';
 import { MedicationSafetyPanel } from './MedicationSafetyPanel';
 import {
+  BASE_STEPS,
   buildDosageWizardState,
   buildFormState,
   STEP_TITLES,
@@ -106,11 +107,30 @@ export function MedicationFormWizard({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     void getReminders().then((r) => setRemindersOn(r.enabled));
     void notificationsAvailable().then(setNotificationsSupported);
     void getNotificationPermission().then(setPermissionStatus);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    },
+    [],
+  );
+
+  // After a single-tap selection (route, form, frequency, name suggestion) move to
+  // the next step automatically. A short delay lets the selected state render first.
+  function advanceAfterSelect(fromStep: WizardStep) {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = setTimeout(() => {
+      setError(null);
+      setStepIndex((i) => (BASE_STEPS[i] === fromStep ? i + 1 : i));
+    }, 250);
+  }
 
   const wizardSteps = wizardStepsFor(scheduleType);
   const step = wizardSteps[stepIndex] ?? wizardSteps[0];
@@ -151,6 +171,7 @@ export function MedicationFormWizard({
     if (!dosageWizard.doseMg.trim() && suggestion.doseMg) {
       patchDosage({ doseMg: suggestion.doseMg });
     }
+    advanceAfterSelect('name');
   }
 
   function selectScheduleType(next: MedicationScheduleType) {
@@ -159,6 +180,7 @@ export function MedicationFormWizard({
     setDosageWizard(buildDosageWizardState(initial, route, next));
     const maxIndex = wizardStepsFor(next).length - 1;
     if (stepIndex > maxIndex) setStepIndex(maxIndex);
+    advanceAfterSelect('frequency');
   }
 
   function selectRoute(next: MedicationRouteId) {
@@ -166,12 +188,14 @@ export function MedicationFormWizard({
     setForm('');
     setError(null);
     setDosageWizard(buildDosageWizardState(initial, next, scheduleType));
+    advanceAfterSelect('route');
   }
 
   function selectFormType(formId: string) {
     setForm(formId);
     setError(null);
     patchDosage({ injectionStyle: formId.includes('pen') ? 'measured' : dosageWizard.injectionStyle });
+    advanceAfterSelect('form');
   }
 
   function parseScheduleTimes(): string[] {
@@ -739,13 +763,20 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
+    flexWrap: 'wrap' as const,
+    rowGap: spacing.sm,
     padding: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
   cancel: { color: colors.textMuted, fontWeight: '700' as const },
-  nav: { flexDirection: 'row' as const, gap: spacing.sm, alignItems: 'center' as const },
+  nav: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: spacing.sm,
+    alignItems: 'center' as const,
+  },
   primaryBtn: {
     backgroundColor: colors.accent,
     borderRadius: radii.md,

@@ -13,10 +13,12 @@ import { MedicationCard } from '../../components/MedicationCard';
 import { StreakSnippet } from '../../components/StreakSnippet';
 import { StreakCelebration } from '../../components/StreakCelebration';
 import { useStreakCelebration } from '../../hooks/useStreakCelebration';
+import { useAppUpdateCheck } from '../../hooks/useAppUpdateCheck';
 import { DueNowBanner } from '../../components/banners/DueNowBanner';
 import { MissedDosesBanner } from '../../components/banners/MissedDosesBanner';
 import { RefillBanner } from '../../components/banners/RefillBanner';
 import { InteractionAlert } from '../../components/banners/InteractionAlert';
+import { UpdateBanner } from '../../components/banners/UpdateBanner';
 import { TodayWellnessCheckIn } from '../../components/TodayWellnessCheckIn';
 import { useAuth } from '../../hooks/useAuth';
 import { useDemoTourTarget, useDemoTourTargets } from '../../context/DemoTourTargetsContext';
@@ -27,6 +29,7 @@ import {
   markPrnDoseTaken,
   migrateMedicationToAsNeeded,
   migrateMedicationToScheduled,
+  sortScheduledMedications,
   todayDoseTotals,
   undoDose,
 } from '../../lib/medications';
@@ -36,7 +39,7 @@ import { fetchMissedDoses, type MissedDoseItem } from '../../lib/missedDoses';
 import { getRefillAlerts } from '../../lib/refills';
 import { routes } from '../../lib/routes';
 import { rescheduleAllReminders } from '../../lib/reminders';
-import { getReminders } from '../../lib/settings';
+import { getMedSort, getReminders, setMedSort, type MedSort } from '../../lib/settings';
 import {
   dismissMissedDosesBanner,
   isMissedDosesBannerDismissed,
@@ -174,6 +177,42 @@ function makeTodayStyles(colors: ColorPalette) {
     list: {
       gap: spacing.md,
     },
+    sortRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      flexWrap: 'wrap' as const,
+      gap: spacing.sm,
+    },
+    sortLabel: {
+      fontSize: 14,
+      fontWeight: '600' as const,
+      color: colors.textMuted,
+    },
+    sortOptions: {
+      flexDirection: 'row' as const,
+      gap: 6,
+      flexShrink: 1,
+    },
+    sortChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    sortChipActive: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    sortChipText: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+      color: colors.textMuted,
+    },
+    sortChipTextActive: {
+      color: colors.onAccent,
+    },
   };
 }
 
@@ -192,6 +231,7 @@ export default function TodayScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [todayTab, setTodayTab] = useState<TodayTab>('scheduled');
+  const [medSort, setMedSortState] = useState<MedSort>('time');
   const [streakStats, setStreakStats] = useState<StreakStats | null>(null);
   const [missedDoses, setMissedDoses] = useState<MissedDoseItem[]>([]);
   const [missedBannerDismissed, setMissedBannerDismissed] = useState(false);
@@ -199,10 +239,21 @@ export default function TodayScreen() {
     user?.id,
     streakStats,
   );
+  const { updateInfo, dismissUpdate } = useAppUpdateCheck();
 
   useEffect(() => {
     isMissedDosesBannerDismissed().then(setMissedBannerDismissed).catch(() => {});
+    getMedSort().then(setMedSortState).catch(() => {});
   }, []);
+
+  async function changeMedSort(next: MedSort) {
+    setMedSortState(next);
+    try {
+      await setMedSort(next);
+    } catch {
+      // preference is best-effort; UI already reflects the choice
+    }
+  }
 
   useEffect(() => {
     registerScrollToTarget('today-tabs', () => {
@@ -395,8 +446,12 @@ export default function TodayScreen() {
 
   const { taken: dosesTaken, total: dosesTotal } = todayDoseTotals(medications);
   const scheduledMeds = useMemo(
-    () => medications.filter((m) => !isAsNeededMed(m)),
-    [medications],
+    () =>
+      sortScheduledMedications(
+        medications.filter((m) => !isAsNeededMed(m)),
+        medSort,
+      ),
+    [medications, medSort],
   );
   const prnMeds = useMemo(
     () => medications.filter((m) => isAsNeededMed(m)),
@@ -454,6 +509,8 @@ export default function TodayScreen() {
             <StreakSnippet stats={streakStats} onPreviewCelebration={previewCelebration} />
           ) : null}
         </View>
+
+        <UpdateBanner info={updateInfo} onDismiss={() => void dismissUpdate()} />
 
         <RefillBanner
           alerts={refillAlerts}
@@ -517,6 +574,38 @@ export default function TodayScreen() {
           </Pressable>
           </View>
         </View>
+
+        {todayTab === 'scheduled' && scheduledMeds.length > 1 ? (
+          <View style={styles.sortRow}>
+            <Text style={styles.sortLabel}>Sort by</Text>
+            <View style={styles.sortOptions}>
+              <Pressable
+                style={[styles.sortChip, medSort === 'time' && styles.sortChipActive]}
+                onPress={() => void changeMedSort('time')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: medSort === 'time' }}
+              >
+                <Text
+                  style={[styles.sortChipText, medSort === 'time' && styles.sortChipTextActive]}
+                >
+                  Time
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.sortChip, medSort === 'name' && styles.sortChipActive]}
+                onPress={() => void changeMedSort('name')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: medSort === 'name' }}
+              >
+                <Text
+                  style={[styles.sortChipText, medSort === 'name' && styles.sortChipTextActive]}
+                >
+                  A–Z
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {error ? (
           <View style={styles.errorBanner}>

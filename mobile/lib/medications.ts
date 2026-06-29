@@ -2,9 +2,11 @@ import { supabase } from './supabase'
 import {
   formatScheduleTime,
   normalizeScheduleTimes,
+  scheduleTimeToMinutes,
   todayLocalDate,
   currentPrnScheduleTimeToken,
 } from './dates'
+import type { MedSort } from './settings'
 import { normalizeDoseFields } from './dose'
 import { getDoseDeductionAmount } from './inventory'
 import {
@@ -216,6 +218,45 @@ export async function fetchMedicationsWithStatus(
         slots.length > 0 && dosesTakenToday === slots.length,
       scheduleStatus: getMedicationScheduleStatus(med, forDate),
     }
+  })
+}
+
+/**
+ * For time sorting: the minutes of the earliest still-untaken dose slot. When
+ * every slot is taken (or there are none), falls back to the earliest slot so
+ * order stays stable. Meds with no dose times sort to the end of the timed group.
+ */
+function earliestRelevantMinutes(med: MedicationWithStatus): number {
+  const untaken = med.slots.filter((s) => !s.taken)
+  const source = untaken.length > 0 ? untaken : med.slots
+  if (source.length === 0) return Number.MAX_SAFE_INTEGER
+  return source.reduce((min, slot) => {
+    const mins = scheduleTimeToMinutes(slot.time)
+    return Number.isFinite(mins) && mins < min ? mins : min
+  }, Number.MAX_SAFE_INTEGER)
+}
+
+/**
+ * Sort scheduled meds for the Today list. Fully-completed meds always sink to the
+ * bottom; the rest are ordered by the chosen preference (earliest upcoming dose
+ * time, or alphabetically).
+ */
+export function sortScheduledMedications(
+  medications: MedicationWithStatus[],
+  sort: MedSort,
+): MedicationWithStatus[] {
+  return [...medications].sort((a, b) => {
+    const aDone = a.allDosesTakenToday ? 1 : 0
+    const bDone = b.allDosesTakenToday ? 1 : 0
+    if (aDone !== bDone) return aDone - bDone
+
+    if (sort === 'time') {
+      const at = earliestRelevantMinutes(a)
+      const bt = earliestRelevantMinutes(b)
+      if (at !== bt) return at - bt
+    }
+
+    return a.name.localeCompare(b.name)
   })
 }
 

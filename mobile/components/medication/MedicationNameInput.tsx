@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useTheme } from '../../context/ThemeProvider';
 import { MIN_RXNORM_QUERY_LEN, useRxNormDrugSearch } from '../../hooks/useRxNormDrugSearch';
 import {
@@ -23,7 +32,10 @@ export function MedicationNameInput({
   placeholder = 'e.g. Tylenol, Albuterol',
 }: Props) {
   const { colors } = useTheme();
-  const [focused, setFocused] = useState(false);
+  // The list stays open while there are matches; it only closes when the user
+  // picks a suggestion. This keeps it from vanishing when the field loses focus
+  // (e.g. while scrolling the dropdown).
+  const [dismissed, setDismissed] = useState(false);
 
   const query = value.trim();
   const { names: rxnormNames, loading: rxnormLoading, failed: rxnormFailed } =
@@ -38,18 +50,22 @@ export function MedicationNameInput({
     [localSuggestions, rxnormNames],
   );
 
-  const showList = focused && query.length > 0 && suggestions.length > 0;
+  const showList = !dismissed && query.length > 0 && suggestions.length > 0;
   const showSearchHint = query.length >= MIN_RXNORM_QUERY_LEN;
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  function handleChange(next: string) {
+    if (dismissed) setDismissed(false);
+    onChange(next);
+  }
 
   return (
     <View>
       <TextInput
         style={styles.input}
         value={value}
-        onChangeText={onChange}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 200)}
+        onChangeText={handleChange}
+        onFocus={() => setDismissed(false)}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         autoCapitalize="words"
@@ -70,7 +86,11 @@ export function MedicationNameInput({
         </View>
       ) : null}
       {showList ? (
-        <View style={styles.list}>
+        <ScrollView
+          style={styles.list}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
           {suggestions.map((s, index) => (
             <Pressable
               key={`${s.name}-${index}`}
@@ -78,7 +98,8 @@ export function MedicationNameInput({
               onPress={() => {
                 onChange(s.name);
                 onSelectSuggestion?.(s);
-                setFocused(false);
+                setDismissed(true);
+                Keyboard.dismiss();
               }}
             >
               <Text style={styles.itemName}>{s.name}</Text>
@@ -91,7 +112,7 @@ export function MedicationNameInput({
               ) : null}
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       ) : null}
     </View>
   );
@@ -118,11 +139,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     hint: { flex: 1, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
     list: {
       marginTop: 4,
+      maxHeight: 260,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: radii.md,
       backgroundColor: colors.surface,
-      overflow: 'hidden',
     },
     item: {
       padding: spacing.md,

@@ -7,10 +7,14 @@ export type ReminderSettings = {
   enabled: boolean;
 };
 
+export type MedSort = 'time' | 'name';
+
 const KEYS = {
   themeMode: 'mt-theme-mode',
   timezone: 'mt-timezone',
   reminders: 'mt-reminders',
+  medSort: 'mt-med-sort',
+  updateDismissed: 'mt-update-dismissed',
   onboarding: 'mt-onboarding-v1',
   onboardingLegacy: 'mt-onboarding-v1',
 } as const;
@@ -77,6 +81,32 @@ export async function getReminders(): Promise<ReminderSettings> {
 
 export async function setReminders(settings: ReminderSettings): Promise<void> {
   await AsyncStorage.setItem(KEYS.reminders, JSON.stringify(settings));
+}
+
+export async function getMedSort(): Promise<MedSort> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.medSort);
+    return raw === 'name' ? 'name' : 'time';
+  } catch {
+    return 'time';
+  }
+}
+
+export async function setMedSort(sort: MedSort): Promise<void> {
+  await AsyncStorage.setItem(KEYS.medSort, sort);
+}
+
+/** The latest App Store version the user dismissed the "update available" prompt for. */
+export async function getDismissedUpdateVersion(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(KEYS.updateDismissed);
+  } catch {
+    return null;
+  }
+}
+
+export async function setDismissedUpdateVersion(version: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.updateDismissed, version);
 }
 
 export async function isOnboardingDone(userId: string): Promise<boolean> {

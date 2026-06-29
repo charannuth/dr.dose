@@ -109,6 +109,7 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
+      flexWrap: 'wrap' as const,
       gap: spacing.sm,
       paddingVertical: 4,
     },
@@ -119,11 +120,14 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'space-between' as const,
+      flexWrap: 'wrap' as const,
       gap: spacing.sm,
       paddingVertical: 4,
     },
     slotTime: {
       flex: 1,
+      flexShrink: 1,
+      minWidth: 120,
       fontSize: 15,
       fontWeight: '600' as const,
       color: colors.text,
@@ -233,6 +237,12 @@ export function MedicationCard({
   }
 
   const asNeeded = isAsNeededMed(medication);
+  // Untaken doses first (by time), taken doses drop to the bottom of the card so
+  // finished morning doses don't sit above doses still due later in the day.
+  const orderedSlots = [...medication.slots].sort((a, b) => {
+    if (a.taken !== b.taken) return a.taken ? 1 : -1;
+    return a.time.localeCompare(b.time);
+  });
   const lowSupply =
     medication.pills_remaining != null && medication.pills_remaining <= 7;
   const { dosesTakenToday, dosesTotalToday, allDosesTakenToday } = medication;
@@ -340,9 +350,9 @@ export function MedicationCard({
             <Text style={styles.emptySlots}>No doses logged today yet.</Text>
           )}
         </>
-      ) : medication.slots.length > 0 ? (
+      ) : orderedSlots.length > 0 ? (
         <View style={styles.slots}>
-          {medication.slots.map((slot, index) => {
+          {orderedSlots.map((slot, index) => {
             const slotKey = `${medication.id}-${slot.time}`;
             const busy = busySlot === slotKey;
             return (
