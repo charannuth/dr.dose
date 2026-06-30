@@ -43,9 +43,14 @@ import {
 } from '../../lib/notifications';
 import { getReminders, setReminders } from '../../lib/settings';
 import { rescheduleAllReminders } from '../../lib/reminders';
-import type { Medication, MedicationInput, MedicationTrackingSync } from '../../lib/types';
+import type {
+  Medication,
+  MedicationCategory,
+  MedicationInput,
+  MedicationTrackingSync,
+} from '../../lib/types';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { DosageStepPanel } from './DosageStepPanel';
@@ -63,10 +68,20 @@ import {
   type WizardStep,
 } from './medicationWizardState';
 
+/** Confirmable suggestions seeded from a scanned label. */
+export type WizardPrefill = {
+  name?: string;
+  route?: MedicationRouteId | null;
+  form?: string;
+  doseMg?: string;
+};
+
 type Props = {
   initial?: Medication | null;
   existingMedicationNames?: string[];
   defaultScheduleType?: MedicationScheduleType;
+  defaultCategory?: MedicationCategory;
+  prefill?: WizardPrefill | null;
   userId: string;
   onSave: (input: MedicationInput) => Promise<void>;
   onCancel: () => void;
@@ -76,6 +91,8 @@ export function MedicationFormWizard({
   initial,
   existingMedicationNames = [],
   defaultScheduleType = 'scheduled',
+  defaultCategory = 'medication',
+  prefill,
   userId,
   onSave,
   onCancel,
@@ -83,14 +100,21 @@ export function MedicationFormWizard({
   const styles = useThemedStyles(makeMedicationWizardStyles);
   const { colors } = useTheme();
   const defaults = buildFormState(initial, defaultScheduleType);
+  // When adding (no existing medication) seed any scanned suggestions; the user
+  // still walks through each step to confirm before saving.
+  const seededRoute = !initial && prefill?.route ? prefill.route : defaults.route;
   const [stepIndex, setStepIndex] = useState(0);
-  const [name, setName] = useState(defaults.name);
-  const [route, setRoute] = useState<MedicationRouteId | null>(defaults.route);
-  const [form, setForm] = useState(defaults.form);
-  const [scheduleType, setScheduleType] = useState<MedicationScheduleType>(defaults.scheduleType);
-  const [dosageWizard, setDosageWizard] = useState<DosageWizardValues>(() =>
-    buildDosageWizardState(initial, defaults.route, defaults.scheduleType),
+  const [name, setName] = useState(!initial && prefill?.name ? prefill.name : defaults.name);
+  const [category, setCategory] = useState<MedicationCategory>(
+    initial?.category ?? defaultCategory,
   );
+  const [route, setRoute] = useState<MedicationRouteId | null>(seededRoute);
+  const [form, setForm] = useState(!initial && prefill?.form ? prefill.form : defaults.form);
+  const [scheduleType, setScheduleType] = useState<MedicationScheduleType>(defaults.scheduleType);
+  const [dosageWizard, setDosageWizard] = useState<DosageWizardValues>(() => {
+    const base = buildDosageWizardState(initial, seededRoute, defaults.scheduleType);
+    return !initial && prefill?.doseMg ? { ...base, doseMg: prefill.doseMg } : base;
+  });
   const [doseTimes, setDoseTimes] = useState<DoseTimeRow[]>(defaults.doseTimes);
   const [notes, setNotes] = useState(defaults.notes);
   const [trackPills, setTrackPills] = useState(defaults.trackPills);
@@ -378,6 +402,7 @@ export function MedicationFormWizard({
         prn_amount_hints: built.prn_amount_hints,
         prn_symptom_hints: built.prn_symptom_hints,
         schedule_type: scheduleType,
+        category,
         schedule_times,
         tracking_sync: trackingSync,
         notes,
@@ -397,7 +422,40 @@ export function MedicationFormWizard({
       case 'name':
         return (
           <View style={styles.panel}>
-            <Text style={styles.hint}>Type a medication name — pick a suggestion or enter your own.</Text>
+            <Text style={styles.fieldLabel}>This is a…</Text>
+            <View style={styles.categoryRow}>
+              {(
+                [
+                  { id: 'medication', label: 'Medication' },
+                  { id: 'supplement', label: 'Supplement' },
+                ] as const
+              ).map((option) => {
+                const active = category === option.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => setCategory(option.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        active && styles.categoryChipTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.hint}>
+              {category === 'supplement'
+                ? 'Vitamins, minerals, or herbals — pick a suggestion or enter your own.'
+                : 'Type a medication name — pick a suggestion or enter your own.'}
+            </Text>
             <Text style={styles.fieldLabel}>Name *</Text>
             <MedicationNameInput
               value={name}
@@ -742,6 +800,19 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipText: { fontWeight: '700' as const, color: colors.textMuted },
   chipTextActive: { color: colors.onAccent },
+  categoryRow: { flexDirection: 'row' as const, gap: 8, marginTop: spacing.xs },
+  categoryChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center' as const,
+  },
+  categoryChipActive: { backgroundColor: colors.accentGreen, borderColor: colors.accentGreen },
+  categoryChipText: { fontWeight: '800' as const, color: colors.textMuted, fontFamily: fonts.bodySemibold },
+  categoryChipTextActive: { color: colors.onAccent },
   switchRow: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,

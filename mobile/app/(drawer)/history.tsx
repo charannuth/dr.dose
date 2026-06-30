@@ -17,7 +17,9 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuth } from '../../hooks/useAuth';
 import { useDayDetail } from '../../hooks/useDayDetail';
 import { useStreakStats } from '../../hooks/useStreakStats';
-import { formatDisplayDate } from '../../lib/dates';
+import { addDaysToDateString, formatDisplayDate, todayLocalDate } from '../../lib/dates';
+import { redeemDose, undoDose } from '../../lib/medications';
+import type { DayDoseSlot } from '../../lib/dayDetail';
 import { fetchDoseHistory, historyStats, type HistoryDay } from '../../lib/history';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { fetchWeeklySummary, type WeeklySummary } from '../../lib/weeklySummary';
@@ -118,6 +120,8 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [redeemBusy, setRedeemBusy] = useState<string | null>(null);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
 
   const { stats: streakStats, loading: streakLoading, reload: reloadStreaks } =
     useStreakStats(user?.id);
@@ -125,7 +129,11 @@ export default function HistoryScreen() {
     detail: dayDetail,
     loading: dayLoading,
     error: dayError,
+    reload: reloadDay,
   } = useDayDetail(user?.id, selectedDate);
+
+  const yesterday = addDaysToDateString(todayLocalDate(), -1);
+  const canRedeem = selectedDate === yesterday;
 
   const selectedStreakStatus = useMemo(() => {
     if (!selectedDate || !streakStats) return undefined;
@@ -177,6 +185,36 @@ export default function HistoryScreen() {
       setError(err instanceof Error ? err.message : 'Failed to refresh');
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleRedeem(slot: DayDoseSlot) {
+    if (!user || !selectedDate) return;
+    setRedeemError(null);
+    setRedeemBusy(`${slot.medicationId}-${slot.scheduleTime}`);
+    try {
+      await redeemDose(user.id, slot.medicationId, slot.scheduleTime, selectedDate);
+      reloadDay();
+      await loadHistory();
+    } catch (err) {
+      setRedeemError(err instanceof Error ? err.message : 'Failed to redeem dose');
+    } finally {
+      setRedeemBusy(null);
+    }
+  }
+
+  async function handleUndoLate(slot: DayDoseSlot) {
+    if (!slot.doseLogId) return;
+    setRedeemError(null);
+    setRedeemBusy(`${slot.medicationId}-${slot.scheduleTime}`);
+    try {
+      await undoDose(slot.doseLogId, slot.medicationId);
+      reloadDay();
+      await loadHistory();
+    } catch (err) {
+      setRedeemError(err instanceof Error ? err.message : 'Failed to undo dose');
+    } finally {
+      setRedeemBusy(null);
     }
   }
 
@@ -238,9 +276,13 @@ export default function HistoryScreen() {
           <DayAdherenceDetail
             detail={dayDetail}
             loading={dayLoading}
-            error={dayError}
+            error={dayError ?? redeemError}
             streakStatus={selectedStreakStatus}
             showHistoryLink={false}
+            canRedeem={canRedeem}
+            busyKey={redeemBusy}
+            onRedeem={handleRedeem}
+            onUndoLate={handleUndoLate}
             onClear={() => setSelectedDate(null)}
           />
         ) : null}

@@ -3,7 +3,7 @@
     "name": "Dr. Dose",
     "slug": "dr-dose",
     "scheme": "medicine-tracker",
-    "version": "2.0.0",
+    "version": "2.2.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,20 +15,20 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.charannuth.drdose",
-      "buildNumber": "2",
+      "buildNumber": "4",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "Dr. Dose sends reminders when your scheduled medication doses are due, including when the app is closed or your phone is locked.",
-        "NSPhotoLibraryUsageDescription": "Dr. Dose uses your photo library so you can choose a profile picture.",
-        "NSCameraUsageDescription": "Dr. Dose uses the camera so you can take a profile picture.",
+        "NSPhotoLibraryUsageDescription": "Dr. Dose uses your photo library so you can choose a profile picture or scan a medication label from a saved photo.",
+        "NSCameraUsageDescription": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.charannuth.drdose",
-      "versionCode": 2,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -59,12 +59,19 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Dr. Dose uses your photo library so you can choose a profile picture.",
-          "cameraPermission": "Dr. Dose uses the camera so you can take a profile picture."
+          "photosPermission": "Dr. Dose uses your photo library so you can choose a profile picture or scan a medication label from a saved photo.",
+          "cameraPermission": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture."
         }
       ],
       "expo-splash-screen",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-mlkit-ocr",
+        {
+          "iosEngine": "auto"
+        }
+      ]
     ],
     "extra": {
       "router": {},

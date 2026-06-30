@@ -1,29 +1,98 @@
 import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { MedicationScheduleType } from '../../../lib/medicationSchedule';
+import * as ImagePicker from 'expo-image-picker';
+import type {
+  MedicationCategory,
+  MedicationScheduleType,
+} from '../../../lib/medicationSchedule';
 import type { ColorPalette } from '../../../constants/theme';
+import { fonts, radii, spacing, typography } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { createMedication, fetchMedicationsWithStatus } from '../../../lib/medications';
 import { rescheduleAllReminders } from '../../../lib/reminders';
-import { MedicationFormWizard } from '../../../components/medication/MedicationFormWizard';
+import {
+  MedicationFormWizard,
+  type WizardPrefill,
+} from '../../../components/medication/MedicationFormWizard';
+import {
+  hasUsefulPrefill,
+  recognizePrescription,
+} from '../../../lib/prescriptionScan';
 import type { MedicationInput } from '../../../lib/types';
+import { useTheme } from '../../../context/ThemeProvider';
 import { useThemedStyles } from '../../../hooks/useThemedStyles';
 
-function makeSafeStyles(colors: ColorPalette) {
+type AddMode = 'choose' | 'form';
+
+function makeStyles(colors: ColorPalette) {
   return {
     safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: { padding: spacing.md, gap: spacing.md },
+    title: { ...typography.display, fontSize: 26, color: colors.text },
+    subtitle: { ...typography.body, fontSize: 15, color: colors.textMuted, lineHeight: 22 },
+    card: {
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: spacing.lg,
+      gap: 6,
+    },
+    cardScan: {
+      borderColor: colors.accentBlue,
+      backgroundColor: colors.accentBlueBg,
+      borderLeftWidth: 5,
+    },
+    cardManual: {
+      borderColor: colors.accentPurple,
+      borderLeftWidth: 5,
+    },
+    cardTitle: { fontFamily: fonts.heading, fontSize: 18, color: colors.text },
+    cardTitleScan: { color: colors.accentBlue },
+    cardTitleManual: { color: colors.accentPurple },
+    cardDesc: { fontFamily: fonts.bodyRegular, fontSize: 14, color: colors.textMuted, lineHeight: 20 },
+    note: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    scanningWrap: {
+      flex: 1,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: spacing.md,
+      backgroundColor: colors.bg,
+      padding: spacing.lg,
+    },
+    scanningText: { ...typography.body, fontSize: 16, color: colors.text, textAlign: 'center' as const },
+    scanningHint: { ...typography.caption, color: colors.textMuted, textAlign: 'center' as const },
   };
 }
 
 export default function AddMedicationScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ scheduleType?: string }>();
+  const params = useLocalSearchParams<{ scheduleType?: string; category?: string }>();
   const defaultScheduleType: MedicationScheduleType =
     params.scheduleType === 'as_needed' ? 'as_needed' : 'scheduled';
+  const defaultCategory: MedicationCategory =
+    params.category === 'supplement' ? 'supplement' : 'medication';
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [existingNames, setExistingNames] = useState<string[]>([]);
-  const styles = useThemedStyles(makeSafeStyles);
+  const [mode, setMode] = useState<AddMode>('choose');
+  const [prefill, setPrefill] = useState<WizardPrefill | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -31,6 +100,69 @@ export default function AddMedicationScreen() {
       setExistingNames(meds.map((m) => m.name)),
     );
   }, [user]);
+
+  async function runScan(source: 'camera' | 'library') {
+    setScanning(true);
+    try {
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        quality: 0.7,
+        allowsEditing: false,
+      };
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert(
+            'Camera access needed',
+            'Allow camera access in Settings to scan a label, or enter the details manually.',
+          );
+          setScanning(false);
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
+
+      if (result.canceled || !result.assets[0]?.uri) {
+        setScanning(false);
+        return;
+      }
+
+      const parsed = await recognizePrescription(result.assets[0].uri);
+      const next: WizardPrefill = {
+        name: parsed.name,
+        doseMg: parsed.doseMg,
+        route: parsed.route ?? null,
+        form: parsed.form,
+      };
+      setPrefill(next);
+      setMode('form');
+      if (!hasUsefulPrefill(parsed)) {
+        Alert.alert(
+          'Nothing detected',
+          "We couldn't read the label clearly. You can type the details in — they're just suggestions either way.",
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        'Scan failed',
+        err instanceof Error ? err.message : 'Could not scan the label. Please enter details manually.',
+      );
+      setMode('form');
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function startScan() {
+    Alert.alert('Scan a label', 'Choose a source for the medication label.', [
+      { text: 'Take photo', onPress: () => void runScan('camera') },
+      { text: 'Choose from library', onPress: () => void runScan('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
 
   async function handleSave(input: MedicationInput) {
     if (!user) return;
@@ -45,12 +177,75 @@ export default function AddMedicationScreen() {
 
   if (!user) return null;
 
+  if (scanning) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.scanningWrap}>
+          <ActivityIndicator size="large" color={colors.accentBlue} />
+          <Text style={styles.scanningText}>Reading the label…</Text>
+          <Text style={styles.scanningHint}>
+            This happens on your device — the photo never leaves your phone.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (mode === 'choose') {
+    const isSupplement = defaultCategory === 'supplement';
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.title}>{isSupplement ? 'Add supplement' : 'Add medication'}</Text>
+          <Text style={styles.subtitle}>
+            Scan the label to fill in the details automatically, or type them in yourself.
+          </Text>
+
+          {!isSupplement ? (
+            <Pressable
+              style={[styles.card, styles.cardScan]}
+              onPress={startScan}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.cardTitle, styles.cardTitleScan]}>Scan label</Text>
+              <Text style={styles.cardDesc}>
+                Point your camera at the bottle or box. We'll read the name, strength, and form on
+                your device and pre-fill them as suggestions.
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            style={[styles.card, styles.cardManual]}
+            onPress={() => {
+              setPrefill(null);
+              setMode('form');
+            }}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.cardTitle, styles.cardTitleManual]}>Enter manually</Text>
+            <Text style={styles.cardDesc}>
+              Type the details yourself. You can add a name, dose, schedule, and reminders step by
+              step.
+            </Text>
+          </Pressable>
+
+          <Text style={styles.note}>
+            Scanned details are only suggestions — you'll review and confirm every step before saving.
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <MedicationFormWizard
         userId={user.id}
         existingMedicationNames={existingNames}
         defaultScheduleType={defaultScheduleType}
+        defaultCategory={defaultCategory}
+        prefill={prefill}
         onSave={handleSave}
         onCancel={() => router.back()}
       />

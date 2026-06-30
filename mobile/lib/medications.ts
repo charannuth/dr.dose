@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import {
+  addDaysToDateString,
   formatScheduleTime,
   normalizeScheduleTimes,
   scheduleTimeToMinutes,
@@ -15,7 +16,7 @@ import {
   isMedicationActiveOn,
   validateMedicationDates,
 } from './medicationDates'
-import { isAsNeededMed } from './medicationSchedule'
+import { isAsNeededMed, normalizeCategory } from './medicationSchedule'
 import type { PrnDoseLogPayload } from './prnCheckIn'
 import { formatPrnDoseSummary } from './prnCheckIn'
 import { syncDoseLogToTracking, removeSyncedDoseLog } from './tracking/doseSync'
@@ -194,6 +195,7 @@ export async function fetchMedicationsWithStatus(
       return {
         ...med,
         schedule_type,
+        category: normalizeCategory(med.category),
         tracking_sync: normalizeTrackingSync(med.tracking_sync),
         schedule_times: [],
         slots: prnSlots,
@@ -209,6 +211,7 @@ export async function fetchMedicationsWithStatus(
     return {
       ...med,
       schedule_type,
+      category: normalizeCategory(med.category),
       tracking_sync: normalizeTrackingSync(med.tracking_sync),
       schedule_times,
       slots,
@@ -300,6 +303,7 @@ export async function createMedication(
     prn_amount_hints: input.prn_amount_hints ?? [],
     prn_symptom_hints: input.prn_symptom_hints ?? [],
     schedule_type,
+    category: normalizeCategory(input.category),
     schedule_times,
     tracking_sync: input.tracking_sync ?? 'none',
     notes: input.notes.trim() || null,
@@ -355,6 +359,7 @@ export async function updateMedication(
       prn_amount_hints: input.prn_amount_hints ?? [],
       prn_symptom_hints: input.prn_symptom_hints ?? [],
       schedule_type,
+      category: normalizeCategory(input.category),
       schedule_times: newTimes,
       tracking_sync: input.tracking_sync ?? 'none',
       notes: input.notes.trim() || null,
@@ -608,6 +613,75 @@ export async function markDoseTaken(
       doseLogId: log.id,
       trackingSync: normalizeTrackingSync(med.tracking_sync),
       takenOn: today,
+      scheduleTime,
+      medicationName: med.name,
+      dosePills: med.dose_pills,
+      doseMg: med.dose_mg,
+    })
+  }
+}
+
+/**
+ * "Redeem your streak": mark a scheduled dose from the PREVIOUS calendar day as
+ * taken after the fact. Only yesterday is allowed. The log is flagged
+ * `logged_late` so the UI can permanently show it was caught up late, and the
+ * streak recomputes automatically because a real dose_log now exists for that day.
+ */
+export async function redeemDose(
+  userId: string,
+  medicationId: string,
+  scheduleTime: string,
+  date: string,
+): Promise<void> {
+  if (!supabase) return
+
+  const yesterday = addDaysToDateString(todayLocalDate(), -1)
+  if (date !== yesterday) {
+    throw new Error('You can only redeem doses from yesterday.')
+  }
+
+  const { data: med, error: medError } = await supabase
+    .from('medications')
+    .select('name, start_date, end_date, dose_pills, dose_mg, schedule_type, tracking_sync')
+    .eq('id', medicationId)
+    .single()
+
+  if (medError) throw medError
+  if (!med || !isMedicationActiveOn(med, date)) {
+    throw new Error('This medication was not active on that day.')
+  }
+  if (isAsNeededMed(med)) {
+    throw new Error('As-needed doses cannot be redeemed.')
+  }
+
+  const { data: log, error } = await supabase
+    .from('dose_logs')
+    .insert({
+      user_id: userId,
+      medication_id: medicationId,
+      taken_on: date,
+      schedule_time: scheduleTime,
+      logged_late: true,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('This dose is already marked as taken.')
+    }
+    throw error
+  }
+
+  await adjustInventoryRemaining(medicationId, med.dose_pills, 'take')
+
+  if (log?.id) {
+    await syncDoseLogToTracking({
+      userId,
+      medicationId,
+      doseLogId: log.id,
+      trackingSync: normalizeTrackingSync(med.tracking_sync),
+      takenOn: date,
       scheduleTime,
       medicationName: med.name,
       dosePills: med.dose_pills,

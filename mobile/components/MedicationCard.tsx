@@ -7,7 +7,7 @@ import { isAsNeededMed } from '../lib/medicationSchedule';
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types';
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn';
 import type { ColorPalette } from '../constants/theme';
-import { radii, spacing } from '../constants/theme';
+import { ACCENT_KEYS, fonts, radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
@@ -24,6 +24,15 @@ type MedicationCardProps = {
   onDelete?: () => void;
   busySlot: string | null;
 };
+
+/** Deterministically map a medication to one of the vibrant accent keys. */
+function stableAccentKey(seed: string): (typeof ACCENT_KEYS)[number] {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return ACCENT_KEYS[Math.abs(hash) % ACCENT_KEYS.length];
+}
 
 function makeMedicationCardStyles(colors: ColorPalette) {
   return {
@@ -52,15 +61,17 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       gap: 2,
     },
     name: {
+      fontFamily: fonts.heading,
       fontSize: 18,
-      fontWeight: '700' as const,
       color: colors.text,
     },
     typeLabel: {
+      fontFamily: fonts.bodyMedium,
       fontSize: 13,
       color: colors.textMuted,
     },
     dosage: {
+      fontFamily: fonts.bodyRegular,
       fontSize: 14,
       color: colors.textMuted,
       marginTop: 2,
@@ -97,8 +108,8 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       backgroundColor: colors.pendingBg,
     },
     badgeText: {
+      fontFamily: fonts.bodyBold,
       fontSize: 12,
-      fontWeight: '700' as const,
       color: colors.text,
     },
     slots: {
@@ -128,8 +139,8 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       flex: 1,
       flexShrink: 1,
       minWidth: 120,
+      fontFamily: fonts.bodySemibold,
       fontSize: 15,
-      fontWeight: '600' as const,
       color: colors.text,
     },
     emptySlots: {
@@ -153,14 +164,14 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
     },
     primaryButtonText: {
+      fontFamily: fonts.bodyBold,
       color: colors.onAccent,
       fontSize: 15,
-      fontWeight: '700' as const,
     },
     primaryButtonTextSmall: {
+      fontFamily: fonts.bodyBold,
       color: colors.onAccent,
       fontSize: 14,
-      fontWeight: '700' as const,
     },
     secondaryButton: {
       borderWidth: 1,
@@ -214,6 +225,9 @@ export function MedicationCard({
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
+
+  // Stable per-medication accent so each tile gets a consistent splash of color.
+  const accentColor = colors[stableAccentKey(medication.id || medication.name)];
 
   function Badge({
     label,
@@ -285,11 +299,12 @@ export function MedicationCard({
         styles.card,
         !asNeeded && allDosesTakenToday && styles.cardTaken,
         asNeeded && styles.cardPrn,
+        { borderLeftWidth: 4, borderLeftColor: accentColor },
       ]}
     >
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.name}>{medication.name}</Text>
+          <Text style={[styles.name, { color: accentColor }]}>{medication.name}</Text>
           {typeLabel ? <Text style={styles.typeLabel}>{typeLabel}</Text> : null}
           <Text style={styles.dosage}>
             {formatDoseDisplay(medication)}

@@ -22,6 +22,10 @@ export type DayDoseSlot = {
   scheduleLabel: string
   taken: boolean
   takenAt: string | null
+  doseLogId: string | null
+  /** True when this dose was marked taken on a later day (redeemed/late). */
+  loggedLate: boolean
+  isAsNeeded: boolean
   medicationNotes: string | null
 }
 
@@ -84,6 +88,9 @@ export async function fetchDayDetail(
           scheduleLabel: formatScheduleTime(log.schedule_time),
           taken: true,
           takenAt: log.taken_at,
+          doseLogId: log.id,
+          loggedLate: Boolean(log.logged_late),
+          isAsNeeded: true,
           medicationNotes: med.notes?.trim() || null,
         })
       }
@@ -99,6 +106,9 @@ export async function fetchDayDetail(
         scheduleLabel: formatScheduleTime(time),
         taken: Boolean(log),
         takenAt: log?.taken_at ?? null,
+        doseLogId: log?.id ?? null,
+        loggedLate: Boolean(log?.logged_late),
+        isAsNeeded: false,
         medicationNotes: med.notes?.trim() || null,
       })
     }

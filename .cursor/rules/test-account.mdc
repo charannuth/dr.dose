@@ -1,0 +1,17 @@
+---
+description: Dr. Dose test/demo account credentials for login during testing and App Store review
+alwaysApply: true
+---
+
+# Dr. Dose Test Account
+
+Use this account to log into the Dr. Dose app for testing (TestFlight/dev builds) and
+as the App Store review demo account:
+
+- Email: `testuser.drdose@gmail.com`
+- Password: `TestUser@123`
+
+This is a real Supabase auth user. It is also recorded in `docs/PROJECT_PAUSE.md`.
+
+Security note: these credentials are stored in the repo. If the repo is or becomes
+public, rotate the password and keep it only in App Store Connect's review-notes field.

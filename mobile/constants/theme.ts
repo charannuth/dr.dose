@@ -39,6 +39,19 @@ export const lightColors = {
   badgeMajorBg: '#fee2e2',
   badgeModerateBg: '#ffedd5',
   badgeMinorBg: '#eff6ff',
+  // Vibrant accent set used for color "splashes" across the UI. Each accent has a
+  // saturated foreground tone and a soft background tint. Hues are kept consistent
+  // with their dark-mode counterparts so the palette reads the same in both themes.
+  accentBlue: '#0891b2',
+  accentBlueBg: '#ecfeff',
+  accentPurple: '#7c3aed',
+  accentPurpleBg: '#f5f3ff',
+  accentGreen: '#16a34a',
+  accentGreenBg: '#f0fdf4',
+  accentAmber: '#d97706',
+  accentAmberBg: '#fffbeb',
+  accentRed: '#e11d48',
+  accentRedBg: '#fff1f2',
 } as const;
 
 export const darkColors = {
@@ -82,6 +95,18 @@ export const darkColors = {
   badgeMajorBg: '#7f1d1d',
   badgeModerateBg: '#7c2d12',
   badgeMinorBg: '#1e3a5f',
+  // Dark-mode counterparts: brighter foregrounds for contrast on dark surfaces,
+  // deep saturated background tints that still read as the same hue family.
+  accentBlue: '#22d3ee',
+  accentBlueBg: '#164e63',
+  accentPurple: '#a78bfa',
+  accentPurpleBg: '#2e1065',
+  accentGreen: '#34d399',
+  accentGreenBg: '#052e16',
+  accentAmber: '#fbbf24',
+  accentAmberBg: '#422006',
+  accentRed: '#fb7185',
+  accentRedBg: '#4c0519',
 } as const;
 
 export type ColorPalette = {
@@ -125,7 +150,39 @@ export type ColorPalette = {
   readonly badgeMajorBg: string;
   readonly badgeModerateBg: string;
   readonly badgeMinorBg: string;
+  readonly accentBlue: string;
+  readonly accentBlueBg: string;
+  readonly accentPurple: string;
+  readonly accentPurpleBg: string;
+  readonly accentGreen: string;
+  readonly accentGreenBg: string;
+  readonly accentAmber: string;
+  readonly accentAmberBg: string;
+  readonly accentRed: string;
+  readonly accentRedBg: string;
 };
+
+/**
+ * Ordered list of vibrant accents for cycling color "splashes" across lists/tiles.
+ * Use with `accentForIndex` to give adjacent items distinct, theme-consistent hues.
+ */
+export const ACCENT_KEYS = [
+  'accentBlue',
+  'accentPurple',
+  'accentGreen',
+  'accentAmber',
+  'accentRed',
+] as const;
+
+export type AccentKey = (typeof ACCENT_KEYS)[number];
+
+export function accentForIndex(index: number): AccentKey {
+  return ACCENT_KEYS[((index % ACCENT_KEYS.length) + ACCENT_KEYS.length) % ACCENT_KEYS.length];
+}
+
+export function accentBgKey(key: AccentKey): keyof ColorPalette {
+  return `${key}Bg` as keyof ColorPalette;
+}
 
 /** @deprecated Prefer `useTheme().colors` for theme-aware UI */
 export const colors: ColorPalette = lightColors;
@@ -143,4 +200,56 @@ export const spacing = {
   md: 16,
   lg: 24,
   xl: 32,
+} as const;
+
+/**
+ * Font families. We pair a chic geometric display face (Sora) for headings and
+ * numbers with a clean, highly legible body face (Inter) for a minimalist vibe.
+ * These names must match the keys registered via `useFonts` in the root layout.
+ * If a face fails to load, React Native falls back to the system font.
+ */
+export const fonts = {
+  display: 'Sora_700Bold',
+  heading: 'Sora_600SemiBold',
+  bodyRegular: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemibold: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+} as const;
+
+/** Reusable text styles that bake in the font family, size, weight and tracking. */
+export const typography = {
+  display: {
+    fontFamily: fonts.display,
+    fontSize: 30,
+    letterSpacing: -0.5,
+  },
+  title: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+    letterSpacing: -0.3,
+  },
+  heading: {
+    fontFamily: fonts.heading,
+    fontSize: 17,
+    letterSpacing: -0.2,
+  },
+  body: {
+    fontFamily: fonts.bodyRegular,
+    fontSize: 15,
+  },
+  bodyStrong: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 15,
+  },
+  label: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
+  caption: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
 } as const;

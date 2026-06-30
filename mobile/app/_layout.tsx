@@ -5,6 +5,17 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import {
+  Sora_600SemiBold,
+  Sora_700Bold,
+} from '@expo-google-fonts/sora';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { AuthProvider } from '../context/AuthProvider';
 import { ThemeProvider, useTheme } from '../context/ThemeProvider';
 import { DemoTourTargetsProvider } from '../context/DemoTourTargetsContext';
@@ -20,11 +31,24 @@ function ThemedStatusBar() {
 
 function AppShell() {
   const [ready, setReady] = useState(false);
+  const [fontsLoaded, fontError] = useFonts({
+    Sora_600SemiBold,
+    Sora_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  // Render once fonts resolve. If a font fails to load we still proceed so the
+  // app is never blocked — React Native falls back to the system face.
+  const fontsReady = fontsLoaded || !!fontError;
 
   useEffect(() => {
+    if (!fontsReady) return;
     setReady(true);
     void SplashScreen.hideAsync();
-  }, []);
+  }, [fontsReady]);
 
   if (!ready) {
     return (

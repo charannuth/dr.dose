@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/build/react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { accentBgKey, accentForIndex, fonts, radii, spacing } from '../../constants/theme';
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { useAuth } from '../../hooks/useAuth';
@@ -85,31 +85,47 @@ function DrawerNavItem({
   focused,
   onPress,
   colors,
+  index,
 }: {
   label: string;
   focused: boolean;
   onPress: () => void;
   colors: ColorPalette;
+  index: number;
 }) {
+  const accentKey = accentForIndex(index);
+  const accent = colors[accentKey];
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: focused }}
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
         marginHorizontal: spacing.sm,
         marginVertical: 2,
         paddingVertical: 11,
         paddingHorizontal: spacing.md,
         borderRadius: radii.md,
-        backgroundColor: focused ? colors.pendingBg : 'transparent',
+        backgroundColor: focused ? colors[accentBgKey(accentKey)] : 'transparent',
       }}
     >
+      <View
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: 5,
+          backgroundColor: accent,
+          opacity: focused ? 1 : 0.55,
+        }}
+      />
       <Text
         style={{
+          fontFamily: focused ? fonts.bodyBold : fonts.bodyMedium,
           fontSize: 16,
-          fontWeight: focused ? ('700' as const) : ('500' as const),
-          color: focused ? colors.accent : colors.textMuted,
+          color: focused ? accent : colors.textMuted,
         }}
       >
         {label}
@@ -167,6 +183,7 @@ function DrawerContent(props: DrawerContentProps) {
               label={String(label)}
               focused={focused}
               colors={colors}
+              index={index}
               onPress={() => navigation.navigate(route.name)}
             />
           );
@@ -401,12 +418,12 @@ function makeStyles(colors: ColorPalette) {
     },
     drawerName: {
       color: colors.text,
-      fontWeight: '800',
+      fontFamily: fonts.heading,
       fontSize: 16,
     },
     drawerEmail: {
       color: colors.textMuted,
-      fontWeight: '600',
+      fontFamily: fonts.bodyMedium,
       fontSize: 13,
     },
     titleWrap: {
@@ -415,10 +432,10 @@ function makeStyles(colors: ColorPalette) {
     },
     pageTitle: {
       marginTop: 2,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: 13,
+      fontFamily: fonts.bodySemibold,
       color: colors.textMuted,
-      letterSpacing: 0.2,
+      letterSpacing: 0.3,
     },
     iconButton: {
       paddingHorizontal: spacing.md,
@@ -442,7 +459,7 @@ function makeStyles(colors: ColorPalette) {
     },
     signOutText: {
       color: colors.error,
-      fontWeight: '900',
+      fontFamily: fonts.bodyBold,
     },
   });
 }

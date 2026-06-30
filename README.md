@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-06-30** (`e987892`) — Your commit message here
+
 - **2026-06-29** (`38e31ba`) — v2.0: notifications, sorting, wizard UX, update prompt
 
 - **2026-06-26** (`4fa76d5`) — Add account deletion screen recording for App Store review

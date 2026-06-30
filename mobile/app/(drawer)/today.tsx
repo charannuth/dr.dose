@@ -33,7 +33,13 @@ import {
   todayDoseTotals,
   undoDose,
 } from '../../lib/medications';
-import { isAsNeededMed, type MedicationScheduleType } from '../../lib/medicationSchedule';
+import {
+  isAsNeededMed,
+  isSupplement,
+  type MedicationCategory,
+  type MedicationScheduleType,
+} from '../../lib/medicationSchedule';
+import { SwipeTabView } from '../../components/SwipeTabView';
 import { fetchStreakStats, type StreakStats } from '../../lib/streaks';
 import { fetchMissedDoses, type MissedDoseItem } from '../../lib/missedDoses';
 import { getRefillAlerts } from '../../lib/refills';
@@ -46,13 +52,29 @@ import {
 } from '../../lib/bannerSettings';
 import type { DoseSlotStatus, MedicationWithStatus } from '../../lib/types';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing, typography } from '../../constants/theme';
 import type { PrnDoseLogPayload } from '../../lib/prnCheckIn';
 import { Alert } from 'react-native';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 
-type TodayTab = 'scheduled' | 'as_needed';
+type TodayTab = 'scheduled' | 'as_needed' | 'supplement';
+
+const TAB_ORDER: TodayTab[] = ['scheduled', 'as_needed', 'supplement'];
+
+const TAB_LABELS: Record<TodayTab, string> = {
+  scheduled: 'Daily',
+  as_needed: 'As needed',
+  supplement: 'Supplements',
+};
+
+// Each tab gets its own accent so the row reads as a colorful, scannable control.
+type TabAccent = { fg: keyof ColorPalette; bg: keyof ColorPalette };
+const TAB_ACCENTS: Record<TodayTab, TabAccent> = {
+  scheduled: { fg: 'accentBlue', bg: 'accentBlueBg' },
+  as_needed: { fg: 'accentPurple', bg: 'accentPurpleBg' },
+  supplement: { fg: 'accentGreen', bg: 'accentGreenBg' },
+};
 
 function makeTodayStyles(colors: ColorPalette) {
   return {
@@ -79,11 +101,11 @@ function makeTodayStyles(colors: ColorPalette) {
       gap: 4,
     },
     summaryTitle: {
-      fontSize: 28,
-      fontWeight: '800' as const,
+      ...typography.display,
       color: colors.text,
     },
     summaryText: {
+      ...typography.body,
       fontSize: 16,
       color: colors.textMuted,
     },
@@ -99,36 +121,35 @@ function makeTodayStyles(colors: ColorPalette) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      gap: 6,
-      paddingVertical: 10,
+      gap: 5,
+      paddingVertical: 9,
+      paddingHorizontal: 4,
       borderRadius: radii.md,
     },
     tabActive: {
       backgroundColor: colors.surface,
     },
     tabText: {
-      fontSize: 14,
-      fontWeight: '600' as const,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 12.5,
+      letterSpacing: 0.1,
       color: colors.textMuted,
     },
     tabTextActive: {
       color: colors.text,
     },
     tabCount: {
-      minWidth: 22,
-      height: 22,
-      borderRadius: 11,
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
       backgroundColor: colors.pendingBg,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      paddingHorizontal: 6,
-    },
-    tabCountActive: {
-      backgroundColor: colors.accent,
+      paddingHorizontal: 5,
     },
     tabCountText: {
-      fontSize: 12,
-      fontWeight: '700' as const,
+      fontFamily: fonts.bodyBold,
+      fontSize: 11,
       color: colors.text,
     },
     tabCountTextActive: {
@@ -153,12 +174,12 @@ function makeTodayStyles(colors: ColorPalette) {
       gap: spacing.sm,
     },
     emptyTitle: {
+      ...typography.title,
       fontSize: 18,
-      fontWeight: '700' as const,
       color: colors.text,
     },
     emptyBody: {
-      fontSize: 15,
+      ...typography.body,
       color: colors.textMuted,
       lineHeight: 22,
     },
@@ -170,9 +191,9 @@ function makeTodayStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
     },
     emptyBtnText: {
+      fontFamily: fonts.bodyBold,
       color: colors.onAccent,
       fontSize: 16,
-      fontWeight: '700' as const,
     },
     list: {
       gap: spacing.md,
@@ -184,8 +205,8 @@ function makeTodayStyles(colors: ColorPalette) {
       gap: spacing.sm,
     },
     sortLabel: {
+      fontFamily: fonts.bodyMedium,
       fontSize: 14,
-      fontWeight: '600' as const,
       color: colors.textMuted,
     },
     sortOptions: {
@@ -206,8 +227,8 @@ function makeTodayStyles(colors: ColorPalette) {
       borderColor: colors.accent,
     },
     sortChipText: {
+      fontFamily: fonts.bodySemibold,
       fontSize: 14,
-      fontWeight: '700' as const,
       color: colors.textMuted,
     },
     sortChipTextActive: {
@@ -444,42 +465,77 @@ export default function TodayScreen() {
     }
   }
 
-  const { taken: dosesTaken, total: dosesTotal } = todayDoseTotals(medications);
+  const { taken: dosesTaken, total: dosesTotal } = todayDoseTotals(
+    medications.filter((m) => !isSupplement(m)),
+  );
   const scheduledMeds = useMemo(
     () =>
       sortScheduledMedications(
-        medications.filter((m) => !isAsNeededMed(m)),
+        medications.filter((m) => !isSupplement(m) && !isAsNeededMed(m)),
         medSort,
       ),
     [medications, medSort],
   );
   const prnMeds = useMemo(
-    () => medications.filter((m) => isAsNeededMed(m)),
+    () => medications.filter((m) => !isSupplement(m) && isAsNeededMed(m)),
     [medications],
   );
-  const visibleMeds = todayTab === 'scheduled' ? scheduledMeds : prnMeds;
+  const supplementMeds = useMemo(
+    () => sortScheduledMedications(medications.filter((m) => isSupplement(m)), medSort),
+    [medications, medSort],
+  );
+  const medsByTab: Record<TodayTab, MedicationWithStatus[]> = {
+    scheduled: scheduledMeds,
+    as_needed: prnMeds,
+    supplement: supplementMeds,
+  };
+  const tabCounts: Record<TodayTab, number> = {
+    scheduled: scheduledMeds.length,
+    as_needed: prnMeds.length,
+    supplement: supplementMeds.length,
+  };
+  const visibleMeds = medsByTab[todayTab];
+  const activeTabIndex = TAB_ORDER.indexOf(todayTab);
   const prnLoggedToday = prnMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
+  const supplementsLogged = supplementMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
+  const showSortRow =
+    (todayTab === 'scheduled' && scheduledMeds.length > 1) ||
+    (todayTab === 'supplement' && supplementMeds.length > 1);
   const refillAlerts = getRefillAlerts(medications);
 
-  function openAddMedication(scheduleType: MedicationScheduleType = 'scheduled') {
+  function openAddMedication(
+    scheduleType: MedicationScheduleType = 'scheduled',
+    category: MedicationCategory = 'medication',
+  ) {
     router.push({
       pathname: routes.medicationNew,
-      params: { scheduleType },
+      params: { scheduleType, category },
     });
   }
 
-  const summaryText =
-    todayTab === 'scheduled'
-      ? dosesTotal === 0
+  let summaryText: string;
+  if (todayTab === 'scheduled') {
+    summaryText =
+      dosesTotal === 0
         ? scheduledMeds.length === 0
           ? 'No daily medications yet'
           : 'No dose times scheduled today'
-        : `${dosesTaken} of ${dosesTotal} dose${dosesTotal === 1 ? '' : 's'} taken`
-      : prnMeds.length === 0
+        : `${dosesTaken} of ${dosesTotal} dose${dosesTotal === 1 ? '' : 's'} taken`;
+  } else if (todayTab === 'as_needed') {
+    summaryText =
+      prnMeds.length === 0
         ? 'No as-needed medications yet'
         : prnLoggedToday === 0
           ? 'Log a dose when you take one'
           : `${prnLoggedToday} dose${prnLoggedToday === 1 ? '' : 's'} logged today`;
+  } else {
+    summaryText =
+      supplementMeds.length === 0
+        ? 'No supplements yet'
+        : supplementsLogged === 0
+          ? 'Track your vitamins & supplements'
+          : `${supplementsLogged} supplement dose${supplementsLogged === 1 ? '' : 's'} logged today`;
+  }
 
   if (loading) {
     return (
@@ -531,51 +587,54 @@ export default function TodayScreen() {
         <InteractionAlert medicationNames={medications.map((m) => m.name)} />
 
         <View ref={tabsRef} collapsable={false} style={styles.tabs}>
-          <Pressable
-            style={[styles.tab, todayTab === 'scheduled' && styles.tabActive]}
-            onPress={() => setTodayTab('scheduled')}
-          >
-            <Text style={[styles.tabText, todayTab === 'scheduled' && styles.tabTextActive]}>
-              Daily schedule
-            </Text>
-            {scheduledMeds.length > 0 ? (
-              <View style={[styles.tabCount, todayTab === 'scheduled' && styles.tabCountActive]}>
+          {TAB_ORDER.map((tab) => {
+            const active = todayTab === tab;
+            const accent = TAB_ACCENTS[tab];
+            const count = tabCounts[tab];
+            const pressable = (
+              <Pressable
+                style={[
+                  styles.tab,
+                  active && styles.tabActive,
+                  active && { backgroundColor: colors[accent.bg] },
+                ]}
+                onPress={() => setTodayTab(tab)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
                 <Text
-                  style={[
-                    styles.tabCountText,
-                    todayTab === 'scheduled' && styles.tabCountTextActive,
-                  ]}
+                  style={[styles.tabText, active && { color: colors[accent.fg] }]}
+                  numberOfLines={1}
                 >
-                  {scheduledMeds.length}
+                  {TAB_LABELS[tab]}
                 </Text>
+                {count > 0 ? (
+                  <View
+                    style={[styles.tabCount, active && { backgroundColor: colors[accent.fg] }]}
+                  >
+                    <Text style={[styles.tabCountText, active && styles.tabCountTextActive]}>
+                      {count}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+            if (tab === 'as_needed') {
+              return (
+                <View key={tab} ref={prnTabRef} collapsable={false} style={{ flex: 1 }}>
+                  {pressable}
+                </View>
+              );
+            }
+            return (
+              <View key={tab} style={{ flex: 1 }}>
+                {pressable}
               </View>
-            ) : null}
-          </Pressable>
-          <View ref={prnTabRef} collapsable={false} style={{ flex: 1 }}>
-            <Pressable
-              style={[styles.tab, todayTab === 'as_needed' && styles.tabActive]}
-              onPress={() => setTodayTab('as_needed')}
-            >
-            <Text style={[styles.tabText, todayTab === 'as_needed' && styles.tabTextActive]}>
-              As needed
-            </Text>
-            {prnMeds.length > 0 ? (
-              <View style={[styles.tabCount, todayTab === 'as_needed' && styles.tabCountActive]}>
-                <Text
-                  style={[
-                    styles.tabCountText,
-                    todayTab === 'as_needed' && styles.tabCountTextActive,
-                  ]}
-                >
-                  {prnMeds.length}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-          </View>
+            );
+          })}
         </View>
 
-        {todayTab === 'scheduled' && scheduledMeds.length > 1 ? (
+        {showSortRow ? (
           <View style={styles.sortRow}>
             <Text style={styles.sortLabel}>Sort by</Text>
             <View style={styles.sortOptions}>
@@ -620,42 +679,57 @@ export default function TodayScreen() {
               Tap + above to add your first medication.
             </Text>
           </View>
-        ) : visibleMeds.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyBody}>
-              {todayTab === 'scheduled'
-                ? 'No daily medications yet. Add one with fixed reminder times.'
-                : 'No as-needed medications yet. Add PRN meds like pain relievers or rescue inhalers.'}
-            </Text>
-            <Pressable
-              style={styles.emptyBtn}
-              onPress={() =>
-                openAddMedication(todayTab === 'scheduled' ? 'scheduled' : 'as_needed')
-              }
-            >
-              <Text style={styles.emptyBtnText}>
-                {todayTab === 'scheduled'
-                  ? 'Add daily medication'
-                  : 'Add as-needed medication'}
-              </Text>
-            </Pressable>
-          </View>
         ) : (
-          <View style={styles.list}>
-            {visibleMeds.map((med) => (
-              <MedicationCard
-                key={med.id}
-                medication={med}
-                busySlot={busySlot}
-                onMarkTaken={(time) => handleMarkTaken(med, time)}
-                onLogPrn={(payload) => handleLogPrn(med, payload)}
-                onUndo={(slot) => handleUndo(med, slot)}
-                onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
-                onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
-                onDelete={() => handleDelete(med)}
-              />
-            ))}
-          </View>
+          <SwipeTabView
+            index={activeTabIndex}
+            count={TAB_ORDER.length}
+            onIndexChange={(i) => setTodayTab(TAB_ORDER[i])}
+          >
+            {visibleMeds.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyBody}>
+                  {todayTab === 'scheduled'
+                    ? 'No daily medications yet. Add one with fixed reminder times.'
+                    : todayTab === 'as_needed'
+                      ? 'No as-needed medications yet. Add PRN meds like pain relievers or rescue inhalers.'
+                      : 'No supplements yet. Add vitamins, minerals, or herbal supplements to track them here.'}
+                </Text>
+                <Pressable
+                  style={styles.emptyBtn}
+                  onPress={() =>
+                    openAddMedication(
+                      todayTab === 'as_needed' ? 'as_needed' : 'scheduled',
+                      todayTab === 'supplement' ? 'supplement' : 'medication',
+                    )
+                  }
+                >
+                  <Text style={styles.emptyBtnText}>
+                    {todayTab === 'scheduled'
+                      ? 'Add daily medication'
+                      : todayTab === 'as_needed'
+                        ? 'Add as-needed medication'
+                        : 'Add supplement'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.list}>
+                {visibleMeds.map((med) => (
+                  <MedicationCard
+                    key={med.id}
+                    medication={med}
+                    busySlot={busySlot}
+                    onMarkTaken={(time) => handleMarkTaken(med, time)}
+                    onLogPrn={(payload) => handleLogPrn(med, payload)}
+                    onUndo={(slot) => handleUndo(med, slot)}
+                    onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
+                    onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
+                    onDelete={() => handleDelete(med)}
+                  />
+                ))}
+              </View>
+            )}
+          </SwipeTabView>
         )}
 
         <TodayWellnessCheckIn />

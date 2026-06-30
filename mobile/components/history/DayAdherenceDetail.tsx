@@ -11,7 +11,7 @@ import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { formatDisplayDate, formatTakenTime, todayLocalDate } from '../../lib/dates';
-import { groupDaySlotsByMedication, type DayDetail } from '../../lib/dayDetail';
+import { groupDaySlotsByMedication, type DayDetail, type DayDoseSlot } from '../../lib/dayDetail';
 import { formatWellnessLogSummary } from '../../lib/wellness';
 import { routes } from '../../lib/routes';
 import type { StreakDayStatus } from '../../lib/streaks';
@@ -92,12 +92,29 @@ function makeDayDetailStyles(colors: ColorPalette) {
     },
     slotTaken: { backgroundColor: colors.successBg },
     slotMissed: { backgroundColor: colors.pendingBg },
+    slotLate: { backgroundColor: colors.partialBg },
     slotTime: { fontWeight: '700' as const, color: colors.text },
-    slotStatus: { alignItems: 'flex-end' as const, gap: 2 },
+    slotStatus: { alignItems: 'flex-end' as const, gap: 4 },
     badge: { fontWeight: '800' as const, fontSize: 13 },
     badgeTaken: { color: colors.success },
     badgeMissed: { color: colors.textMuted },
+    badgeLate: { color: colors.partialText },
     takenAt: { fontSize: 12, color: colors.textMuted },
+    redeemHint: {
+      color: colors.textMuted,
+      fontStyle: 'italic' as const,
+      lineHeight: 20,
+    },
+    redeemedTag: { color: colors.partialText, fontWeight: '800' as const, fontSize: 13 },
+    redeemBtn: {
+      backgroundColor: colors.accent,
+      borderRadius: radii.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    redeemBtnBusy: { opacity: 0.6 },
+    redeemBtnText: { color: colors.onAccent, fontWeight: '800' as const, fontSize: 13 },
+    undoText: { color: colors.accent, fontWeight: '800' as const, fontSize: 12 },
     wellnessSection: {
       gap: spacing.sm,
       paddingTop: spacing.sm,
@@ -140,6 +157,12 @@ type Props = {
   error: string | null;
   streakStatus?: StreakDayStatus;
   showHistoryLink?: boolean;
+  /** When true (the previous calendar day), missed scheduled doses can be redeemed. */
+  canRedeem?: boolean;
+  /** Slot key currently being redeemed/undone: `${medicationId}-${scheduleTime}`. */
+  busyKey?: string | null;
+  onRedeem?: (slot: DayDoseSlot) => void;
+  onUndoLate?: (slot: DayDoseSlot) => void;
   onClear?: () => void;
 };
 
@@ -149,6 +172,10 @@ export function DayAdherenceDetail({
   error,
   streakStatus,
   showHistoryLink = true,
+  canRedeem = false,
+  busyKey = null,
+  onRedeem,
+  onUndoLate,
   onClear,
 }: Props) {
   const router = useRouter();
@@ -156,6 +183,7 @@ export function DayAdherenceDetail({
   const styles = useThemedStyles(makeDayDetailStyles);
   const panelRef = useRef<View>(null);
   const isToday = detail?.date === todayLocalDate();
+  const dayRedeemed = detail?.slots.some((s) => s.loggedLate) ?? false;
 
   useEffect(() => {
     // scroll handled by parent ScrollView when detail loads
@@ -194,6 +222,9 @@ export function DayAdherenceDetail({
                     : ''}
                 </Text>
               ) : null}
+              {dayRedeemed ? (
+                <Text style={styles.redeemedTag}>Streak redeemed · some doses marked late</Text>
+              ) : null}
             </View>
             {onClear ? (
               <Pressable onPress={onClear} accessibilityRole="button">
@@ -201,6 +232,13 @@ export function DayAdherenceDetail({
               </Pressable>
             ) : null}
           </View>
+
+          {canRedeem && detail.hasScheduledMeds && takenCount < totalCount ? (
+            <Text style={styles.redeemHint}>
+              Took a dose yesterday but forgot to mark it? Tap “Mark taken (late)” to redeem your
+              streak. It stays flagged as caught up late.
+            </Text>
+          ) : null}
 
           {detail.hasScheduledMeds ? (
             <View style={styles.medList}>
@@ -215,30 +253,69 @@ export function DayAdherenceDetail({
                   {group.medicationNotes ? (
                     <Text style={styles.medNotes}>{group.medicationNotes}</Text>
                   ) : null}
-                  {group.slots.map((slot) => (
-                    <View
-                      key={`${slot.medicationId}-${slot.scheduleTime}`}
-                      style={[
-                        styles.slotRow,
-                        slot.taken ? styles.slotTaken : styles.slotMissed,
-                      ]}
-                    >
-                      <Text style={styles.slotTime}>{slot.scheduleLabel}</Text>
-                      <View style={styles.slotStatus}>
-                        <Text
-                          style={[
-                            styles.badge,
-                            slot.taken ? styles.badgeTaken : styles.badgeMissed,
-                          ]}
-                        >
-                          {slot.taken ? 'Taken' : 'Not logged'}
-                        </Text>
-                        {slot.takenAt ? (
-                          <Text style={styles.takenAt}>{formatTakenTime(slot.takenAt)}</Text>
-                        ) : null}
+                  {group.slots.map((slot) => {
+                    const slotKey = `${slot.medicationId}-${slot.scheduleTime}`;
+                    const busy = busyKey === slotKey;
+                    const late = slot.loggedLate;
+                    const canRedeemSlot =
+                      canRedeem && !slot.isAsNeeded && !slot.taken;
+                    const canUndoSlot =
+                      canRedeem && !slot.isAsNeeded && slot.taken && late;
+                    return (
+                      <View
+                        key={slotKey}
+                        style={[
+                          styles.slotRow,
+                          slot.taken
+                            ? late
+                              ? styles.slotLate
+                              : styles.slotTaken
+                            : styles.slotMissed,
+                        ]}
+                      >
+                        <Text style={styles.slotTime}>{slot.scheduleLabel}</Text>
+                        <View style={styles.slotStatus}>
+                          {slot.taken ? (
+                            <>
+                              <Text
+                                style={[styles.badge, late ? styles.badgeLate : styles.badgeTaken]}
+                              >
+                                {late ? 'Marked late' : 'Taken'}
+                              </Text>
+                              {slot.takenAt ? (
+                                <Text style={styles.takenAt}>
+                                  {formatTakenTime(slot.takenAt)}
+                                  {late ? ' · caught up later' : ''}
+                                </Text>
+                              ) : null}
+                              {canUndoSlot && onUndoLate ? (
+                                <Pressable
+                                  onPress={() => onUndoLate(slot)}
+                                  disabled={busy}
+                                  accessibilityRole="button"
+                                >
+                                  <Text style={styles.undoText}>{busy ? '…' : 'Undo'}</Text>
+                                </Pressable>
+                              ) : null}
+                            </>
+                          ) : canRedeemSlot && onRedeem ? (
+                            <Pressable
+                              style={[styles.redeemBtn, busy && styles.redeemBtnBusy]}
+                              onPress={() => onRedeem(slot)}
+                              disabled={busy}
+                              accessibilityRole="button"
+                            >
+                              <Text style={styles.redeemBtnText}>
+                                {busy ? 'Saving…' : 'Mark taken (late)'}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text style={[styles.badge, styles.badgeMissed]}>Not logged</Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               ))}
             </View>

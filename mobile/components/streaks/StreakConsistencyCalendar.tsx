@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
@@ -15,6 +16,35 @@ const STATUS_LABEL: Record<StreakCalendarDay['status'], string> = {
   missed: 'Missed — scheduled doses not completed',
   none: 'No doses scheduled',
 };
+
+/** Diagonal hatch overlay that marks a "redeemed" (marked-late) perfect day. */
+function RedeemedStripes({ color }: { color: string }) {
+  const lines = [];
+  for (let x = -100; x <= 100; x += 16) {
+    lines.push(
+      <Line
+        key={x}
+        x1={x}
+        y1={0}
+        x2={x + 100}
+        y2={100}
+        stroke={color}
+        strokeWidth={4}
+        strokeOpacity={0.45}
+      />,
+    );
+  }
+  return (
+    <Svg
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+    >
+      {lines}
+    </Svg>
+  );
+}
 
 /** Match web streak calendar colors (palette-driven streak tokens). */
 function cellStyle(status: StreakCalendarDay['status'], selected: boolean, colors: ColorPalette) {
@@ -94,6 +124,7 @@ function makeCalendarLayoutStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       minHeight: 48,
+      overflow: 'hidden' as const,
     },
     cellSelected: {
       borderWidth: 2,
@@ -156,13 +187,29 @@ export function StreakConsistencyCalendar({
     <View style={styles.card}>
       <Text style={styles.h3}>{STREAK_CALENDAR_DAYS}-day consistency</Text>
       <Text style={styles.hint}>
-        Green = perfect adherence. Tap a day to see doses and notes.
+        Green = perfect adherence. Striped green = streak redeemed (a dose marked late). Tap a day
+        to see doses and notes.
       </Text>
 
       <View style={styles.legend} accessibilityLabel="Legend">
         <View style={styles.legendItem}>
           <LegendSwatch status="perfect" />
           <Text style={styles.legendText}>Perfect</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View
+            style={[
+              styles.legendSwatch,
+              {
+                backgroundColor: cellStyle('perfect', false, colors).backgroundColor,
+                borderColor: colors.streakPerfectBorder,
+                overflow: 'hidden',
+              },
+            ]}
+          >
+            <RedeemedStripes color={colors.success} />
+          </View>
+          <Text style={styles.legendText}>Redeemed</Text>
         </View>
         <View style={styles.legendItem}>
           <LegendSwatch status="partial" />
@@ -187,6 +234,7 @@ export function StreakConsistencyCalendar({
             {week.map((date) => {
               const day = dayMap.get(date);
               const status = day?.status ?? 'none';
+              const redeemed = Boolean(day?.redeemed);
               const isSelected = selectedDate === date;
               const dayNum = Number(date.split('-')[2]);
               const cell = cellStyle(status, isSelected, colors);
@@ -197,8 +245,11 @@ export function StreakConsistencyCalendar({
                   onPress={() => onSelectDate(isSelected ? null : date)}
                   style={[styles.cell, cell, isSelected && styles.cellSelected]}
                   accessibilityRole="button"
-                  accessibilityLabel={`${date}. ${STATUS_LABEL[status]}`}
+                  accessibilityLabel={`${date}. ${STATUS_LABEL[status]}${
+                    redeemed ? '. Streak redeemed — marked late' : ''
+                  }`}
                 >
+                  {redeemed ? <RedeemedStripes color={colors.success} /> : null}
                   <Text
                     style={[
                       styles.cellText,

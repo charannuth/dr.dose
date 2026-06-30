@@ -13,6 +13,8 @@ export type StreakDayStatus = 'perfect' | 'partial' | 'missed' | 'none'
 export type StreakCalendarDay = {
   date: string
   status: StreakDayStatus
+  /** True when the day counts as perfect only because a missed dose was redeemed (marked late). */
+  redeemed: boolean
 }
 
 export type StreakStats = {
@@ -137,7 +139,7 @@ export async function fetchStreakStats(userId: string): Promise<StreakStats> {
       .map((date) => ({ date, perfect: false })),
     consistencyCalendar: lastNDays(STREAK_CALENDAR_DAYS)
       .reverse()
-      .map((date) => ({ date, status: 'none' as StreakDayStatus })),
+      .map((date) => ({ date, status: 'none' as StreakDayStatus, redeemed: false })),
   }
 
   if (!supabase) return empty
@@ -196,10 +198,15 @@ export async function fetchStreakStats(userId: string): Promise<StreakStats> {
 
   const consistencyCalendar = lastNDays(STREAK_CALENDAR_DAYS)
     .reverse()
-    .map((date) => ({
-      date,
-      status: streakDayStatus(medications, logsByDate.get(date) ?? [], date, today),
-    }))
+    .map((date) => {
+      const logsForDay = logsByDate.get(date) ?? []
+      const status = streakDayStatus(medications, logsForDay, date, today)
+      return {
+        date,
+        status,
+        redeemed: status === 'perfect' && logsForDay.some((l) => l.logged_late),
+      }
+    })
 
   return {
     currentStreak,
