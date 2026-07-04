@@ -11,6 +11,7 @@ import {
 import {
   formatScheduleTime,
   normalizeScheduleTimes,
+  scheduleTimeToTwelveHour,
   twelveHourToScheduleTime,
   type Meridiem,
 } from '../../lib/dates';
@@ -55,7 +56,7 @@ import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { DosageStepPanel } from './DosageStepPanel';
 import { IsoDateInput } from '../IsoDateInput';
-import { DoseTimeInput } from './DoseTimeInput';
+import { TimeWheelModal } from '../TimeWheelModal';
 import { MedicationNameInput } from './MedicationNameInput';
 import { MedicationSafetyPanel } from './MedicationSafetyPanel';
 import {
@@ -67,6 +68,15 @@ import {
   type DoseTimeRow,
   type WizardStep,
 } from './medicationWizardState';
+
+/** A dose-time row stores 12h + AM/PM; the wheel picker works in 24h "HH:mm". */
+function rowToHHmm(row: DoseTimeRow): string {
+  try {
+    return twelveHourToScheduleTime(normalizeTime12Display(row.time12), row.period);
+  } catch {
+    return '08:00';
+  }
+}
 
 /** Confirmable suggestions seeded from a scanned label. */
 export type WizardPrefill = {
@@ -116,6 +126,7 @@ export function MedicationFormWizard({
     return !initial && prefill?.doseMg ? { ...base, doseMg: prefill.doseMg } : base;
   });
   const [doseTimes, setDoseTimes] = useState<DoseTimeRow[]>(defaults.doseTimes);
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [notes, setNotes] = useState(defaults.notes);
   const [trackPills, setTrackPills] = useState(defaults.trackPills);
   const [pillsRemaining, setPillsRemaining] = useState(defaults.pillsRemaining);
@@ -177,7 +188,9 @@ export function MedicationFormWizard({
   }
 
   function addDoseTime() {
-    setDoseTimes((rows) => [...rows, { id: `dt-${Date.now()}`, time12: '8:00', period: 'AM' }]);
+    const id = `dt-${Date.now()}`;
+    setDoseTimes((rows) => [...rows, { id, time12: '8:00', period: 'AM' }]);
+    setEditingTimeId(id);
   }
 
   function removeDoseTime(id: string) {
@@ -566,15 +579,18 @@ export function MedicationFormWizard({
         return (
           <View style={styles.panel}>
             {doseTimes.map((row, index) => (
-              <View key={row.id}>
-                <DoseTimeInput
-                  label={`Dose ${index + 1}`}
-                  time12={row.time12}
-                  period={row.period}
-                  onChange={(next) => updateDoseTime(row.id, next)}
-                />
+              <View key={row.id} style={styles.timeRow}>
+                <Pressable
+                  style={styles.timeChip}
+                  onPress={() => setEditingTimeId(row.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Dose ${index + 1}, ${formatScheduleTime(rowToHHmm(row))}`}
+                >
+                  <Text style={styles.timeChipLabel}>{`Dose ${index + 1}`}</Text>
+                  <Text style={styles.timeChipValue}>{formatScheduleTime(rowToHHmm(row))}</Text>
+                </Pressable>
                 {doseTimes.length > 1 ? (
-                  <Pressable onPress={() => removeDoseTime(row.id)}>
+                  <Pressable style={styles.timeRemove} onPress={() => removeDoseTime(row.id)}>
                     <Text style={styles.link}>Remove</Text>
                   </Pressable>
                 ) : null}
@@ -583,6 +599,24 @@ export function MedicationFormWizard({
             <Pressable style={styles.secondaryBtn} onPress={addDoseTime}>
               <Text style={styles.secondaryText}>+ Add dose time</Text>
             </Pressable>
+            <TimeWheelModal
+              visible={editingTimeId !== null}
+              value={(() => {
+                const row = doseTimes.find((r) => r.id === editingTimeId);
+                return row ? rowToHHmm(row) : '08:00';
+              })()}
+              onCancel={() => setEditingTimeId(null)}
+              onDone={(next) => {
+                if (editingTimeId) {
+                  const converted = scheduleTimeToTwelveHour(next);
+                  updateDoseTime(editingTimeId, {
+                    time12: converted.time12,
+                    period: converted.period,
+                  });
+                }
+                setEditingTimeId(null);
+              }}
+            />
           </View>
         );
       case 'notes':
@@ -829,7 +863,27 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     gap: 4,
   },
   reminderTimeRow: { fontSize: 15, color: colors.text, fontWeight: '600' as const },
-  link: { color: colors.accent, fontWeight: '800' as const, marginBottom: spacing.sm },
+  link: { color: colors.accent, fontWeight: '800' as const },
+  timeRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
+  },
+  timeChip: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+  },
+  timeChipLabel: { color: colors.textMuted, fontWeight: '600' as const },
+  timeChipValue: { color: colors.text, fontWeight: '800' as const, fontSize: 17 },
+  timeRemove: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   footer: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
