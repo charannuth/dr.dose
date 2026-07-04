@@ -20,6 +20,7 @@ export type Medication = {
   category: MedicationCategory
   schedule_times: string[]
   tracking_sync: MedicationTrackingSync
+  reminders_enabled: boolean
   notes: string | null
   pills_remaining: number | null
   start_date: string
@@ -55,6 +56,8 @@ export type MedicationInput = {
   category: MedicationCategory
   schedule_times: string[]
   tracking_sync: MedicationTrackingSync
+  /** Per-item reminder opt-out. Defaults to true when omitted. */
+  reminders_enabled?: boolean
   notes: string
   pills_remaining: number | null
   start_date: string

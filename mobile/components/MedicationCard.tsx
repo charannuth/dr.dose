@@ -433,7 +433,13 @@ export function MedicationCard({
           </Pressable>
         ) : null}
         <Pressable
-          onPress={() => router.push(routes.medicationEdit(medication.id))}
+          onPress={() =>
+            router.push(
+              medication.category === 'supplement'
+                ? routes.supplementEdit(medication.id)
+                : routes.medicationEdit(medication.id),
+            )
+          }
           style={styles.ghostBtn}
         >
           <Text style={styles.ghostText}>Edit</Text>

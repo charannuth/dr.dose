@@ -24,6 +24,10 @@ export default function ModalLayout() {
         name="supplements/new"
         options={{ title: 'Add supplement', presentation: 'modal' }}
       />
+      <Stack.Screen
+        name="supplements/[id]"
+        options={{ title: 'Edit supplement', presentation: 'modal' }}
+      />
     </Stack>
   );
 }

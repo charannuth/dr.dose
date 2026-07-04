@@ -70,6 +70,7 @@ function collectSlots(medications: Medication[]): SlotToSchedule[] {
   const slots: SlotToSchedule[] = [];
   for (const med of medications) {
     if (isAsNeededMed(med)) continue;
+    if (med.reminders_enabled === false) continue;
     for (const time of normalizeScheduleTimes(med.schedule_times ?? [])) {
       const mins = scheduleTimeToMinutes(time);
       if (!Number.isFinite(mins)) continue;
@@ -131,6 +132,7 @@ async function scheduleDoseFollowups(args: {
 
   for (const med of activeMeds) {
     if (isAsNeededMed(med)) continue;
+    if (med.reminders_enabled === false) continue;
     for (const time of normalizeScheduleTimes(med.schedule_times ?? [])) {
       if (takenKeys.has(`${med.id}:${time}`)) continue;
       const slotMins = scheduleTimeToMinutes(time);

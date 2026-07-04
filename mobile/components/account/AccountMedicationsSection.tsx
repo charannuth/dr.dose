@@ -221,7 +221,15 @@ export function AccountMedicationsSection() {
                   </Text>
                 </Pressable>
               )}
-              <Pressable onPress={() => router.push(routes.medicationEdit(med.id))}>
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    med.category === 'supplement'
+                      ? routes.supplementEdit(med.id)
+                      : routes.medicationEdit(med.id),
+                  )
+                }
+              >
                 <Text style={styles.actionText}>Edit</Text>
               </Pressable>
               <Pressable onPress={() => confirmDelete(med)}>
