@@ -17,35 +17,27 @@ import {
 } from '../../lib/doseByRoute';
 import type { Medication, MedicationTrackingSync } from '../../lib/types';
 
-export const BASE_STEPS = [
-  'name',
-  'route',
-  'form',
-  'dates',
-  'frequency',
-  'dosage',
-] as const;
+/**
+ * The add/edit flow is grouped into a few scrollable pages instead of one field
+ * per screen. Safety is always its own final page and can never be skipped.
+ */
+export const WIZARD_PAGES = ['basics', 'schedule', 'extras', 'safety'] as const;
 
-export const TAIL_SCHEDULED = ['times', 'notes', 'tracking', 'notifications', 'safety'] as const;
-export const TAIL_AS_NEEDED = ['notes', 'tracking', 'safety'] as const;
+export type WizardPage = (typeof WIZARD_PAGES)[number];
 
-export type WizardStep =
-  | (typeof BASE_STEPS)[number]
-  | (typeof TAIL_SCHEDULED)[number]
-  | (typeof TAIL_AS_NEEDED)[number];
-
-export const STEP_TITLES: Record<WizardStep, string> = {
-  name: 'Medication name',
-  route: 'How do you take it?',
-  form: 'What type is it?',
-  dates: 'Schedule dates',
-  frequency: 'How often?',
-  dosage: 'Dose amount',
-  times: 'Dose times',
-  notes: 'Notes',
-  tracking: 'Refill tracking',
-  notifications: 'Reminders',
+export const PAGE_TITLES: Record<WizardPage, string> = {
+  basics: 'Basics',
+  schedule: 'Dose & schedule',
+  extras: 'Reminders & tracking',
   safety: 'Safety review',
+};
+
+/** Short labels for the tappable page tabs at the top of the flow. */
+export const PAGE_TABS: Record<WizardPage, string> = {
+  basics: 'Basics',
+  schedule: 'Schedule',
+  extras: 'Reminders',
+  safety: 'Safety',
 };
 
 export type DoseTimeRow = {
@@ -53,13 +45,6 @@ export type DoseTimeRow = {
   time12: string;
   period: Meridiem;
 };
-
-export function wizardStepsFor(scheduleType: MedicationScheduleType): WizardStep[] {
-  if (scheduleType === 'as_needed') {
-    return [...BASE_STEPS, ...TAIL_AS_NEEDED];
-  }
-  return [...BASE_STEPS, ...TAIL_SCHEDULED];
-}
 
 export function newDoseTimeRow(time24?: string): DoseTimeRow {
   const base = time24

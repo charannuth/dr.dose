@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,6 @@ import {
   normalizeScheduleTimes,
   scheduleTimeToTwelveHour,
   twelveHourToScheduleTime,
-  type Meridiem,
 } from '../../lib/dates';
 import { normalizeTime12Display } from '../../lib/doseTimeInput';
 import {
@@ -60,13 +59,13 @@ import { TimeWheelModal } from '../TimeWheelModal';
 import { MedicationNameInput } from './MedicationNameInput';
 import { MedicationSafetyPanel } from './MedicationSafetyPanel';
 import {
-  BASE_STEPS,
   buildDosageWizardState,
   buildFormState,
-  STEP_TITLES,
-  wizardStepsFor,
+  PAGE_TABS,
+  PAGE_TITLES,
+  WIZARD_PAGES,
   type DoseTimeRow,
-  type WizardStep,
+  type WizardPage,
 } from './medicationWizardState';
 
 /** A dose-time row stores 12h + AM/PM; the wheel picker works in 24h "HH:mm". */
@@ -113,7 +112,7 @@ export function MedicationFormWizard({
   // When adding (no existing medication) seed any scanned suggestions; the user
   // still walks through each step to confirm before saving.
   const seededRoute = !initial && prefill?.route ? prefill.route : defaults.route;
-  const [stepIndex, setStepIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
   const [name, setName] = useState(!initial && prefill?.name ? prefill.name : defaults.name);
   const [category, setCategory] = useState<MedicationCategory>(
     initial?.category ?? defaultCategory,
@@ -142,7 +141,7 @@ export function MedicationFormWizard({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEditing = Boolean(initial);
 
   useEffect(() => {
     void getReminders().then((r) => setRemindersOn(r.enabled));
@@ -150,34 +149,11 @@ export function MedicationFormWizard({
     void getNotificationPermission().then(setPermissionStatus);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    },
-    [],
-  );
-
-  // After a single-tap selection (route, form, frequency, name suggestion) move to
-  // the next step automatically. A short delay lets the selected state render first.
-  function advanceAfterSelect(fromStep: WizardStep) {
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
-    advanceTimerRef.current = setTimeout(() => {
-      setError(null);
-      setStepIndex((i) => (BASE_STEPS[i] === fromStep ? i + 1 : i));
-    }, 250);
-  }
-
-  const wizardSteps = wizardStepsFor(scheduleType);
-  const step = wizardSteps[stepIndex] ?? wizardSteps[0];
-  const isLastStep = stepIndex === wizardSteps.length - 1;
+  const page = WIZARD_PAGES[pageIndex] ?? WIZARD_PAGES[0];
+  const isLastPage = pageIndex === WIZARD_PAGES.length - 1;
+  const isScheduled = scheduleType !== 'as_needed';
   const isOtherRoute = route === 'other';
   const formOptions = route && !isOtherRoute ? MEDICATION_FORMS_BY_ROUTE[route] : [];
-
-  function stepLabel(wizardStep: WizardStep): string {
-    if (wizardStep === 'form' && isOtherRoute) return 'Describe how you take it';
-    if (wizardStep === 'dosage') return dosageStepTitle(route, scheduleType);
-    return STEP_TITLES[wizardStep];
-  }
 
   function patchDosage(patch: Partial<DosageWizardValues>) {
     setDosageWizard((prev) => ({ ...prev, ...patch, route, form, scheduleType }));
@@ -208,16 +184,12 @@ export function MedicationFormWizard({
     if (!dosageWizard.doseMg.trim() && suggestion.doseMg) {
       patchDosage({ doseMg: suggestion.doseMg });
     }
-    advanceAfterSelect('name');
   }
 
   function selectScheduleType(next: MedicationScheduleType) {
     setScheduleType(next);
     setError(null);
     setDosageWizard(buildDosageWizardState(initial, route, next));
-    const maxIndex = wizardStepsFor(next).length - 1;
-    if (stepIndex > maxIndex) setStepIndex(maxIndex);
-    advanceAfterSelect('frequency');
   }
 
   function selectRoute(next: MedicationRouteId) {
@@ -225,14 +197,12 @@ export function MedicationFormWizard({
     setForm('');
     setError(null);
     setDosageWizard(buildDosageWizardState(initial, next, scheduleType));
-    advanceAfterSelect('route');
   }
 
   function selectFormType(formId: string) {
     setForm(formId);
     setError(null);
     patchDosage({ injectionStyle: formId.includes('pen') ? 'measured' : dosageWizard.injectionStyle });
-    advanceAfterSelect('form');
   }
 
   function parseScheduleTimes(): string[] {
@@ -243,20 +213,28 @@ export function MedicationFormWizard({
     return normalizeScheduleTimes(parsed);
   }
 
-  function validateStep(current: WizardStep): string | null {
+  function validatePage(current: WizardPage): string | null {
     switch (current) {
-      case 'name':
-        return name.trim() ? null : 'Enter a medication name.';
-      case 'route':
-        return route ? null : 'Choose how you take this medication.';
-      case 'form':
+      case 'basics': {
+        if (!name.trim()) return 'Enter a medication name.';
+        if (!route) return 'Choose how you take this medication.';
         if (!form.trim()) {
           return isOtherRoute
             ? 'Describe how you take this medication.'
             : 'Choose the medication type.';
         }
         return null;
-      case 'dates': {
+      }
+      case 'schedule': {
+        const dosageError = validateDosageWizard({ ...dosageWizard, route, form, scheduleType });
+        if (dosageError) return dosageError;
+        if (isScheduled) {
+          try {
+            if (parseScheduleTimes().length === 0) return 'Add at least one dose time.';
+          } catch (err) {
+            return err instanceof Error ? err.message : 'Check your dose times.';
+          }
+        }
         const end = hasEndDate && endDate.trim() ? endDate.trim() : null;
         try {
           validateMedicationDates(startDate, end);
@@ -266,17 +244,7 @@ export function MedicationFormWizard({
         if (hasEndDate && !endDate.trim()) return 'Enter an end date or turn it off.';
         return null;
       }
-      case 'dosage':
-        return validateDosageWizard({ ...dosageWizard, route, form, scheduleType });
-      case 'times':
-        if (scheduleType === 'as_needed') return null;
-        try {
-          if (parseScheduleTimes().length === 0) return 'Add at least one dose time.';
-        } catch (err) {
-          return err instanceof Error ? err.message : 'Check your dose times.';
-        }
-        return null;
-      case 'tracking':
+      case 'extras': {
         if (trackPills) {
           const n = parseInt(pillsRemaining, 10);
           if (Number.isNaN(n) || n < 0) {
@@ -284,24 +252,39 @@ export function MedicationFormWizard({
           }
         }
         return null;
+      }
       default:
         return null;
     }
   }
 
+  /** First page (in order) that fails validation, so Save can jump the user there. */
+  function firstInvalidPage(): { page: WizardPage; message: string } | null {
+    for (const p of WIZARD_PAGES) {
+      const message = validatePage(p);
+      if (message) return { page: p, message };
+    }
+    return null;
+  }
+
   function goNext() {
-    const message = validateStep(step);
+    const message = validatePage(page);
     if (message) {
       setError(message);
       return;
     }
     setError(null);
-    setStepIndex((i) => Math.min(i + 1, wizardStepsFor(scheduleType).length - 1));
+    setPageIndex((i) => Math.min(i + 1, WIZARD_PAGES.length - 1));
   }
 
   function goBack() {
     setError(null);
-    setStepIndex((i) => Math.max(i - 1, 0));
+    setPageIndex((i) => Math.max(i - 1, 0));
+  }
+
+  function goToPage(target: number) {
+    setError(null);
+    setPageIndex(target);
   }
 
   async function handleRemindersToggle(enabled: boolean) {
@@ -348,14 +331,11 @@ export function MedicationFormWizard({
     }
   }
 
-  async function handleSubmit() {
-    const message = validateStep(step);
-    if (message) {
-      setError(message);
-      return;
-    }
-    if (!isLastStep) {
-      goNext();
+  async function handleSave() {
+    const invalid = firstInvalidPage();
+    if (invalid) {
+      setError(invalid.message);
+      setPageIndex(WIZARD_PAGES.indexOf(invalid.page));
       return;
     }
 
@@ -430,8 +410,21 @@ export function MedicationFormWizard({
     }
   }
 
-  function renderStepPanel(current: WizardStep) {
-    switch (current) {
+  type FieldKey =
+    | 'name'
+    | 'route'
+    | 'form'
+    | 'dates'
+    | 'frequency'
+    | 'dosage'
+    | 'times'
+    | 'notes'
+    | 'tracking'
+    | 'notifications'
+    | 'safety';
+
+  function renderField(field: FieldKey) {
+    switch (field) {
       case 'name':
         return (
           <View style={styles.panel}>
@@ -730,26 +723,90 @@ export function MedicationFormWizard({
     }
   }
 
+  function renderPage(current: WizardPage) {
+    switch (current) {
+      case 'basics':
+        return (
+          <>
+            {renderField('name')}
+            <Text style={styles.sectionTitle}>How do you take it?</Text>
+            {renderField('route')}
+            {route ? (
+              <>
+                <Text style={styles.sectionTitle}>
+                  {isOtherRoute ? 'Describe how you take it' : 'Type'}
+                </Text>
+                {renderField('form')}
+              </>
+            ) : null}
+          </>
+        );
+      case 'schedule':
+        return (
+          <>
+            <Text style={styles.sectionTitle}>How often?</Text>
+            {renderField('frequency')}
+            <Text style={styles.sectionTitle}>{dosageStepTitle(route, scheduleType)}</Text>
+            {renderField('dosage')}
+            {isScheduled ? (
+              <>
+                <Text style={styles.sectionTitle}>Dose times</Text>
+                {renderField('times')}
+              </>
+            ) : null}
+            <Text style={styles.sectionTitle}>Dates</Text>
+            {renderField('dates')}
+          </>
+        );
+      case 'extras':
+        return (
+          <>
+            {isScheduled ? (
+              <>
+                <Text style={styles.sectionTitle}>Dose reminders</Text>
+                {renderField('notifications')}
+              </>
+            ) : null}
+            <Text style={styles.sectionTitle}>Refill tracking</Text>
+            {renderField('tracking')}
+            <Text style={styles.sectionTitle}>Notes</Text>
+            {renderField('notes')}
+          </>
+        );
+      case 'safety':
+        return renderField('safety');
+      default:
+        return null;
+    }
+  }
+
+  const showSave = isLastPage || isEditing;
+
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
         <Text style={styles.title}>{initial ? 'Edit medication' : 'Add medication'}</Text>
-        <Text style={styles.stepMeta}>
-          Step {stepIndex + 1} of {wizardSteps.length} — {stepLabel(step)}
-        </Text>
-        <View style={styles.dots}>
-          {wizardSteps.map((s, i) => (
-            <View
-              key={s}
-              style={[styles.dot, i <= stepIndex && styles.dotFilled, i === stepIndex && styles.dotCurrent]}
-            />
-          ))}
+        <View style={styles.tabs}>
+          {WIZARD_PAGES.map((p, i) => {
+            const active = i === pageIndex;
+            return (
+              <Pressable
+                key={p}
+                style={[styles.tab, active && styles.tabActive]}
+                onPress={() => goToPage(i)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{PAGE_TABS[p]}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.panelTitle}>{stepLabel(step)}</Text>
-        {renderStepPanel(step)}
+        <Text style={styles.panelTitle}>{PAGE_TITLES[page]}</Text>
+        {renderPage(page)}
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
@@ -758,22 +815,35 @@ export function MedicationFormWizard({
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <View style={styles.nav}>
-          {stepIndex > 0 ? (
+          {pageIndex > 0 ? (
             <Pressable style={styles.secondaryBtn} onPress={goBack}>
               <Text style={styles.secondaryText}>Back</Text>
             </Pressable>
           ) : null}
-          <Pressable
-            style={[styles.primaryBtn, busy && styles.disabled]}
-            disabled={busy}
-            onPress={() => void handleSubmit()}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.onAccent} />
-            ) : (
-              <Text style={styles.primaryText}>{isLastStep ? 'Save' : 'Next'}</Text>
-            )}
-          </Pressable>
+          {showSave ? (
+            <>
+              {!isLastPage ? (
+                <Pressable style={styles.secondaryBtn} onPress={goNext}>
+                  <Text style={styles.secondaryText}>Next</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                style={[styles.primaryBtn, busy && styles.disabled]}
+                disabled={busy}
+                onPress={() => void handleSave()}
+              >
+                {busy ? (
+                  <ActivityIndicator color={colors.onAccent} />
+                ) : (
+                  <Text style={styles.primaryText}>Save</Text>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <Pressable style={styles.primaryBtn} onPress={goNext}>
+              <Text style={styles.primaryText}>Next</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </View>
@@ -791,13 +861,26 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     gap: spacing.sm,
   },
   title: { fontSize: 20, fontWeight: '900' as const, color: colors.text },
-  stepMeta: { color: colors.textMuted, fontWeight: '600' as const },
-  dots: { flexDirection: 'row' as const, gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotFilled: { backgroundColor: colors.accent },
-  dotCurrent: { width: 12 },
+  tabs: { flexDirection: 'row' as const, gap: 6, flexWrap: 'wrap' as const },
+  tab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  tabText: { fontWeight: '700' as const, color: colors.textMuted, fontSize: 13 },
+  tabTextActive: { color: colors.onAccent },
   scroll: { flex: 1, padding: spacing.md },
   panelTitle: { fontSize: 18, fontWeight: '900' as const, color: colors.text, marginBottom: spacing.md },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800' as const,
+    color: colors.text,
+    marginTop: spacing.lg,
+  },
   panel: { gap: spacing.sm, paddingBottom: spacing.lg },
   hint: { color: colors.textMuted, lineHeight: 20 },
   fieldLabel: { fontWeight: '700' as const, color: colors.text, marginTop: spacing.sm },
