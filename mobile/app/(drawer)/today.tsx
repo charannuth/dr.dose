@@ -507,6 +507,10 @@ export default function TodayScreen() {
     scheduleType: MedicationScheduleType = 'scheduled',
     category: MedicationCategory = 'medication',
   ) {
+    if (category === 'supplement') {
+      router.push(routes.supplementNew);
+      return;
+    }
     router.push({
       pathname: routes.medicationNew,
       params: { scheduleType, category },

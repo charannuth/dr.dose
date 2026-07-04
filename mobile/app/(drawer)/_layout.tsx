@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
 import { accentBgKey, accentForIndex, fonts, radii, spacing } from '../../constants/theme';
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
+import { AddEntryTypeSheet, type AddEntryType } from '../../components/AddEntryTypeSheet';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { useAuth } from '../../hooks/useAuth';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
@@ -248,6 +249,22 @@ function DrawerLayoutInner({
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDemoTour, setShowDemoTour] = useState(false);
   const [openAddAfterTour, setOpenAddAfterTour] = useState(false);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+
+  function handleAddEntry(type: AddEntryType) {
+    setAddSheetOpen(false);
+    if (type === 'supplement') {
+      router.push(routes.supplementNew);
+      return;
+    }
+    router.push({
+      pathname: routes.medicationNew,
+      params: {
+        scheduleType: type === 'prn_med' ? 'as_needed' : 'scheduled',
+        category: 'medication',
+      },
+    });
+  }
 
   useReminderBootstrap(user.id);
   useNotificationResponses();
@@ -324,6 +341,11 @@ function DrawerLayoutInner({
 
   return (
     <>
+      <AddEntryTypeSheet
+        visible={addSheetOpen}
+        onClose={() => setAddSheetOpen(false)}
+        onSelect={handleAddEntry}
+      />
       {showOnboarding ? (
         <OnboardingModal
           userId={user.id}
@@ -366,7 +388,7 @@ function DrawerLayoutInner({
           headerRight: () =>
             route.name === 'today' ? (
               <View ref={addMedRef} collapsable={false}>
-                <Plus onPress={() => router.push(routes.medicationNew)} styles={styles} />
+                <Plus onPress={() => setAddSheetOpen(true)} styles={styles} />
               </View>
             ) : null,
           headerTitle: () => (

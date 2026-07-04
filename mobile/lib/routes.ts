@@ -13,4 +13,5 @@ export const routes = {
   login: '/',
   medicationNew: '/(modals)/medications/new',
   medicationEdit: (id: string) => `/(modals)/medications/${id}` as const,
+  supplementNew: '/(modals)/supplements/new',
 } as const;
