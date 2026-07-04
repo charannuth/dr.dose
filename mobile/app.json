@@ -71,7 +71,8 @@
         {
           "iosEngine": "auto"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},

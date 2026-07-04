@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-04** (`8a69f3c`) — Supplements: Apple Clock-style wheel time picker
+
 - **2026-07-04** (`30adbfd`) — Supplements: per-item reminder control and dedicated edit flow
 
 - **2026-07-04** (`bdfcd6b`) — Add supplements: catalog DB, streamlined add UI, and add-type picker

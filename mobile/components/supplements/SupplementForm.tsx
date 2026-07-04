@@ -17,20 +17,17 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { createMedication, updateMedication } from '../../lib/medications';
 import { rescheduleAllReminders } from '../../lib/reminders';
 import {
-  scheduleTimeToTwelveHour,
-  todayLocalDate,
-  twelveHourToScheduleTime,
+  formatScheduleTime,
   normalizeScheduleTimes,
-  type Meridiem,
+  todayLocalDate,
 } from '../../lib/dates';
-import { normalizeTime12Display } from '../../lib/doseTimeInput';
 import {
   getNotificationPermission,
   requestNotificationPermission,
 } from '../../lib/notifications';
 import { setReminders } from '../../lib/settings';
 import type { Medication, MedicationInput } from '../../lib/types';
-import { DoseTimeInput } from '../medication/DoseTimeInput';
+import { TimeWheelModal } from '../TimeWheelModal';
 import { SupplementPicker } from './SupplementPicker';
 import {
   SUPPLEMENT_FREQUENCIES,
@@ -45,13 +42,10 @@ import {
   type SupplementUnit,
 } from '../../lib/supplements';
 
-type DoseTimeRow = { id: string; time12: string; period: Meridiem };
+type DoseTimeRow = { id: string; time: string };
 
 function rowsFromTimes(times: string[]): DoseTimeRow[] {
-  return times.map((time, index) => {
-    const { time12, period } = scheduleTimeToTwelveHour(time);
-    return { id: `dt-${index}-${Date.now()}`, time12, period };
-  });
+  return times.map((time, index) => ({ id: `dt-${index}-${Date.now()}`, time }));
 }
 
 function parseDose(med: Medication): { amount: string; unit: SupplementUnit } {
@@ -108,6 +102,7 @@ export function SupplementForm({
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [reminderNote, setReminderNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -143,15 +138,14 @@ export function SupplementForm({
     }
   }
 
-  function updateDoseTime(id: string, next: { time12: string; period: Meridiem }) {
-    setDoseTimes((rows) => rows.map((row) => (row.id === id ? { ...row, ...next } : row)));
+  function updateDoseTime(id: string, time: string) {
+    setDoseTimes((rows) => rows.map((row) => (row.id === id ? { ...row, time } : row)));
   }
 
   function addDoseTime() {
-    setDoseTimes((rows) => [
-      ...rows,
-      { id: `dt-${Date.now()}`, time12: '8:00', period: 'AM' },
-    ]);
+    const id = `dt-${Date.now()}`;
+    setDoseTimes((rows) => [...rows, { id, time: '08:00' }]);
+    setEditingTimeId(id);
   }
 
   function removeDoseTime(id: string) {
@@ -194,11 +188,7 @@ export function SupplementForm({
     try {
       let scheduleTimes: string[] = [];
       if (isScheduled) {
-        scheduleTimes = normalizeScheduleTimes(
-          doseTimes.map((row) =>
-            twelveHourToScheduleTime(normalizeTime12Display(row.time12), row.period),
-          ),
-        );
+        scheduleTimes = normalizeScheduleTimes(doseTimes.map((row) => row.time));
         if (scheduleTimes.length === 0) {
           setError('Add at least one time, or choose "As needed".');
           setBusy(false);
@@ -359,15 +349,22 @@ export function SupplementForm({
           <>
             <Text style={styles.label}>At what times?</Text>
             {doseTimes.map((row, index) => (
-              <View key={row.id}>
-                <DoseTimeInput
-                  label={`Time ${index + 1}`}
-                  time12={row.time12}
-                  period={row.period}
-                  onChange={(next) => updateDoseTime(row.id, next)}
-                />
+              <View key={row.id} style={styles.timeRow}>
+                <Pressable
+                  style={styles.timeChip}
+                  onPress={() => setEditingTimeId(row.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Time ${index + 1}, ${formatScheduleTime(row.time)}`}
+                >
+                  <Text style={styles.timeChipLabel}>{`Time ${index + 1}`}</Text>
+                  <Text style={styles.timeChipValue}>{formatScheduleTime(row.time)}</Text>
+                </Pressable>
                 {doseTimes.length > 1 ? (
-                  <Pressable onPress={() => removeDoseTime(row.id)} accessibilityRole="button">
+                  <Pressable
+                    style={styles.timeRemove}
+                    onPress={() => removeDoseTime(row.id)}
+                    accessibilityRole="button"
+                  >
                     <Text style={styles.removeLink}>Remove</Text>
                   </Pressable>
                 ) : null}
@@ -417,6 +414,16 @@ export function SupplementForm({
         onSelect={(entry) => {
           applyEntry(entry);
           setPickerOpen(false);
+        }}
+      />
+
+      <TimeWheelModal
+        visible={editingTimeId !== null}
+        value={doseTimes.find((r) => r.id === editingTimeId)?.time ?? '08:00'}
+        onCancel={() => setEditingTimeId(null)}
+        onDone={(next) => {
+          if (editingTimeId) updateDoseTime(editingTimeId, next);
+          setEditingTimeId(null);
         }}
       />
 
@@ -538,7 +545,28 @@ function makeStyles(colors: ColorPalette) {
     chipActive: { backgroundColor: colors.accentGreen, borderColor: colors.accentGreen },
     chipText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: colors.textMuted },
     chipTextActive: { color: colors.onAccent },
-    removeLink: { fontFamily: fonts.bodySemibold, color: colors.accent, marginBottom: spacing.sm },
+    timeRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    timeChip: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 14,
+      backgroundColor: colors.surface,
+    },
+    timeChipLabel: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.textMuted },
+    timeChipValue: { fontFamily: fonts.heading, fontSize: 17, color: colors.text },
+    timeRemove: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+    removeLink: { fontFamily: fonts.bodySemibold, color: colors.accent },
     addTimeBtn: {
       borderWidth: 1,
       borderColor: colors.border,
