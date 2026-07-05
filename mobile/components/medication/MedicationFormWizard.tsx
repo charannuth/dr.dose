@@ -50,7 +50,7 @@ import type {
   MedicationTrackingSync,
 } from '../../lib/types';
 import type { ColorPalette } from '../../constants/theme';
-import { fonts, radii, spacing } from '../../constants/theme';
+import { fonts, radii, routeBgKey, routeColorKey, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { DosageStepPanel } from './DosageStepPanel';
@@ -474,16 +474,29 @@ export function MedicationFormWizard({
         return (
           <View style={styles.panel}>
             <Text style={styles.hint}>Pick the category that best matches how you use it.</Text>
-            {MEDICATION_ROUTES.map((option) => (
-              <Pressable
-                key={option.id}
-                style={[styles.typeCard, route === option.id && styles.typeCardActive]}
-                onPress={() => selectRoute(option.id)}
-              >
-                <Text style={styles.typeCardLabel}>{option.label}</Text>
-                <Text style={styles.typeCardDesc}>{option.description}</Text>
-              </Pressable>
-            ))}
+            {MEDICATION_ROUTES.map((option) => {
+              const routeColor = colors[routeColorKey(option.id)];
+              const selected = route === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  style={[
+                    styles.typeCard,
+                    selected && styles.typeCardActive,
+                    selected && { borderColor: routeColor, backgroundColor: colors[routeBgKey(option.id)] },
+                  ]}
+                  onPress={() => selectRoute(option.id)}
+                >
+                  <View style={styles.typeCardHeader}>
+                    <View style={[styles.routeDot, { backgroundColor: routeColor }]} />
+                    <Text style={[styles.typeCardLabel, selected && { color: routeColor }]}>
+                      {option.label}
+                    </Text>
+                  </View>
+                  <Text style={styles.typeCardDesc}>{option.description}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         );
       case 'form':
@@ -904,6 +917,8 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     marginBottom: spacing.sm,
   },
   typeCardActive: { borderColor: colors.accent, backgroundColor: colors.typeCardActiveBg },
+  typeCardHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  routeDot: { width: 12, height: 12, borderRadius: 6 },
   typeCardLabel: { fontWeight: '800' as const, color: colors.text },
   typeCardDesc: { color: colors.textMuted, fontSize: 13 },
   chipRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
@@ -995,6 +1010,7 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
   },
   primaryText: { color: colors.onAccent, fontWeight: '900' as const },
   secondaryBtn: {
+    backgroundColor: colors.buttonSecondaryBg,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,

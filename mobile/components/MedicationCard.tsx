@@ -7,7 +7,7 @@ import { isAsNeededMed } from '../lib/medicationSchedule';
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types';
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn';
 import type { ColorPalette } from '../constants/theme';
-import { ACCENT_KEYS, fonts, radii, spacing } from '../constants/theme';
+import { fonts, radii, routeColorKey, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
@@ -24,15 +24,6 @@ type MedicationCardProps = {
   onDelete?: () => void;
   busySlot: string | null;
 };
-
-/** Deterministically map a medication to one of the vibrant accent keys. */
-function stableAccentKey(seed: string): (typeof ACCENT_KEYS)[number] {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return ACCENT_KEYS[Math.abs(hash) % ACCENT_KEYS.length];
-}
 
 function makeMedicationCardStyles(colors: ColorPalette) {
   return {
@@ -226,8 +217,9 @@ export function MedicationCard({
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
 
-  // Stable per-medication accent so each tile gets a consistent splash of color.
-  const accentColor = colors[stableAccentKey(medication.id || medication.name)];
+  // Color each tile by its medication route so oral / dermal / injection / other
+  // are visually distinct (supplements and unknown routes fall back to the brand).
+  const accentColor = colors[routeColorKey(medication.medication_route)];
 
   function Badge({
     label,

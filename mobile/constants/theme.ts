@@ -1,112 +1,137 @@
+// Pastel brand system. The saturated "foreground" accents (accent, accentGreen,
+// route colors, etc.) are IDENTICAL in light and dark mode so the app's color
+// identity stays consistent; only the canvas (bg/surface/text/border) and the
+// soft *Bg tints flip between modes. Source palette:
+//   #ab82c5 lavender · #eee6f3 · #E4FBEE · #FFE9EF · #FFC9D7
+//   accents #A6F0C6 mint · #A9EED8 teal · buttons #FAF9F6
 export const lightColors = {
-  bg: '#f8fafc',
+  bg: '#faf7fb',
   surface: '#ffffff',
-  text: '#0f172a',
-  textMuted: '#64748b',
-  accent: '#0891b2',
-  accentDark: '#0e7490',
+  text: '#2e2a33',
+  textMuted: '#7c7585',
+  accent: '#ab82c5',
+  accentDark: '#8e63ab',
   onAccent: '#ffffff',
-  brandMaroon: '#be123c',
-  brandCrimson: '#e11d48',
-  brandDeep: '#9f1239',
-  border: '#e2e8f0',
-  success: '#059669',
-  successBg: '#ecfdf5',
-  successBorder: '#a7f3d0',
-  successText: '#047857',
-  pending: '#64748b',
-  pendingBg: '#f1f5f9',
-  partial: '#d97706',
-  partialBg: '#fffbeb',
-  partialBorder: '#fde68a',
-  partialText: '#b45309',
-  error: '#dc2626',
-  errorBg: '#fef2f2',
-  errorBorder: '#fecaca',
-  streakPerfectBg: '#ecfdf5',
-  streakPerfectBorder: '#86efac',
-  streakPartialBg: '#ede9fe',
-  streakPartialBorder: '#c4b5fd',
-  streakMissedBg: '#fef2f2',
-  streakMissedBorder: '#fecaca',
-  avatarFallbackBg: '#eef2ff',
-  avatarFallbackBorder: '#c7d2fe',
-  avatarInitials: '#3730a3',
-  typeCardActiveBg: '#ecfeff',
+  brandMaroon: '#ab82c5',
+  brandCrimson: '#c79fda',
+  brandDeep: '#8e63ab',
+  border: '#eae4ef',
+  success: '#43a97c',
+  successBg: '#e4fbee',
+  successBorder: '#a6f0c6',
+  successText: '#2e7d53',
+  pending: '#7c7585',
+  pendingBg: '#f1eef4',
+  partial: '#d2954a',
+  partialBg: '#fbf0dd',
+  partialBorder: '#f2d9a8',
+  partialText: '#9c6b1f',
+  error: '#db6a88',
+  errorBg: '#ffe9ef',
+  errorBorder: '#ffc9d7',
+  streakPerfectBg: '#e4fbee',
+  streakPerfectBorder: '#a6f0c6',
+  streakPartialBg: '#eee6f3',
+  streakPartialBorder: '#cbb3dd',
+  streakMissedBg: '#ffe9ef',
+  streakMissedBorder: '#ffc9d7',
+  avatarFallbackBg: '#eee6f3',
+  avatarFallbackBorder: '#cbb3dd',
+  avatarInitials: '#7a4e96',
+  typeCardActiveBg: '#eee6f3',
   tabBar: '#ffffff',
-  tabBarBorder: '#e2e8f0',
+  tabBarBorder: '#eae4ef',
   inputBg: '#ffffff',
-  badgeMajorBg: '#fee2e2',
-  badgeModerateBg: '#ffedd5',
-  badgeMinorBg: '#eff6ff',
-  // Vibrant accent set used for color "splashes" across the UI. Each accent has a
-  // saturated foreground tone and a soft background tint. Hues are kept consistent
-  // with their dark-mode counterparts so the palette reads the same in both themes.
-  accentBlue: '#0891b2',
-  accentBlueBg: '#ecfeff',
-  accentPurple: '#7c3aed',
-  accentPurpleBg: '#f5f3ff',
-  accentGreen: '#16a34a',
-  accentGreenBg: '#f0fdf4',
-  accentAmber: '#d97706',
-  accentAmberBg: '#fffbeb',
-  accentRed: '#e11d48',
-  accentRedBg: '#fff1f2',
+  // Neutral off-white surface for secondary/ghost buttons (dark text sits on top).
+  buttonSecondaryBg: '#faf9f6',
+  badgeMajorBg: '#ffe9ef',
+  badgeModerateBg: '#fbf0dd',
+  badgeMinorBg: '#e4fbee',
+  // Splash accents. Foreground tones are shared with dark mode; only the soft Bg
+  // tints below are light-mode specific.
+  accentBlue: '#4fa6c4',
+  accentBlueBg: '#def2f8',
+  accentPurple: '#ab82c5',
+  accentPurpleBg: '#eee6f3',
+  accentGreen: '#43a97c',
+  accentGreenBg: '#e4fbee',
+  accentAmber: '#d2954a',
+  accentAmberBg: '#fbf0dd',
+  accentRed: '#db6a88',
+  accentRedBg: '#ffe9ef',
+  // Per-route medication colors (oral / dermal / injection / other). Foreground is
+  // used for tile accents and text; Bg is the soft fill.
+  routeOral: '#43a97c',
+  routeOralBg: '#e4fbee',
+  routeDermal: '#db6a88',
+  routeDermalBg: '#ffe9ef',
+  routeInjection: '#ab82c5',
+  routeInjectionBg: '#eee6f3',
+  routeOther: '#3fb0a0',
+  routeOtherBg: '#a9eed8',
 } as const;
 
 export const darkColors = {
-  bg: '#0f172a',
-  surface: '#1e293b',
-  text: '#f1f5f9',
-  textMuted: '#94a3b8',
-  accent: '#22d3ee',
-  accentDark: '#0891b2',
-  onAccent: '#0f172a',
-  brandMaroon: '#fb7185',
-  brandCrimson: '#f43f5e',
-  brandDeep: '#e11d48',
-  border: '#475569',
-  success: '#34d399',
-  successBg: '#064e3b',
-  successBorder: '#059669',
-  successText: '#6ee7b7',
-  pending: '#94a3b8',
-  pendingBg: '#273549',
-  partial: '#fbbf24',
-  partialBg: '#422006',
-  partialBorder: '#b45309',
-  partialText: '#fcd34d',
-  error: '#f87171',
-  errorBg: '#450a0a',
-  errorBorder: '#dc2626',
-  streakPerfectBg: '#064e3b',
-  streakPerfectBorder: '#34d399',
-  streakPartialBg: '#312e81',
-  streakPartialBorder: '#818cf8',
-  streakMissedBg: '#450a0a',
-  streakMissedBorder: '#f87171',
-  avatarFallbackBg: '#312e81',
-  avatarFallbackBorder: '#6366f1',
-  avatarInitials: '#e0e7ff',
-  typeCardActiveBg: '#164e63',
-  tabBar: '#1e293b',
-  tabBarBorder: '#334155',
-  inputBg: '#0f172a',
-  badgeMajorBg: '#7f1d1d',
-  badgeModerateBg: '#7c2d12',
-  badgeMinorBg: '#1e3a5f',
-  // Dark-mode counterparts: brighter foregrounds for contrast on dark surfaces,
-  // deep saturated background tints that still read as the same hue family.
-  accentBlue: '#22d3ee',
-  accentBlueBg: '#164e63',
-  accentPurple: '#a78bfa',
-  accentPurpleBg: '#2e1065',
-  accentGreen: '#34d399',
-  accentGreenBg: '#052e16',
-  accentAmber: '#fbbf24',
-  accentAmberBg: '#422006',
-  accentRed: '#fb7185',
-  accentRedBg: '#4c0519',
+  bg: '#191520',
+  surface: '#241e2e',
+  text: '#f2ecf5',
+  textMuted: '#a79fb0',
+  accent: '#ab82c5',
+  accentDark: '#8e63ab',
+  onAccent: '#ffffff',
+  brandMaroon: '#c9a6de',
+  brandCrimson: '#ab82c5',
+  brandDeep: '#c9a6de',
+  border: '#3a3244',
+  success: '#43a97c',
+  successBg: '#123726',
+  successBorder: '#2e7d53',
+  successText: '#8fe3b8',
+  pending: '#a79fb0',
+  pendingBg: '#2a2530',
+  partial: '#d2954a',
+  partialBg: '#3a2a10',
+  partialBorder: '#9c6b1f',
+  partialText: '#eec98a',
+  error: '#db6a88',
+  errorBg: '#3a1622',
+  errorBorder: '#db6a88',
+  streakPerfectBg: '#123726',
+  streakPerfectBorder: '#43a97c',
+  streakPartialBg: '#2a1e33',
+  streakPartialBorder: '#ab82c5',
+  streakMissedBg: '#3a1622',
+  streakMissedBorder: '#db6a88',
+  avatarFallbackBg: '#2a1e33',
+  avatarFallbackBorder: '#7a4e96',
+  avatarInitials: '#e7d8f0',
+  typeCardActiveBg: '#2a1e33',
+  tabBar: '#241e2e',
+  tabBarBorder: '#332b3e',
+  inputBg: '#191520',
+  buttonSecondaryBg: '#2b2436',
+  badgeMajorBg: '#3a1622',
+  badgeModerateBg: '#3a2a10',
+  badgeMinorBg: '#123726',
+  // Same foreground accents as light mode; only these deep Bg tints differ.
+  accentBlue: '#4fa6c4',
+  accentBlueBg: '#0f3540',
+  accentPurple: '#ab82c5',
+  accentPurpleBg: '#2a1e33',
+  accentGreen: '#43a97c',
+  accentGreenBg: '#123726',
+  accentAmber: '#d2954a',
+  accentAmberBg: '#3a2a10',
+  accentRed: '#db6a88',
+  accentRedBg: '#3a1622',
+  routeOral: '#43a97c',
+  routeOralBg: '#123726',
+  routeDermal: '#db6a88',
+  routeDermalBg: '#3a1622',
+  routeInjection: '#ab82c5',
+  routeInjectionBg: '#2a1e33',
+  routeOther: '#3fb0a0',
+  routeOtherBg: '#123330',
 } as const;
 
 export type ColorPalette = {
@@ -147,6 +172,7 @@ export type ColorPalette = {
   readonly tabBar: string;
   readonly tabBarBorder: string;
   readonly inputBg: string;
+  readonly buttonSecondaryBg: string;
   readonly badgeMajorBg: string;
   readonly badgeModerateBg: string;
   readonly badgeMinorBg: string;
@@ -160,6 +186,14 @@ export type ColorPalette = {
   readonly accentAmberBg: string;
   readonly accentRed: string;
   readonly accentRedBg: string;
+  readonly routeOral: string;
+  readonly routeOralBg: string;
+  readonly routeDermal: string;
+  readonly routeDermalBg: string;
+  readonly routeInjection: string;
+  readonly routeInjectionBg: string;
+  readonly routeOther: string;
+  readonly routeOtherBg: string;
 };
 
 /**
@@ -182,6 +216,33 @@ export function accentForIndex(index: number): AccentKey {
 
 export function accentBgKey(key: AccentKey): keyof ColorPalette {
   return `${key}Bg` as keyof ColorPalette;
+}
+
+/**
+ * Per-route palette keys. Each medication route (oral / dermal / injection /
+ * other) maps to a distinct foreground color and a soft background fill.
+ */
+export const ROUTE_COLOR_KEYS = {
+  oral: { fg: 'routeOral', bg: 'routeOralBg' },
+  dermal: { fg: 'routeDermal', bg: 'routeDermalBg' },
+  injection: { fg: 'routeInjection', bg: 'routeInjectionBg' },
+  other: { fg: 'routeOther', bg: 'routeOtherBg' },
+} as const satisfies Record<string, { fg: keyof ColorPalette; bg: keyof ColorPalette }>;
+
+type RouteColorId = keyof typeof ROUTE_COLOR_KEYS;
+
+function isRouteColorId(route: string | null | undefined): route is RouteColorId {
+  return !!route && route in ROUTE_COLOR_KEYS;
+}
+
+/** Foreground color key for a medication route (falls back to the brand accent). */
+export function routeColorKey(route: string | null | undefined): keyof ColorPalette {
+  return isRouteColorId(route) ? ROUTE_COLOR_KEYS[route].fg : 'accent';
+}
+
+/** Soft background fill key for a medication route (falls back to the brand tint). */
+export function routeBgKey(route: string | null | undefined): keyof ColorPalette {
+  return isRouteColorId(route) ? ROUTE_COLOR_KEYS[route].bg : 'accentPurpleBg';
 }
 
 /** @deprecated Prefer `useTheme().colors` for theme-aware UI */

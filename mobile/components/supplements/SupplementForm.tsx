@@ -568,6 +568,7 @@ function makeStyles(colors: ColorPalette) {
     timeRemove: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
     removeLink: { fontFamily: fonts.bodySemibold, color: colors.accent },
     addTimeBtn: {
+      backgroundColor: colors.buttonSecondaryBg,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: radii.md,
