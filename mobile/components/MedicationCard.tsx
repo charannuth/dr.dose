@@ -4,6 +4,7 @@ import { formatInventoryRemaining } from '../lib/inventory';
 import { formatMedicationType } from '../lib/medicationForms';
 import { formatMedicationDateRange } from '../lib/medicationDates';
 import { isAsNeededMed } from '../lib/medicationSchedule';
+import { currentMinutesSinceMidnight, scheduleTimeToMinutes } from '../lib/dates';
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types';
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn';
 import type { ColorPalette } from '../constants/theme';
@@ -17,6 +18,7 @@ import { routes } from '../lib/routes';
 type MedicationCardProps = {
   medication: MedicationWithStatus;
   onMarkTaken: (scheduleTime: string) => void;
+  onSnooze?: (scheduleTime: string) => void;
   onLogPrn?: (payload: PrnDoseLogPayload) => void;
   onUndo: (slot: DoseSlotStatus) => void;
   onMoveToAsNeeded?: () => void;
@@ -118,6 +120,11 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     slotTakenRow: {
       opacity: 0.9,
     },
+    slotActions: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+    },
     slotTaken: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -206,6 +213,7 @@ function makeMedicationCardStyles(colors: ColorPalette) {
 export function MedicationCard({
   medication,
   onMarkTaken,
+  onSnooze,
   onLogPrn,
   onUndo,
   onMoveToAsNeeded,
@@ -220,6 +228,7 @@ export function MedicationCard({
   // Color each tile by its medication route so oral / dermal / injection / other
   // are visually distinct (supplements and unknown routes fall back to the brand).
   const accentColor = colors[routeColorKey(medication.medication_route)];
+  const nowMins = currentMinutesSinceMidnight();
 
   function Badge({
     label,
@@ -362,6 +371,9 @@ export function MedicationCard({
           {orderedSlots.map((slot, index) => {
             const slotKey = `${medication.id}-${slot.time}`;
             const busy = busySlot === slotKey;
+            const slotMins = scheduleTimeToMinutes(slot.time);
+            const due = Number.isFinite(slotMins) && slotMins <= nowMins;
+            const canSnooze = !slot.taken && due && onSnooze != null;
             return (
               <View
                 key={`${slot.time}-${index}`}
@@ -379,17 +391,28 @@ export function MedicationCard({
                     </Text>
                   </Pressable>
                 ) : (
-                  <Pressable
-                    style={styles.primaryButtonSmall}
-                    disabled={busy}
-                    onPress={() => onMarkTaken(slot.time)}
-                  >
-                    {busy ? (
-                      <ActivityIndicator color={colors.onAccent} size="small" />
-                    ) : (
-                      <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
-                    )}
-                  </Pressable>
+                  <View style={styles.slotActions}>
+                    {canSnooze ? (
+                      <Pressable
+                        style={styles.secondaryButton}
+                        disabled={busy}
+                        onPress={() => onSnooze?.(slot.time)}
+                      >
+                        <Text style={styles.secondaryButtonText}>Snooze</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      style={styles.primaryButtonSmall}
+                      disabled={busy}
+                      onPress={() => onMarkTaken(slot.time)}
+                    >
+                      {busy ? (
+                        <ActivityIndicator color={colors.onAccent} size="small" />
+                      ) : (
+                        <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 )}
               </View>
             );

@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-07** (`a63f7e2`) — Add in-app dose snooze with restarted follow-up chain
+
 - **2026-07-04** (`ccf32cd`) — Pastel color theme with per-route medication colors
 
 - **2026-07-04** (`3d58e62`) — Condense medication add/edit into 4 pages

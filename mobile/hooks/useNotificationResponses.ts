@@ -6,6 +6,7 @@ import { routes } from '../lib/routes';
 type NotificationData = {
   screen?: string;
   medicationId?: string;
+  scheduleTime?: string;
   visitId?: string;
 };
 
@@ -16,7 +17,10 @@ function routeForNotificationData(data: NotificationData | undefined): string | 
   return null;
 }
 
-/** Open the right screen when the user taps a local notification. */
+/**
+ * Open the right screen when the user taps a local notification. Dose alerts are
+ * tap-to-open only; snooze and mark-as-taken are handled inside the app.
+ */
 export function useNotificationResponses() {
   const router = useRouter();
 

@@ -44,7 +44,8 @@ import { fetchStreakStats, type StreakStats } from '../../lib/streaks';
 import { fetchMissedDoses, type MissedDoseItem } from '../../lib/missedDoses';
 import { getRefillAlerts } from '../../lib/refills';
 import { routes } from '../../lib/routes';
-import { rescheduleAllReminders } from '../../lib/reminders';
+import { rescheduleAllReminders, scheduleDoseSnooze } from '../../lib/reminders';
+import { SnoozeModal } from '../../components/SnoozeModal';
 import { getMedSort, getReminders, setMedSort, type MedSort } from '../../lib/settings';
 import {
   dismissMissedDosesBanner,
@@ -261,11 +262,27 @@ export default function TodayScreen() {
     streakStats,
   );
   const { updateInfo, dismissUpdate } = useAppUpdateCheck();
+  const [snoozeTarget, setSnoozeTarget] = useState<{
+    med: MedicationWithStatus;
+    time: string;
+  } | null>(null);
 
   useEffect(() => {
     isMissedDosesBannerDismissed().then(setMissedBannerDismissed).catch(() => {});
     getMedSort().then(setMedSortState).catch(() => {});
   }, []);
+
+  async function handleSnoozeConfirm(remindAt: Date) {
+    const target = snoozeTarget;
+    setSnoozeTarget(null);
+    if (!target) return;
+    const result = await scheduleDoseSnooze({
+      med: { id: target.med.id, name: target.med.name },
+      scheduleTime: target.time,
+      remindAt,
+    });
+    if (!result.ok) setError(result.reason);
+  }
 
   async function changeMedSort(next: MedSort) {
     setMedSortState(next);
@@ -724,6 +741,7 @@ export default function TodayScreen() {
                     medication={med}
                     busySlot={busySlot}
                     onMarkTaken={(time) => handleMarkTaken(med, time)}
+                    onSnooze={(time) => setSnoozeTarget({ med, time })}
                     onLogPrn={(payload) => handleLogPrn(med, payload)}
                     onUndo={(slot) => handleUndo(med, slot)}
                     onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
@@ -738,6 +756,13 @@ export default function TodayScreen() {
 
         <TodayWellnessCheckIn />
       </ScrollView>
+
+      <SnoozeModal
+        visible={snoozeTarget != null}
+        medName={snoozeTarget?.med.name ?? ''}
+        onCancel={() => setSnoozeTarget(null)}
+        onConfirm={handleSnoozeConfirm}
+      />
     </SafeAreaView>
   );
 }
