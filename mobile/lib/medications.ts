@@ -16,7 +16,7 @@ import {
   isMedicationActiveOn,
   validateMedicationDates,
 } from './medicationDates'
-import { isAsNeededMed, normalizeCategory } from './medicationSchedule'
+import { isAsNeededMed, isSupplement, normalizeCategory } from './medicationSchedule'
 import { cancelDoseRemindersForMedication } from './reminderScheduler'
 import type { PrnDoseLogPayload } from './prnCheckIn'
 import { formatPrnDoseSummary } from './prnCheckIn'
@@ -41,20 +41,23 @@ function normalizeTrackingSync(
   return value === 'hrt' ? 'hrt' : 'none'
 }
 
-function buildPrnSlots(logs: DoseLog[]): DoseSlotStatus[] {
+function buildPrnSlots(logs: DoseLog[], simpleTimeOnly = false): DoseSlotStatus[] {
   return [...logs]
     .sort((a, b) => a.schedule_time.localeCompare(b.schedule_time))
     .map((log) => {
-      const summary = formatPrnDoseSummary(log)
+      const timeLabel = formatScheduleTime(log.schedule_time);
+      const summary = formatPrnDoseSummary(log);
       return {
         time: log.schedule_time,
-        label: summary
-          ? `${formatScheduleTime(log.schedule_time)} · ${summary}`
-          : formatScheduleTime(log.schedule_time),
+        label: simpleTimeOnly
+          ? timeLabel
+          : summary
+            ? `${timeLabel} · ${summary}`
+            : timeLabel,
         taken: true,
         doseLogId: log.id,
-      }
-    })
+      };
+    });
 }
 
 function buildSlots(
@@ -192,7 +195,7 @@ export async function fetchMedicationsWithStatus(
     const medLogs = logsByMed.get(med.id) ?? []
 
     if (isAsNeededMed({ schedule_type })) {
-      const prnSlots = activeToday ? buildPrnSlots(medLogs) : []
+      const prnSlots = activeToday ? buildPrnSlots(medLogs, isSupplement(med)) : []
       return {
         ...med,
         schedule_type,
@@ -326,6 +329,7 @@ export async function createMedication(
     schedule_times,
     tracking_sync: input.tracking_sync ?? 'none',
     reminders_enabled: input.reminders_enabled ?? true,
+    tile_color: input.tile_color ?? null,
     notes: input.notes.trim() || null,
     pills_remaining: input.pills_remaining,
     start_date: input.start_date,
@@ -383,6 +387,7 @@ export async function updateMedication(
       schedule_times: newTimes,
       tracking_sync: input.tracking_sync ?? 'none',
       reminders_enabled: input.reminders_enabled ?? true,
+      tile_color: input.tile_color ?? null,
       notes: input.notes.trim() || null,
       pills_remaining: input.pills_remaining,
       start_date: input.start_date,

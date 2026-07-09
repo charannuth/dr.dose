@@ -245,6 +245,67 @@ export function routeBgKey(route: string | null | undefined): keyof ColorPalette
   return isRouteColorId(route) ? ROUTE_COLOR_KEYS[route].bg : 'accentPurpleBg';
 }
 
+/** User-selectable tile accent keys (route hues + general accents). */
+export const TILE_COLOR_IDS = [
+  'routeOral',
+  'routeDermal',
+  'routeInjection',
+  'routeOther',
+  'accentBlue',
+  'accentPurple',
+  'accentGreen',
+  'accentAmber',
+  'accentRed',
+] as const;
+
+export type TileColorId = (typeof TILE_COLOR_IDS)[number];
+
+export const TILE_COLOR_LABELS: Record<TileColorId, string> = {
+  routeOral: 'Green',
+  routeDermal: 'Pink',
+  routeInjection: 'Purple',
+  routeOther: 'Teal',
+  accentBlue: 'Blue',
+  accentPurple: 'Lavender',
+  accentGreen: 'Mint',
+  accentAmber: 'Amber',
+  accentRed: 'Rose',
+};
+
+export function isTileColorId(id: string | null | undefined): id is TileColorId {
+  return !!id && (TILE_COLOR_IDS as readonly string[]).includes(id);
+}
+
+/** Soft background key paired with a tile accent foreground key. */
+export function tileBgKeyForFg(fg: TileColorId): keyof ColorPalette {
+  if (fg.startsWith('route')) return `${fg}Bg` as keyof ColorPalette;
+  return accentBgKey(fg as AccentKey);
+}
+
+/** Default tile accent from route when the user has not picked a custom color. */
+export function defaultTileColorForRoute(route: string | null | undefined): TileColorId {
+  if (isRouteColorId(route)) return ROUTE_COLOR_KEYS[route].fg as TileColorId;
+  return 'accentPurple';
+}
+
+/** Foreground accent for a medication tile (custom pick or route fallback). */
+export function tileFgKey(
+  tileColor: string | null | undefined,
+  route: string | null | undefined,
+): keyof ColorPalette {
+  if (isTileColorId(tileColor)) return tileColor;
+  return routeColorKey(route);
+}
+
+/** Soft tile background for a medication (custom pick or route fallback). */
+export function tileBgKey(
+  tileColor: string | null | undefined,
+  route: string | null | undefined,
+): keyof ColorPalette {
+  if (isTileColorId(tileColor)) return tileBgKeyForFg(tileColor);
+  return routeBgKey(route);
+}
+
 /** @deprecated Prefer `useTheme().colors` for theme-aware UI */
 export const colors: ColorPalette = lightColors;
 

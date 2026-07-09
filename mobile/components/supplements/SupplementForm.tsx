@@ -11,9 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
-import { fonts, radii, spacing } from '../../constants/theme';
+import {
+  defaultTileColorForRoute,
+  fonts,
+  isTileColorId,
+  radii,
+  spacing,
+  type TileColorId,
+} from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { TileColorPicker } from '../TileColorPicker';
 import { createMedication, updateMedication } from '../../lib/medications';
 import { rescheduleAllReminders } from '../../lib/reminders';
 import {
@@ -104,6 +112,11 @@ export function SupplementForm({
   const [unitOpen, setUnitOpen] = useState(false);
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [reminderNote, setReminderNote] = useState<string | null>(null);
+  const [tileColor, setTileColor] = useState<TileColorId>(() =>
+    initial && isTileColorId(initial.tile_color)
+      ? initial.tile_color
+      : defaultTileColorForRoute('oral'),
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -217,6 +230,7 @@ export function SupplementForm({
         schedule_times: scheduleTimes,
         tracking_sync: 'none',
         reminders_enabled: isScheduled ? remindersEnabled : true,
+        tile_color: tileColor,
         notes: initial ? initial.notes ?? '' : entry?.warning ?? '',
         pills_remaining: null,
         start_date: initial?.start_date ?? todayLocalDate(),
@@ -310,6 +324,12 @@ export function SupplementForm({
             ) : null}
           </View>
         ) : null}
+
+        <Text style={styles.label}>Tile color</Text>
+        <Text style={styles.hint}>
+          How this supplement appears on your Today list — light background with a bold name.
+        </Text>
+        <TileColorPicker value={tileColor} onChange={setTileColor} />
 
         <Text style={styles.label}>How much per dose *</Text>
         <View style={styles.amountRow}>
@@ -466,6 +486,13 @@ function makeStyles(colors: ColorPalette) {
       color: colors.textMuted,
       lineHeight: 20,
       marginBottom: spacing.sm,
+    },
+    hint: {
+      fontFamily: fonts.bodyRegular,
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+      marginBottom: spacing.xs,
     },
     label: { fontFamily: fonts.bodySemibold, fontSize: 14, color: colors.text, marginTop: spacing.md },
     input: {

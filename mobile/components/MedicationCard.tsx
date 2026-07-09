@@ -4,12 +4,12 @@ import { formatDoseDisplay } from '../lib/dose';
 import { formatInventoryRemaining } from '../lib/inventory';
 import { formatMedicationType } from '../lib/medicationForms';
 import { formatMedicationDateRange } from '../lib/medicationDates';
-import { isAsNeededMed } from '../lib/medicationSchedule';
+import { isAsNeededMed, isSupplement } from '../lib/medicationSchedule';
 import { currentMinutesSinceMidnight, scheduleTimeToMinutes } from '../lib/dates';
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types';
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn';
 import type { ColorPalette } from '../constants/theme';
-import { fonts, radii, routeColorKey, spacing } from '../constants/theme';
+import { fonts, radii, spacing, tileBgKey, tileFgKey } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
@@ -64,9 +64,8 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       marginRight: -spacing.xs,
     },
     name: {
-      fontFamily: fonts.heading,
+      fontFamily: fonts.bodySemibold,
       fontSize: 18,
-      color: colors.text,
     },
     typeLabel: {
       fontFamily: fonts.bodyMedium,
@@ -262,9 +261,9 @@ export function MedicationCard({
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
 
-  // Color each tile by its medication route so oral / dermal / injection / other
-  // are visually distinct (supplements and unknown routes fall back to the brand).
-  const accentColor = colors[routeColorKey(medication.medication_route)];
+  // Tile accent: user-picked color or route default. Background uses the soft tint.
+  const accentColor = colors[tileFgKey(medication.tile_color, medication.medication_route)];
+  const tileBackground = colors[tileBgKey(medication.tile_color, medication.medication_route)];
   const nowMins = currentMinutesSinceMidnight();
 
   function Badge({
@@ -289,6 +288,7 @@ export function MedicationCard({
   }
 
   const asNeeded = isAsNeededMed(medication);
+  const supplementPrn = asNeeded && isSupplement(medication);
   // Untaken doses first (by time), taken doses drop to the bottom of the card so
   // finished morning doses don't sit above doses still due later in the day.
   const orderedSlots = [...medication.slots].sort((a, b) => {
@@ -335,7 +335,7 @@ export function MedicationCard({
     <View
       style={[
         styles.card,
-        !asNeeded && allDosesTakenToday && styles.cardTaken,
+        { backgroundColor: tileBackground, borderColor: accentColor },
         asNeeded && styles.cardPrn,
         { borderLeftWidth: 4, borderLeftColor: accentColor },
       ]}
@@ -373,7 +373,53 @@ export function MedicationCard({
       ) : null}
 
       {asNeeded ? (
-        <>
+        supplementPrn ? (
+          <>
+            {medication.slots.length > 0 ? (
+              <View style={styles.slots}>
+                {medication.slots.map((slot, index) => {
+                  const slotKey = `${medication.id}-${slot.time}`;
+                  const busy = busySlot === slotKey;
+                  return (
+                    <View key={`${slot.time}-${index}`} style={styles.slotTaken}>
+                      <Text style={styles.slotTime}>Taken {slot.label}</Text>
+                      <Pressable
+                        style={styles.secondaryButton}
+                        disabled={busy}
+                        onPress={() => onUndo(slot)}
+                      >
+                        <Text style={styles.secondaryButtonText}>
+                          {busy ? '…' : 'Undo'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={styles.emptySlots}>No doses logged today yet.</Text>
+            )}
+            <Pressable
+              style={styles.primaryButton}
+              disabled={prnBusy}
+              onPress={() =>
+                onLogPrn?.({
+                  amount: formatDoseDisplay(medication) || '1 dose',
+                  symptoms: [],
+                  reason: '',
+                  notes: '',
+                })
+              }
+            >
+              {prnBusy ? (
+                <ActivityIndicator color={colors.onAccent} size="small" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Log</Text>
+              )}
+            </Pressable>
+          </>
+        ) : (
+          <>
           <PrnDoseLogPanel
             medication={medication}
             disabled={prnBusy}
@@ -403,7 +449,8 @@ export function MedicationCard({
           ) : (
             <Text style={styles.emptySlots}>No doses logged today yet.</Text>
           )}
-        </>
+          </>
+        )
       ) : orderedSlots.length > 0 ? (
         <View style={styles.slots}>
           {orderedSlots.map((slot, index) => {

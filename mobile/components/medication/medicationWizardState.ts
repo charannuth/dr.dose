@@ -16,6 +16,11 @@ import {
   type DosageWizardValues,
 } from '../../lib/doseByRoute';
 import type { Medication, MedicationTrackingSync } from '../../lib/types';
+import {
+  defaultTileColorForRoute,
+  isTileColorId,
+  type TileColorId,
+} from '../../constants/theme';
 
 /**
  * The add/edit flow is grouped into a few scrollable pages instead of one field
@@ -154,6 +159,9 @@ export function buildFormState(
       endDate: initial.end_date ?? '',
       trackingSync:
         initial.tracking_sync === 'hrt' ? ('hrt' as MedicationTrackingSync) : 'none',
+      tileColor: isTileColorId(initial.tile_color)
+        ? initial.tile_color
+        : defaultTileColorForRoute(initial.medication_route),
     };
   }
 
@@ -170,5 +178,6 @@ export function buildFormState(
     hasEndDate: false,
     endDate: '',
     trackingSync: 'none' as MedicationTrackingSync,
+    tileColor: 'accentPurple' as TileColorId,
   };
 }

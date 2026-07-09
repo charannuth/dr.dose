@@ -19,19 +19,20 @@ import { fonts, radii, spacing, typography } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { createMedication, fetchMedicationsWithStatus } from '../../../lib/medications';
 import { rescheduleAllReminders } from '../../../lib/reminders';
-import {
-  MedicationFormWizard,
-  type WizardPrefill,
-} from '../../../components/medication/MedicationFormWizard';
+import { MedicationFormWizard } from '../../../components/medication/MedicationFormWizard';
+import { ScanReviewScreen } from '../../../components/medication/ScanReviewScreen';
+import type { LabelScanPrefill } from '../../../lib/labelScanPrefill';
 import {
   hasUsefulPrefill,
+  isLabelAiAvailable,
   recognizePrescription,
+  type PrescriptionPrefill,
 } from '../../../lib/prescriptionScan';
 import type { MedicationInput } from '../../../lib/types';
 import { useTheme } from '../../../context/ThemeProvider';
 import { useThemedStyles } from '../../../hooks/useThemedStyles';
 
-type AddMode = 'choose' | 'form';
+type AddMode = 'choose' | 'review' | 'form';
 
 function makeStyles(colors: ColorPalette) {
   return {
@@ -91,7 +92,8 @@ export default function AddMedicationScreen() {
   const styles = useThemedStyles(makeStyles);
   const [existingNames, setExistingNames] = useState<string[]>([]);
   const [mode, setMode] = useState<AddMode>('choose');
-  const [prefill, setPrefill] = useState<WizardPrefill | null>(null);
+  const [scanResult, setScanResult] = useState<PrescriptionPrefill | null>(null);
+  const [prefill, setPrefill] = useState<LabelScanPrefill | null>(null);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function AddMedicationScreen() {
     try {
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ['images'],
-        quality: 0.7,
+        quality: 0.85,
         allowsEditing: false,
       };
       let result: ImagePicker.ImagePickerResult;
@@ -131,18 +133,12 @@ export default function AddMedicationScreen() {
       }
 
       const parsed = await recognizePrescription(result.assets[0].uri);
-      const next: WizardPrefill = {
-        name: parsed.name,
-        doseMg: parsed.doseMg,
-        route: parsed.route ?? null,
-        form: parsed.form,
-      };
-      setPrefill(next);
-      setMode('form');
+      setScanResult(parsed);
+      setMode('review');
       if (!hasUsefulPrefill(parsed)) {
         Alert.alert(
-          'Nothing detected',
-          "We couldn't read the label clearly. You can type the details in — they're just suggestions either way.",
+          'Limited details detected',
+          "We couldn't read much from this photo. Review what we found, edit any fields, or tap Rescan with a clearer picture.",
         );
       }
     } catch (err) {
@@ -150,6 +146,7 @@ export default function AddMedicationScreen() {
         'Scan failed',
         err instanceof Error ? err.message : 'Could not scan the label. Please enter details manually.',
       );
+      setPrefill(null);
       setMode('form');
     } finally {
       setScanning(false);
@@ -157,7 +154,7 @@ export default function AddMedicationScreen() {
   }
 
   function startScan() {
-    Alert.alert('Scan a label', 'Choose a source for the medication label.', [
+    Alert.alert('Scan a pharmacy label', 'Take a clear photo of the prescription label.', [
       { text: 'Take photo', onPress: () => void runScan('camera') },
       { text: 'Choose from library', onPress: () => void runScan('library') },
       { text: 'Cancel', style: 'cancel' },
@@ -182,11 +179,30 @@ export default function AddMedicationScreen() {
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.scanningWrap}>
           <ActivityIndicator size="large" color={colors.accentBlue} />
-          <Text style={styles.scanningText}>Reading the label…</Text>
+          <Text style={styles.scanningText}>Reading your label…</Text>
           <Text style={styles.scanningHint}>
-            This happens on your device — the photo never leaves your phone.
+            OCR runs on your device.
+            {isLabelAiAvailable()
+              ? ' Optional AI may analyze the text to fill more fields — never the photo itself.'
+              : ''}
           </Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (mode === 'review' && scanResult) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScanReviewScreen
+          scan={scanResult}
+          onConfirm={(next) => {
+            setPrefill(next);
+            setMode('form');
+          }}
+          onRescan={startScan}
+          onCancel={() => router.back()}
+        />
       </SafeAreaView>
     );
   }
@@ -198,7 +214,7 @@ export default function AddMedicationScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>{isSupplement ? 'Add supplement' : 'Add medication'}</Text>
           <Text style={styles.subtitle}>
-            Scan the label to fill in the details automatically, or type them in yourself.
+            Scan your CVS or pharmacy label to auto-fill details, or type them in yourself.
           </Text>
 
           {!isSupplement ? (
@@ -207,10 +223,10 @@ export default function AddMedicationScreen() {
               onPress={startScan}
               accessibilityRole="button"
             >
-              <Text style={[styles.cardTitle, styles.cardTitleScan]}>Scan label</Text>
+              <Text style={[styles.cardTitle, styles.cardTitleScan]}>Scan pharmacy label</Text>
               <Text style={styles.cardDesc}>
-                Point your camera at the bottle or box. We'll read the name, strength, and form on
-                your device and pre-fill them as suggestions.
+                Point your camera at the prescription sticker. We'll read the drug name, strength,
+                directions, and more — then you review everything before saving.
               </Text>
             </Pressable>
           ) : null}
@@ -219,6 +235,7 @@ export default function AddMedicationScreen() {
             style={[styles.card, styles.cardManual]}
             onPress={() => {
               setPrefill(null);
+              setScanResult(null);
               setMode('form');
             }}
             accessibilityRole="button"
@@ -231,7 +248,8 @@ export default function AddMedicationScreen() {
           </Pressable>
 
           <Text style={styles.note}>
-            Scanned details are only suggestions — you'll review and confirm every step before saving.
+            Scanned details are only suggestions — you'll review them on the next screen, then
+            confirm every step in the wizard before saving.
           </Text>
         </ScrollView>
       </SafeAreaView>

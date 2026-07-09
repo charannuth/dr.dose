@@ -488,6 +488,7 @@ export default function TodayScreen() {
     setBusySlot(key);
     setError(null);
     try {
+      await cancelDoseSnooze({ id: med.id }, scheduleTime);
       await markDoseTaken(user.id, med.id, scheduleTime);
       await loadAll();
       await syncRemindersAfterSupplyChange();

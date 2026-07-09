@@ -28,6 +28,7 @@ const BRAND_MEDICATIONS: MedicationSuggestion[] = (
 export const MEDICATION_SUGGESTIONS: MedicationSuggestion[] = [
   { name: 'Acetaminophen', doseMg: '500 mg', dosePills: '1 tablet' },
   { name: 'Albuterol', dosePills: '2 puffs' },
+  { name: 'Advair HFA', dosePills: '2 puffs' },
   { name: 'Allopurinol', doseMg: '300 mg' },
   { name: 'Amlodipine', doseMg: '5 mg' },
   { name: 'Amoxicillin', doseMg: '500 mg' },

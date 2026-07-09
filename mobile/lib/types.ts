@@ -21,6 +21,8 @@ export type Medication = {
   schedule_times: string[]
   tracking_sync: MedicationTrackingSync
   reminders_enabled: boolean
+  /** Palette key for Today tile accent (e.g. routeOral). Null = derive from route. */
+  tile_color: string | null
   notes: string | null
   pills_remaining: number | null
   start_date: string
@@ -58,6 +60,8 @@ export type MedicationInput = {
   tracking_sync: MedicationTrackingSync
   /** Per-item reminder opt-out. Defaults to true when omitted. */
   reminders_enabled?: boolean
+  /** Today tile accent palette key. */
+  tile_color?: string | null
   notes: string
   pills_remaining: number | null
   start_date: string

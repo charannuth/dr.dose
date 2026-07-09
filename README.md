@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-09** (`988d37e`) — Add tile colors, label scan AI, snooze Live Activities, and simple supplement logging.
+
 - **2026-07-09** (`7e65338`) — Move custom medication reordering inline on the Today screen.
 
 - **2026-07-09** (`ab7ff28`) — Add snooze status + selectable reminder chimes

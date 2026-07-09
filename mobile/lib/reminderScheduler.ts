@@ -28,6 +28,10 @@ import {
   setSnooze,
   type SnoozeRecord,
 } from './snooze';
+import {
+  endSnoozeLiveActivity,
+  startSnoozeLiveActivity,
+} from './snoozeLiveActivity';
 import type { Medication } from './types';
 
 const REMINDER_PREFIX = 'dose-reminder';
@@ -419,6 +423,13 @@ export async function scheduleDoseSnooze(args: {
     remindAt: remindAt.toISOString(),
   });
 
+  await startSnoozeLiveActivity({
+    medicationId: med.id,
+    scheduleTime,
+    medName: med.name,
+    remindAt,
+  });
+
   return { ok: true };
 }
 
@@ -434,6 +445,7 @@ export async function cancelDoseSnooze(
   const Notifications = await getExpoNotifications();
   if (Notifications) await cancelDoseNags(Notifications, med.id, scheduleTime);
   await removeSnooze(med.id, scheduleTime);
+  await endSnoozeLiveActivity(med.id, scheduleTime);
 }
 
 /**

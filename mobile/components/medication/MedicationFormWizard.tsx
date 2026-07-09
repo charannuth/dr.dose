@@ -50,9 +50,18 @@ import type {
   MedicationTrackingSync,
 } from '../../lib/types';
 import type { ColorPalette } from '../../constants/theme';
-import { fonts, radii, routeBgKey, routeColorKey, spacing } from '../../constants/theme';
+import {
+  defaultTileColorForRoute,
+  fonts,
+  radii,
+  routeBgKey,
+  routeColorKey,
+  spacing,
+  type TileColorId,
+} from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { TileColorPicker } from '../TileColorPicker';
 import { DosageStepPanel } from './DosageStepPanel';
 import { IsoDateInput } from '../IsoDateInput';
 import { TimeWheelModal } from '../TimeWheelModal';
@@ -61,12 +70,14 @@ import { MedicationSafetyPanel } from './MedicationSafetyPanel';
 import {
   buildDosageWizardState,
   buildFormState,
+  newDoseTimeRow,
   PAGE_TABS,
   PAGE_TITLES,
   WIZARD_PAGES,
   type DoseTimeRow,
   type WizardPage,
 } from './medicationWizardState';
+import type { LabelScanPrefill } from '../../lib/labelScanPrefill';
 
 /** A dose-time row stores 12h + AM/PM; the wheel picker works in 24h "HH:mm". */
 function rowToHHmm(row: DoseTimeRow): string {
@@ -77,13 +88,8 @@ function rowToHHmm(row: DoseTimeRow): string {
   }
 }
 
-/** Confirmable suggestions seeded from a scanned label. */
-export type WizardPrefill = {
-  name?: string;
-  route?: MedicationRouteId | null;
-  form?: string;
-  doseMg?: string;
-};
+/** @deprecated Use LabelScanPrefill — kept as alias for existing imports. */
+export type WizardPrefill = LabelScanPrefill;
 
 type Props = {
   initial?: Medication | null;
@@ -112,6 +118,19 @@ export function MedicationFormWizard({
   // When adding (no existing medication) seed any scanned suggestions; the user
   // still walks through each step to confirm before saving.
   const seededRoute = !initial && prefill?.route ? prefill.route : defaults.route;
+  const seededScheduleType: MedicationScheduleType =
+    !initial && prefill?.scheduleType ? prefill.scheduleType : defaults.scheduleType;
+  const seededDoseTimes: DoseTimeRow[] =
+    !initial && prefill?.scheduleTimes?.length
+      ? prefill.scheduleTimes.map((t) => newDoseTimeRow(t))
+      : defaults.doseTimes;
+  const seededNotes =
+    !initial && prefill?.notes ? prefill.notes : defaults.notes;
+  const seededTrackPills =
+    !initial && prefill?.quantity != null ? true : defaults.trackPills;
+  const seededPillsRemaining =
+    !initial && prefill?.quantity != null ? String(prefill.quantity) : defaults.pillsRemaining;
+
   const [pageIndex, setPageIndex] = useState(0);
   const [name, setName] = useState(!initial && prefill?.name ? prefill.name : defaults.name);
   const [category, setCategory] = useState<MedicationCategory>(
@@ -119,16 +138,16 @@ export function MedicationFormWizard({
   );
   const [route, setRoute] = useState<MedicationRouteId | null>(seededRoute);
   const [form, setForm] = useState(!initial && prefill?.form ? prefill.form : defaults.form);
-  const [scheduleType, setScheduleType] = useState<MedicationScheduleType>(defaults.scheduleType);
+  const [scheduleType, setScheduleType] = useState<MedicationScheduleType>(seededScheduleType);
   const [dosageWizard, setDosageWizard] = useState<DosageWizardValues>(() => {
-    const base = buildDosageWizardState(initial, seededRoute, defaults.scheduleType);
+    const base = buildDosageWizardState(initial, seededRoute, seededScheduleType);
     return !initial && prefill?.doseMg ? { ...base, doseMg: prefill.doseMg } : base;
   });
-  const [doseTimes, setDoseTimes] = useState<DoseTimeRow[]>(defaults.doseTimes);
+  const [doseTimes, setDoseTimes] = useState<DoseTimeRow[]>(seededDoseTimes);
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
-  const [notes, setNotes] = useState(defaults.notes);
-  const [trackPills, setTrackPills] = useState(defaults.trackPills);
-  const [pillsRemaining, setPillsRemaining] = useState(defaults.pillsRemaining);
+  const [notes, setNotes] = useState(seededNotes);
+  const [trackPills, setTrackPills] = useState(seededTrackPills);
+  const [pillsRemaining, setPillsRemaining] = useState(seededPillsRemaining);
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [hasEndDate, setHasEndDate] = useState(defaults.hasEndDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
@@ -138,6 +157,7 @@ export function MedicationFormWizard({
     'granted' | 'denied' | 'undetermined'
   >('undetermined');
   const [trackingSync, setTrackingSync] = useState<MedicationTrackingSync>(defaults.trackingSync);
+  const [tileColor, setTileColor] = useState<TileColorId>(defaults.tileColor);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -194,6 +214,7 @@ export function MedicationFormWizard({
 
   function selectRoute(next: MedicationRouteId) {
     setRoute(next);
+    setTileColor(defaultTileColorForRoute(next));
     setForm('');
     setError(null);
     setDosageWizard(buildDosageWizardState(initial, next, scheduleType));
@@ -398,6 +419,7 @@ export function MedicationFormWizard({
         category,
         schedule_times,
         tracking_sync: trackingSync,
+        tile_color: tileColor,
         notes,
         pills_remaining: pills,
         start_date: startDate,
@@ -420,6 +442,7 @@ export function MedicationFormWizard({
     | 'times'
     | 'notes'
     | 'tracking'
+    | 'tileColor'
     | 'notifications'
     | 'safety';
 
@@ -625,6 +648,16 @@ export function MedicationFormWizard({
             />
           </View>
         );
+      case 'tileColor':
+        return (
+          <View style={styles.panel}>
+            <Text style={styles.hint}>
+              Pick a color for this medication on your Today list. The tile background
+              uses a light tint and the name uses a bolder shade for readability.
+            </Text>
+            <TileColorPicker value={tileColor} onChange={setTileColor} />
+          </View>
+        );
       case 'notes':
         return (
           <View style={styles.panel}>
@@ -774,6 +807,8 @@ export function MedicationFormWizard({
       case 'extras':
         return (
           <>
+            <Text style={styles.sectionTitle}>Tile color</Text>
+            {renderField('tileColor')}
             {isScheduled ? (
               <>
                 <Text style={styles.sectionTitle}>Dose reminders</Text>

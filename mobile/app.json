@@ -23,6 +23,7 @@
         "NSUserNotificationsUsageDescription": "Dr. Dose sends reminders when your scheduled medication doses are due, including when the app is closed or your phone is locked.",
         "NSPhotoLibraryUsageDescription": "Dr. Dose uses your photo library so you can choose a profile picture or scan a medication label from a saved photo.",
         "NSCameraUsageDescription": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture.",
+        "NSSupportsLiveActivities": true,
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -76,7 +77,21 @@
           "iosEngine": "auto"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.charannuth.drdose",
+          "widgets": [
+            {
+              "name": "SnoozeDoseActivity",
+              "displayName": "Snoozed dose",
+              "description": "Shows an active medication snooze on your Lock Screen",
+              "supportedFamilies": ["systemSmall"]
+            }
+          ]
+        }
+      ],
     ],
     "extra": {
       "router": {},
