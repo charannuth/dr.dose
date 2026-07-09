@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.charannuth.drdose",
-      "buildNumber": "4",
+      "buildNumber": "35",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },

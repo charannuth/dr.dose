@@ -55,7 +55,8 @@
     "web": "expo start --web",
     "build:ios:preview": "eas build --platform ios --profile preview",
     "build:ios:production": "eas build --platform ios --profile production",
-    "submit:ios": "eas submit --platform ios --profile production --latest"
+    "submit:ios": "eas submit --platform ios --profile production --latest",
+    "eas-build-post-install": "bash scripts/sync-widget-build-number.sh"
   },
   "private": true
 }

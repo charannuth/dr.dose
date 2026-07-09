@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-09** (`9d2b24d`) — Fix widget extension build number sync for EAS iOS builds.
+
 - **2026-07-09** (`1de1aac`) — Declare widget extension App Group entitlements for EAS iOS builds.
 
 - **2026-07-09** (`988d37e`) — Add tile colors, label scan AI, snooze Live Activities, and simple supplement logging.
