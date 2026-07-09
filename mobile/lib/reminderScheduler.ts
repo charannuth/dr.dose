@@ -18,6 +18,7 @@ import { getReminders } from './settings';
 import {
   getActiveSnoozes,
   removeSnooze,
+  removeSnoozesForMedication,
   setSnooze,
   type SnoozeRecord,
 } from './snooze';
@@ -93,6 +94,31 @@ export async function cancelAllDoseReminders(): Promise<void> {
   await Promise.all(
     scheduled
       .filter((n) => n.identifier.startsWith(REMINDER_PREFIX))
+      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+  );
+}
+
+/**
+ * Cancel every dose alert (daily, follow-ups, and snooze chain) for one
+ * medication and forget its snoozes. Called when a medication is deleted so a
+ * pending snooze can't fire for something that no longer exists.
+ */
+export async function cancelDoseRemindersForMedication(
+  medicationId: string,
+): Promise<void> {
+  await removeSnoozesForMedication(medicationId);
+
+  const Notifications = await getExpoNotifications();
+  if (!Notifications) return;
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter((n) => {
+        if (!n.identifier.startsWith(REMINDER_PREFIX)) return false;
+        const data = n.content?.data as { medicationId?: string } | undefined;
+        return data?.medicationId === medicationId;
+      })
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
   );
 }

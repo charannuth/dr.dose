@@ -17,6 +17,7 @@ import {
   validateMedicationDates,
 } from './medicationDates'
 import { isAsNeededMed, normalizeCategory } from './medicationSchedule'
+import { cancelDoseRemindersForMedication } from './reminderScheduler'
 import type { PrnDoseLogPayload } from './prnCheckIn'
 import { formatPrnDoseSummary } from './prnCheckIn'
 import { syncDoseLogToTracking, removeSyncedDoseLog } from './tracking/doseSync'
@@ -263,6 +264,24 @@ export function sortScheduledMedications(
   })
 }
 
+/**
+ * Order medications by a saved custom drag order (list of medication IDs).
+ * Anything not present in the saved order (e.g. newly added meds) is appended
+ * at the end, sorted by name so it stays deterministic.
+ */
+export function applyCustomOrder(
+  medications: MedicationWithStatus[],
+  orderedIds: string[],
+): MedicationWithStatus[] {
+  const rank = new Map(orderedIds.map((id, i) => [id, i]))
+  return [...medications].sort((a, b) => {
+    const ar = rank.has(a.id) ? (rank.get(a.id) as number) : Number.MAX_SAFE_INTEGER
+    const br = rank.has(b.id) ? (rank.get(b.id) as number) : Number.MAX_SAFE_INTEGER
+    if (ar !== br) return ar - br
+    return a.name.localeCompare(b.name)
+  })
+}
+
 export function todayDoseTotals(medications: MedicationWithStatus[]) {
   const scheduled = medications.filter((m) => !isAsNeededMed(m))
   const taken = scheduled.reduce((sum, m) => sum + m.dosesTakenToday, 0)
@@ -451,6 +470,8 @@ export async function deleteMedication(id: string): Promise<void> {
   if (!supabase) return
   const { error } = await supabase.from('medications').delete().eq('id', id)
   if (error) throw error
+  // Stop any pending reminders/snoozes so a deleted med can't still notify.
+  await cancelDoseRemindersForMedication(id)
 }
 
 async function adjustInventoryRemaining(

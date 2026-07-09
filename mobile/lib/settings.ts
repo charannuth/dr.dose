@@ -7,13 +7,25 @@ export type ReminderSettings = {
   enabled: boolean;
 };
 
-export type MedSort = 'time' | 'name';
+export type MedSort = 'time' | 'name' | 'custom';
+
+/** Which Today list a custom drag order belongs to. */
+export type MedListTab = 'scheduled' | 'as_needed' | 'supplement';
+
+export type CustomOrders = Record<MedListTab, string[]>;
+
+const EMPTY_CUSTOM_ORDERS: CustomOrders = {
+  scheduled: [],
+  as_needed: [],
+  supplement: [],
+};
 
 const KEYS = {
   themeMode: 'mt-theme-mode',
   timezone: 'mt-timezone',
   reminders: 'mt-reminders',
   medSort: 'mt-med-sort',
+  customOrder: 'mt-custom-order',
   updateDismissed: 'mt-update-dismissed',
   onboarding: 'mt-onboarding-v1',
   onboardingLegacy: 'mt-onboarding-v1',
@@ -86,7 +98,8 @@ export async function setReminders(settings: ReminderSettings): Promise<void> {
 export async function getMedSort(): Promise<MedSort> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.medSort);
-    return raw === 'name' ? 'name' : 'time';
+    if (raw === 'name' || raw === 'custom') return raw;
+    return 'time';
   } catch {
     return 'time';
   }
@@ -94,6 +107,37 @@ export async function getMedSort(): Promise<MedSort> {
 
 export async function setMedSort(sort: MedSort): Promise<void> {
   await AsyncStorage.setItem(KEYS.medSort, sort);
+}
+
+function customOrderKey(userId: string): string {
+  return `${KEYS.customOrder}:${userId}`;
+}
+
+/** The user's saved drag order (medication IDs) for each Today list. */
+export async function getCustomOrders(userId: string): Promise<CustomOrders> {
+  try {
+    const raw = await AsyncStorage.getItem(customOrderKey(userId));
+    if (!raw) return { ...EMPTY_CUSTOM_ORDERS };
+    const parsed = JSON.parse(raw) as Partial<CustomOrders>;
+    return {
+      scheduled: Array.isArray(parsed.scheduled) ? parsed.scheduled : [],
+      as_needed: Array.isArray(parsed.as_needed) ? parsed.as_needed : [],
+      supplement: Array.isArray(parsed.supplement) ? parsed.supplement : [],
+    };
+  } catch {
+    return { ...EMPTY_CUSTOM_ORDERS };
+  }
+}
+
+/** Persist the drag order (medication IDs) for a single Today list. */
+export async function setCustomOrder(
+  userId: string,
+  tab: MedListTab,
+  orderedIds: string[],
+): Promise<void> {
+  const current = await getCustomOrders(userId);
+  const next: CustomOrders = { ...current, [tab]: orderedIds };
+  await AsyncStorage.setItem(customOrderKey(userId), JSON.stringify(next));
 }
 
 /** The latest App Store version the user dismissed the "update available" prompt for. */

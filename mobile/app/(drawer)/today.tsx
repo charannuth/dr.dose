@@ -23,6 +23,7 @@ import { TodayWellnessCheckIn } from '../../components/TodayWellnessCheckIn';
 import { useAuth } from '../../hooks/useAuth';
 import { useDemoTourTarget, useDemoTourTargets } from '../../context/DemoTourTargetsContext';
 import {
+  applyCustomOrder,
   deleteMedication,
   fetchMedicationsWithStatus,
   markDoseTaken,
@@ -46,7 +47,14 @@ import { getRefillAlerts } from '../../lib/refills';
 import { routes } from '../../lib/routes';
 import { rescheduleAllReminders, scheduleDoseSnooze } from '../../lib/reminders';
 import { SnoozeModal } from '../../components/SnoozeModal';
-import { getMedSort, getReminders, setMedSort, type MedSort } from '../../lib/settings';
+import {
+  getCustomOrders,
+  getMedSort,
+  getReminders,
+  setMedSort,
+  type CustomOrders,
+  type MedSort,
+} from '../../lib/settings';
 import {
   dismissMissedDosesBanner,
   isMissedDosesBannerDismissed,
@@ -235,6 +243,20 @@ function makeTodayStyles(colors: ColorPalette) {
     sortChipTextActive: {
       color: colors.onAccent,
     },
+    reorderBtn: {
+      marginLeft: 'auto' as const,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      backgroundColor: colors.buttonSecondaryBg,
+    },
+    reorderBtnText: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+      color: colors.accent,
+    },
   };
 }
 
@@ -254,6 +276,11 @@ export default function TodayScreen() {
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [todayTab, setTodayTab] = useState<TodayTab>('scheduled');
   const [medSort, setMedSortState] = useState<MedSort>('time');
+  const [customOrders, setCustomOrders] = useState<CustomOrders>({
+    scheduled: [],
+    as_needed: [],
+    supplement: [],
+  });
   const [streakStats, setStreakStats] = useState<StreakStats | null>(null);
   const [missedDoses, setMissedDoses] = useState<MissedDoseItem[]>([]);
   const [missedBannerDismissed, setMissedBannerDismissed] = useState(false);
@@ -284,6 +311,13 @@ export default function TodayScreen() {
     if (!result.ok) setError(result.reason);
   }
 
+  function openReorder() {
+    router.push({
+      pathname: routes.reorder,
+      params: { tab: todayTab, ids: visibleMeds.map((m) => m.id).join(',') },
+    });
+  }
+
   async function changeMedSort(next: MedSort) {
     setMedSortState(next);
     try {
@@ -291,6 +325,8 @@ export default function TodayScreen() {
     } catch {
       // preference is best-effort; UI already reflects the choice
     }
+    // Choosing Custom drops the user straight into the drag-to-reorder screen.
+    if (next === 'custom') openReorder();
   }
 
   useEffect(() => {
@@ -328,6 +364,11 @@ export default function TodayScreen() {
     useCallback(() => {
       if (!user) return;
       let active = true;
+      getCustomOrders(user.id)
+        .then((orders) => {
+          if (active) setCustomOrders(orders);
+        })
+        .catch(() => {});
       loadAll()
         .catch((err: unknown) => {
           if (active) {
@@ -485,22 +526,25 @@ export default function TodayScreen() {
   const { taken: dosesTaken, total: dosesTotal } = todayDoseTotals(
     medications.filter((m) => !isSupplement(m)),
   );
-  const scheduledMeds = useMemo(
-    () =>
-      sortScheduledMedications(
-        medications.filter((m) => !isSupplement(m) && !isAsNeededMed(m)),
-        medSort,
-      ),
-    [medications, medSort],
-  );
-  const prnMeds = useMemo(
-    () => medications.filter((m) => !isSupplement(m) && isAsNeededMed(m)),
-    [medications],
-  );
-  const supplementMeds = useMemo(
-    () => sortScheduledMedications(medications.filter((m) => isSupplement(m)), medSort),
-    [medications, medSort],
-  );
+  const scheduledMeds = useMemo(() => {
+    const list = medications.filter((m) => !isSupplement(m) && !isAsNeededMed(m));
+    return medSort === 'custom'
+      ? applyCustomOrder(list, customOrders.scheduled)
+      : sortScheduledMedications(list, medSort);
+  }, [medications, medSort, customOrders.scheduled]);
+  const prnMeds = useMemo(() => {
+    const list = medications.filter((m) => !isSupplement(m) && isAsNeededMed(m));
+    if (medSort === 'custom') return applyCustomOrder(list, customOrders.as_needed);
+    // As-needed has no dose times, so only A-Z is meaningful; leave otherwise.
+    if (medSort === 'name') return sortScheduledMedications(list, 'name');
+    return list;
+  }, [medications, medSort, customOrders.as_needed]);
+  const supplementMeds = useMemo(() => {
+    const list = medications.filter((m) => isSupplement(m));
+    return medSort === 'custom'
+      ? applyCustomOrder(list, customOrders.supplement)
+      : sortScheduledMedications(list, medSort);
+  }, [medications, medSort, customOrders.supplement]);
   const medsByTab: Record<TodayTab, MedicationWithStatus[]> = {
     scheduled: scheduledMeds,
     as_needed: prnMeds,
@@ -515,9 +559,7 @@ export default function TodayScreen() {
   const activeTabIndex = TAB_ORDER.indexOf(todayTab);
   const prnLoggedToday = prnMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
   const supplementsLogged = supplementMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
-  const showSortRow =
-    (todayTab === 'scheduled' && scheduledMeds.length > 1) ||
-    (todayTab === 'supplement' && supplementMeds.length > 1);
+  const showSortRow = visibleMeds.length > 1;
   const refillAlerts = getRefillAlerts(medications);
 
   function openAddMedication(
@@ -659,18 +701,20 @@ export default function TodayScreen() {
           <View style={styles.sortRow}>
             <Text style={styles.sortLabel}>Sort by</Text>
             <View style={styles.sortOptions}>
-              <Pressable
-                style={[styles.sortChip, medSort === 'time' && styles.sortChipActive]}
-                onPress={() => void changeMedSort('time')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: medSort === 'time' }}
-              >
-                <Text
-                  style={[styles.sortChipText, medSort === 'time' && styles.sortChipTextActive]}
+              {todayTab !== 'as_needed' ? (
+                <Pressable
+                  style={[styles.sortChip, medSort === 'time' && styles.sortChipActive]}
+                  onPress={() => void changeMedSort('time')}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: medSort === 'time' }}
                 >
-                  Time
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[styles.sortChipText, medSort === 'time' && styles.sortChipTextActive]}
+                  >
+                    Time
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={[styles.sortChip, medSort === 'name' && styles.sortChipActive]}
                 onPress={() => void changeMedSort('name')}
@@ -683,7 +727,29 @@ export default function TodayScreen() {
                   A–Z
                 </Text>
               </Pressable>
+              <Pressable
+                style={[styles.sortChip, medSort === 'custom' && styles.sortChipActive]}
+                onPress={() => void changeMedSort('custom')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: medSort === 'custom' }}
+              >
+                <Text
+                  style={[styles.sortChipText, medSort === 'custom' && styles.sortChipTextActive]}
+                >
+                  Custom
+                </Text>
+              </Pressable>
             </View>
+            {medSort === 'custom' ? (
+              <Pressable
+                style={styles.reorderBtn}
+                onPress={openReorder}
+                accessibilityRole="button"
+                accessibilityLabel="Reorder medications"
+              >
+                <Text style={styles.reorderBtnText}>Reorder</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 

@@ -75,6 +75,20 @@ export async function removeSnooze(
   }
 }
 
+/** Remove every snooze belonging to a medication (e.g. when it is deleted). */
+export async function removeSnoozesForMedication(medicationId: string): Promise<void> {
+  const map = await readMap();
+  const prefix = `${medicationId}:`;
+  let changed = false;
+  for (const k of Object.keys(map)) {
+    if (k.startsWith(prefix)) {
+      delete map[k];
+      changed = true;
+    }
+  }
+  if (changed) await writeMap(map);
+}
+
 export async function clearAllSnoozes(): Promise<void> {
   await writeMap({});
 }
