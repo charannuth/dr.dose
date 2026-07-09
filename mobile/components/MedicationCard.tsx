@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { formatDoseDisplay } from '../lib/dose';
 import { formatInventoryRemaining } from '../lib/inventory';
@@ -27,6 +28,8 @@ type MedicationCardProps = {
   onMoveToDailySchedule?: () => void;
   onDelete?: () => void;
   busySlot: string | null;
+  /** When set (Custom sort mode), renders a drag handle in the card header. */
+  dragHandle?: ReactNode;
 };
 
 function makeMedicationCardStyles(colors: ColorPalette) {
@@ -54,6 +57,11 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     headerText: {
       flex: 1,
       gap: 2,
+    },
+    dragHandleSlot: {
+      justifyContent: 'center' as const,
+      marginLeft: spacing.xs,
+      marginRight: -spacing.xs,
     },
     name: {
       fontFamily: fonts.heading,
@@ -248,6 +256,7 @@ export function MedicationCard({
   onMoveToDailySchedule,
   onDelete,
   busySlot,
+  dragHandle,
 }: MedicationCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
@@ -347,6 +356,7 @@ export function MedicationCard({
           </Text>
         </View>
         {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
+        {dragHandle ? <View style={styles.dragHandleSlot}>{dragHandle}</View> : null}
       </View>
 
       {medication.end_date ? (

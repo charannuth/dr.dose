@@ -28,10 +28,6 @@ export default function ModalLayout() {
         name="supplements/[id]"
         options={{ title: 'Edit supplement', presentation: 'modal' }}
       />
-      <Stack.Screen
-        name="reorder"
-        options={{ title: 'Reorder', presentation: 'modal' }}
-      />
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -9,6 +9,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  NestedReorderableList,
+  ScrollViewContainer,
+  reorderItems,
+  useReorderableDrag,
+  type ReorderableListReorderEvent,
+} from 'react-native-reorderable-list';
 import { MedicationCard } from '../../components/MedicationCard';
 import { StreakSnippet } from '../../components/StreakSnippet';
 import { StreakCelebration } from '../../components/StreakCelebration';
@@ -56,8 +63,10 @@ import {
   getCustomOrders,
   getMedSort,
   getReminders,
+  setCustomOrder,
   setMedSort,
   type CustomOrders,
+  type MedListTab,
   type MedSort,
 } from '../../lib/settings';
 import {
@@ -81,6 +90,38 @@ const TAB_LABELS: Record<TodayTab, string> = {
   as_needed: 'As needed',
   supplement: 'Supplements',
 };
+
+const handleStyle = {
+  paddingVertical: 8,
+  paddingHorizontal: 4,
+  gap: 4,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+};
+const handleBarStyle = { width: 20, height: 2.5, borderRadius: 2 };
+
+/**
+ * The 3-line drag handle shown on each medication tile in Custom sort mode.
+ * Must be rendered inside a NestedReorderableList item so useReorderableDrag
+ * can wire the press to the list's drag gesture.
+ */
+function ReorderHandle({ color }: { color: string }) {
+  const drag = useReorderableDrag();
+  return (
+    <Pressable
+      onPressIn={drag}
+      hitSlop={12}
+      accessibilityRole="button"
+      accessibilityLabel="Drag to reorder"
+    >
+      <View style={handleStyle}>
+        <View style={[handleBarStyle, { backgroundColor: color }]} />
+        <View style={[handleBarStyle, { backgroundColor: color }]} />
+        <View style={[handleBarStyle, { backgroundColor: color }]} />
+      </View>
+    </Pressable>
+  );
+}
 
 // Each tab gets its own accent so the row reads as a colorful, scannable control.
 type TabAccent = { fg: keyof ColorPalette; bg: keyof ColorPalette };
@@ -248,19 +289,14 @@ function makeTodayStyles(colors: ColorPalette) {
     sortChipTextActive: {
       color: colors.onAccent,
     },
-    reorderBtn: {
-      marginLeft: 'auto' as const,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.accent,
-      backgroundColor: colors.buttonSecondaryBg,
+    reorderHintText: {
+      width: '100%' as const,
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      color: colors.textMuted,
     },
-    reorderBtnText: {
-      fontFamily: fonts.bodySemibold,
-      fontSize: 14,
-      color: colors.accent,
+    reorderItem: {
+      marginBottom: spacing.md,
     },
   };
 }
@@ -351,13 +387,6 @@ export default function TodayScreen() {
     await refreshSnoozes();
   }
 
-  function openReorder() {
-    router.push({
-      pathname: routes.reorder,
-      params: { tab: todayTab, ids: visibleMeds.map((m) => m.id).join(',') },
-    });
-  }
-
   async function changeMedSort(next: MedSort) {
     setMedSortState(next);
     try {
@@ -365,8 +394,14 @@ export default function TodayScreen() {
     } catch {
       // preference is best-effort; UI already reflects the choice
     }
-    // Choosing Custom drops the user straight into the drag-to-reorder screen.
-    if (next === 'custom') openReorder();
+  }
+
+  // Persist a drag reorder for the given tab and reflect it immediately.
+  function handleReorder(tab: MedListTab, { from, to }: ReorderableListReorderEvent) {
+    const ordered = reorderItems(medsByTab[tab], from, to);
+    const ids = ordered.map((m) => m.id);
+    setCustomOrders((prev) => ({ ...prev, [tab]: ids }));
+    if (user) void setCustomOrder(user.id, tab, ids);
   }
 
   useEffect(() => {
@@ -641,6 +676,29 @@ export default function TodayScreen() {
           : `${supplementsLogged} supplement dose${supplementsLogged === 1 ? '' : 's'} logged today`;
   }
 
+  const renderMedCard = (med: MedicationWithStatus, dragHandle?: ReactNode) => (
+    <MedicationCard
+      key={med.id}
+      medication={med}
+      busySlot={busySlot}
+      snoozeByTime={snoozeMap[med.id]}
+      onMarkTaken={(time) => handleMarkTaken(med, time)}
+      onSnooze={(time) =>
+        setSnoozeTarget({
+          med,
+          time,
+          currentRemindAt: snoozeMap[med.id]?.[time] ?? null,
+        })
+      }
+      onLogPrn={(payload) => handleLogPrn(med, payload)}
+      onUndo={(slot) => handleUndo(med, slot)}
+      onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
+      onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
+      onDelete={() => handleDelete(med)}
+      dragHandle={dragHandle}
+    />
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
@@ -655,7 +713,7 @@ export default function TodayScreen() {
       {celebrationStreak != null ? (
         <StreakCelebration streakDays={celebrationStreak} onDismiss={dismissCelebration} />
       ) : null}
-      <ScrollView
+      <ScrollViewContainer
         ref={scrollRef}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -781,15 +839,8 @@ export default function TodayScreen() {
                 </Text>
               </Pressable>
             </View>
-            {medSort === 'custom' ? (
-              <Pressable
-                style={styles.reorderBtn}
-                onPress={openReorder}
-                accessibilityRole="button"
-                accessibilityLabel="Reorder medications"
-              >
-                <Text style={styles.reorderBtnText}>Reorder</Text>
-              </Pressable>
+            {medSort === 'custom' && visibleMeds.length > 1 ? (
+              <Text style={styles.reorderHintText}>Drag the ☰ handle to reorder</Text>
             ) : null}
           </View>
         ) : null}
@@ -840,36 +891,28 @@ export default function TodayScreen() {
                   </Text>
                 </Pressable>
               </View>
+            ) : medSort === 'custom' && visibleMeds.length > 1 ? (
+              <NestedReorderableList
+                data={visibleMeds}
+                scrollable={false}
+                keyExtractor={(m) => m.id}
+                onReorder={(e) => handleReorder(todayTab, e)}
+                renderItem={({ item }) => (
+                  <View style={styles.reorderItem}>
+                    {renderMedCard(item, <ReorderHandle color={colors.textMuted} />)}
+                  </View>
+                )}
+              />
             ) : (
               <View style={styles.list}>
-                {visibleMeds.map((med) => (
-                  <MedicationCard
-                    key={med.id}
-                    medication={med}
-                    busySlot={busySlot}
-                    snoozeByTime={snoozeMap[med.id]}
-                    onMarkTaken={(time) => handleMarkTaken(med, time)}
-                    onSnooze={(time) =>
-                      setSnoozeTarget({
-                        med,
-                        time,
-                        currentRemindAt: snoozeMap[med.id]?.[time] ?? null,
-                      })
-                    }
-                    onLogPrn={(payload) => handleLogPrn(med, payload)}
-                    onUndo={(slot) => handleUndo(med, slot)}
-                    onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
-                    onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
-                    onDelete={() => handleDelete(med)}
-                  />
-                ))}
+                {visibleMeds.map((med) => renderMedCard(med))}
               </View>
             )}
           </SwipeTabView>
         )}
 
         <TodayWellnessCheckIn />
-      </ScrollView>
+      </ScrollViewContainer>
 
       <SnoozeModal
         visible={snoozeTarget != null}
