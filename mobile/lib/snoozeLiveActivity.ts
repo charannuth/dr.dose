@@ -7,7 +7,7 @@ type ActivityFactory = {
     props: SnoozeActivityProps,
     url?: string,
   ) => LiveActivity<SnoozeActivityProps>;
-  getActiveInstances: () => LiveActivity<SnoozeActivityProps>[];
+  getInstances: () => LiveActivity<SnoozeActivityProps>[];
 };
 
 const instances = new Map<string, LiveActivity<SnoozeActivityProps>>();
@@ -62,7 +62,7 @@ export async function endSnoozeLiveActivity(
 ): Promise<void> {
   const key = slotKey(medicationId, scheduleTime);
   const cached = instances.get(key);
-  if (cached) {
+  if (cached?.end) {
     try {
       await cached.end('immediate');
     } catch {
@@ -73,9 +73,9 @@ export async function endSnoozeLiveActivity(
   }
 
   const factory = loadFactory();
-  if (!factory) return;
+  if (!factory?.getInstances) return;
 
-  for (const instance of factory.getActiveInstances()) {
+  for (const instance of factory.getInstances()) {
     try {
       await instance.end('immediate');
     } catch {

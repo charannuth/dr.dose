@@ -445,7 +445,11 @@ export async function cancelDoseSnooze(
   const Notifications = await getExpoNotifications();
   if (Notifications) await cancelDoseNags(Notifications, med.id, scheduleTime);
   await removeSnooze(med.id, scheduleTime);
-  await endSnoozeLiveActivity(med.id, scheduleTime);
+  try {
+    await endSnoozeLiveActivity(med.id, scheduleTime);
+  } catch {
+    // Dose logging must succeed even if Live Activity cleanup fails.
+  }
 }
 
 /**
