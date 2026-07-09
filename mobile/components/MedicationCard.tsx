@@ -19,6 +19,8 @@ type MedicationCardProps = {
   medication: MedicationWithStatus;
   onMarkTaken: (scheduleTime: string) => void;
   onSnooze?: (scheduleTime: string) => void;
+  /** Active snoozes for this med, keyed by schedule time ("HH:mm") -> ISO remindAt. */
+  snoozeByTime?: Record<string, string>;
   onLogPrn?: (payload: PrnDoseLogPayload) => void;
   onUndo: (slot: DoseSlotStatus) => void;
   onMoveToAsNeeded?: () => void;
@@ -109,6 +111,10 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       gap: spacing.sm,
       marginTop: spacing.xs,
     },
+    slotWrap: {
+      gap: 4,
+      paddingVertical: 2,
+    },
     slot: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -119,6 +125,21 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     },
     slotTakenRow: {
       opacity: 0.9,
+    },
+    snoozeStatus: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      alignSelf: 'flex-start' as const,
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radii.sm,
+      backgroundColor: colors.accentPurpleBg,
+    },
+    snoozeStatusText: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      color: colors.accent,
     },
     slotActions: {
       flexDirection: 'row' as const,
@@ -210,10 +231,17 @@ function makeMedicationCardStyles(colors: ColorPalette) {
   };
 }
 
+function formatSnoozeTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 export function MedicationCard({
   medication,
   onMarkTaken,
   onSnooze,
+  snoozeByTime,
   onLogPrn,
   onUndo,
   onMoveToAsNeeded,
@@ -373,47 +401,57 @@ export function MedicationCard({
             const busy = busySlot === slotKey;
             const slotMins = scheduleTimeToMinutes(slot.time);
             const due = Number.isFinite(slotMins) && slotMins <= nowMins;
-            const canSnooze = !slot.taken && due && onSnooze != null;
+            const snoozedUntil = !slot.taken ? snoozeByTime?.[slot.time] : undefined;
+            const canSnooze =
+              !slot.taken && (due || snoozedUntil != null) && onSnooze != null;
             return (
-              <View
-                key={`${slot.time}-${index}`}
-                style={[styles.slot, slot.taken && styles.slotTakenRow]}
-              >
-                <Text style={styles.slotTime}>{slot.label}</Text>
-                {slot.taken ? (
-                  <Pressable
-                    style={styles.secondaryButton}
-                    disabled={busy}
-                    onPress={() => onUndo(slot)}
-                  >
-                    <Text style={styles.secondaryButtonText}>
-                      {busy ? '…' : 'Undo'}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <View style={styles.slotActions}>
-                    {canSnooze ? (
-                      <Pressable
-                        style={styles.secondaryButton}
-                        disabled={busy}
-                        onPress={() => onSnooze?.(slot.time)}
-                      >
-                        <Text style={styles.secondaryButtonText}>Snooze</Text>
-                      </Pressable>
-                    ) : null}
+              <View key={`${slot.time}-${index}`} style={styles.slotWrap}>
+                <View style={[styles.slot, slot.taken && styles.slotTakenRow]}>
+                  <Text style={styles.slotTime}>{slot.label}</Text>
+                  {slot.taken ? (
                     <Pressable
-                      style={styles.primaryButtonSmall}
+                      style={styles.secondaryButton}
                       disabled={busy}
-                      onPress={() => onMarkTaken(slot.time)}
+                      onPress={() => onUndo(slot)}
                     >
-                      {busy ? (
-                        <ActivityIndicator color={colors.onAccent} size="small" />
-                      ) : (
-                        <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
-                      )}
+                      <Text style={styles.secondaryButtonText}>
+                        {busy ? '…' : 'Undo'}
+                      </Text>
                     </Pressable>
+                  ) : (
+                    <View style={styles.slotActions}>
+                      {canSnooze ? (
+                        <Pressable
+                          style={styles.secondaryButton}
+                          disabled={busy}
+                          onPress={() => onSnooze?.(slot.time)}
+                        >
+                          <Text style={styles.secondaryButtonText}>
+                            {snoozedUntil ? 'Edit' : 'Snooze'}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      <Pressable
+                        style={styles.primaryButtonSmall}
+                        disabled={busy}
+                        onPress={() => onMarkTaken(slot.time)}
+                      >
+                        {busy ? (
+                          <ActivityIndicator color={colors.onAccent} size="small" />
+                        ) : (
+                          <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+                {snoozedUntil ? (
+                  <View style={styles.snoozeStatus}>
+                    <Text style={styles.snoozeStatusText}>
+                      Snoozed until {formatSnoozeTime(snoozedUntil)}
+                    </Text>
                   </View>
-                )}
+                ) : null}
               </View>
             );
           })}

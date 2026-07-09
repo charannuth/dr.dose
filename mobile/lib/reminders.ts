@@ -50,7 +50,11 @@ export async function rescheduleAllReminders(userId: string): Promise<AllReminde
   return { dose, doctorVisits, refills };
 }
 
-export { cancelAllDoseReminders, scheduleDoseSnooze } from './reminderScheduler';
+export {
+  cancelAllDoseReminders,
+  cancelDoseSnooze,
+  scheduleDoseSnooze,
+} from './reminderScheduler';
 export { cancelAllDoctorVisitReminders } from './doctorVisitReminders';
 export { cancelAllRefillReminders } from './refillReminders';
 

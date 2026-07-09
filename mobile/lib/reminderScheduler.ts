@@ -12,9 +12,15 @@ import { isAsNeededMed } from './medicationSchedule';
 import { getExpoNotifications } from './expoNotifications';
 import {
   DOSE_REMINDER_CHANNEL_ID,
+  ensureDoseChannel,
   ensureNotificationInfrastructure,
 } from './notificationSetup';
-import { getReminders } from './settings';
+import {
+  getReminders,
+  getReminderSound,
+  reminderSoundFile,
+  type ReminderSound,
+} from './settings';
 import {
   getActiveSnoozes,
   removeSnooze,
@@ -41,22 +47,33 @@ const FOLLOWUP_INTERVAL_MIN = 5;
 
 type NotificationsModule = NonNullable<Awaited<ReturnType<typeof getExpoNotifications>>>;
 
-/** Shared notification content so every dose alert carries actions + deep-link data. */
+/** iOS sound value + resolved Android channel for the user's chosen chime. */
+type ResolvedSound = { iosSound: string; androidChannelId: string };
+
+/** Read the user's chosen reminder sound and ensure its Android channel exists. */
+async function resolveReminderSound(): Promise<ResolvedSound> {
+  const file = reminderSoundFile(await getReminderSound());
+  const androidChannelId = await ensureDoseChannel(file);
+  return { iosSound: file ?? 'default', androidChannelId };
+}
+
+/** Shared notification content so every dose alert carries the sound + deep-link data. */
 function doseContent(
   Notifications: NotificationsModule,
   med: Pick<Medication, 'id' | 'name'>,
   time: string,
   title: string,
   body: string,
+  sound: ResolvedSound,
 ) {
   return {
     title,
     body,
-    sound: 'default',
+    sound: sound.iosSound,
     interruptionLevel: 'timeSensitive' as const,
     priority: Notifications.AndroidNotificationPriority.HIGH,
     data: { medicationId: med.id, scheduleTime: time, screen: 'today' },
-    ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),
+    ...(Platform.OS === 'android' ? { channelId: sound.androidChannelId } : {}),
   };
 }
 
@@ -67,7 +84,12 @@ type SlotToSchedule = {
   minute: number;
 };
 
-function buildDailyTrigger(Notifications: NotificationsModule, hour: number, minute: number) {
+function buildDailyTrigger(
+  Notifications: NotificationsModule,
+  hour: number,
+  minute: number,
+  androidChannelId: string,
+) {
   // Calendar + repeats is the reliable iOS pattern for “every day at this time”.
   if (Platform.OS === 'ios') {
     return {
@@ -82,7 +104,7 @@ function buildDailyTrigger(Notifications: NotificationsModule, hour: number, min
     type: Notifications.SchedulableTriggerInputTypes.DAILY,
     hour,
     minute,
-    channelId: DOSE_REMINDER_CHANNEL_ID,
+    channelId: androidChannelId,
   } as const;
 }
 
@@ -163,8 +185,10 @@ async function scheduleDoseFollowups(args: {
   takenKeys: Set<string>;
   /** Slots with an active snooze use the snooze chain instead of these follow-ups. */
   snoozedKeys: Set<string>;
+  sound: ResolvedSound;
 }): Promise<number> {
-  const { Notifications, activeMeds, baseScheduled, takenKeys, snoozedKeys } = args;
+  const { Notifications, activeMeds, baseScheduled, takenKeys, snoozedKeys, sound } =
+    args;
 
   const budget =
     Platform.OS === 'ios'
@@ -213,6 +237,7 @@ async function scheduleDoseFollowups(args: {
         followup.time,
         'Dose still due',
         `Don't forget ${followup.med.name} (${formatScheduleTime(followup.time)})`,
+        sound,
       ),
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -250,8 +275,9 @@ async function reapplySnoozes(args: {
   activeMeds: Medication[];
   activeSnoozes: SnoozeRecord[];
   takenKeys: Set<string>;
+  sound: ResolvedSound;
 }): Promise<number> {
-  const { Notifications, activeMeds, activeSnoozes, takenKeys } = args;
+  const { Notifications, activeMeds, activeSnoozes, takenKeys, sound } = args;
   const medById = new Map(activeMeds.map((m) => [m.id, m]));
   const now = Date.now();
   let scheduled = 0;
@@ -284,6 +310,7 @@ async function reapplySnoozes(args: {
           snooze.scheduleTime,
           'Snoozed dose',
           `Time for ${med.name} (${formatScheduleTime(snooze.scheduleTime)})`,
+          sound,
         ),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -305,6 +332,7 @@ async function reapplySnoozes(args: {
           snooze.scheduleTime,
           'Dose still due',
           `Don't forget ${med.name} (${formatScheduleTime(snooze.scheduleTime)})`,
+          sound,
         ),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -340,6 +368,7 @@ export async function scheduleDoseSnooze(args: {
   if (!enabled) return { ok: false, reason: 'Turn on dose reminders first.' };
 
   await ensureNotificationInfrastructure();
+  const sound = await resolveReminderSound();
 
   const { med, scheduleTime, remindAt } = args;
   const reminderSec = Math.round((remindAt.getTime() - Date.now()) / 1000);
@@ -355,6 +384,7 @@ export async function scheduleDoseSnooze(args: {
       scheduleTime,
       'Snoozed dose',
       `Time for ${med.name} (${formatScheduleTime(scheduleTime)})`,
+      sound,
     ),
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -372,6 +402,7 @@ export async function scheduleDoseSnooze(args: {
         scheduleTime,
         'Dose still due',
         `Don't forget ${med.name} (${formatScheduleTime(scheduleTime)})`,
+        sound,
       ),
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -389,6 +420,20 @@ export async function scheduleDoseSnooze(args: {
   });
 
   return { ok: true };
+}
+
+/**
+ * Clear an active snooze for a single dose: cancels the snoozed reminder and its
+ * follow-up chain and forgets the stored record. The medication's normal daily
+ * reminder (which repeats) is left intact.
+ */
+export async function cancelDoseSnooze(
+  med: Pick<Medication, 'id'>,
+  scheduleTime: string,
+): Promise<void> {
+  const Notifications = await getExpoNotifications();
+  if (Notifications) await cancelDoseNags(Notifications, med.id, scheduleTime);
+  await removeSnooze(med.id, scheduleTime);
 }
 
 /**
@@ -415,6 +460,7 @@ export async function rescheduleDoseReminders(
   }
 
   await ensureNotificationInfrastructure();
+  const sound = await resolveReminderSound();
 
   const today = todayLocalDate();
   const { data, error } = await supabase
@@ -459,8 +505,9 @@ export async function rescheduleDoseReminders(
         time,
         'Dose due',
         `Time for ${med.name} (${formatScheduleTime(time)})`,
+        sound,
       ),
-      trigger: buildDailyTrigger(Notifications, hour, minute),
+      trigger: buildDailyTrigger(Notifications, hour, minute, sound.androidChannelId),
     });
   }
 
@@ -470,6 +517,7 @@ export async function rescheduleDoseReminders(
     baseScheduled: toSchedule.length,
     takenKeys,
     snoozedKeys,
+    sound,
   });
 
   await reapplySnoozes({
@@ -477,6 +525,7 @@ export async function rescheduleDoseReminders(
     activeMeds: active,
     activeSnoozes,
     takenKeys,
+    sound,
   });
 
   return { scheduled: toSchedule.length, skippedOverLimit, followups };
@@ -504,6 +553,7 @@ export async function scheduleTestNextDoseReminder(
   }
 
   await ensureNotificationInfrastructure();
+  const sound = await resolveReminderSound();
 
   const today = todayLocalDate();
   const { data, error } = await supabase.from('medications').select('*').eq('user_id', userId);
@@ -542,6 +592,7 @@ export async function scheduleTestNextDoseReminder(
       next.time,
       'Dose due',
       `Time for ${next.med.name} (${formatScheduleTime(next.time)})`,
+      sound,
     ),
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -556,6 +607,44 @@ export async function scheduleTestNextDoseReminder(
   };
 }
 
+const PREVIEW_ID = 'drdose-sound-preview';
+
+/** Play a chosen reminder chime right now so the user can hear it before saving. */
+export async function previewReminderSound(
+  soundId: ReminderSound,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const Notifications = await getExpoNotifications();
+  if (!Notifications) return { ok: false, reason: 'Notifications are unavailable.' };
+
+  const perm = await Notifications.getPermissionsAsync();
+  if (!perm.granted) {
+    return { ok: false, reason: 'Allow notifications first to preview sounds.' };
+  }
+
+  await ensureNotificationInfrastructure();
+  const file = reminderSoundFile(soundId);
+  const androidChannelId = await ensureDoseChannel(file);
+
+  await Notifications.cancelScheduledNotificationAsync(PREVIEW_ID);
+  await Notifications.scheduleNotificationAsync({
+    identifier: PREVIEW_ID,
+    content: {
+      title: 'Reminder sound',
+      body: 'This is how your dose reminders will sound.',
+      sound: file ?? 'default',
+      interruptionLevel: 'active' as const,
+      ...(Platform.OS === 'android' ? { channelId: androidChannelId } : {}),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 1,
+      repeats: false,
+    },
+  });
+
+  return { ok: true };
+}
+
 /** For debugging in Account — next fire time for a sample identifier. */
 export async function getNextReminderFireDate(
   hour: number,
@@ -565,7 +654,7 @@ export async function getNextReminderFireDate(
   if (!Notifications) return null;
   await ensureNotificationInfrastructure();
   const next = await Notifications.getNextTriggerDateAsync(
-    buildDailyTrigger(Notifications, hour, minute),
+    buildDailyTrigger(Notifications, hour, minute, DOSE_REMINDER_CHANNEL_ID),
   );
   return next ? new Date(next) : null;
 }

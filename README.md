@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-09** (`ab7ff28`) — Add snooze status + selectable reminder chimes
+
 - **2026-07-09** (`8b4f09b`) — Cancel reminders on delete + custom drag-to-reorder
 
 - **2026-07-07** (`a63f7e2`) — Add in-app dose snooze with restarted follow-up chain

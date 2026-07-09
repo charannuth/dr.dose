@@ -45,7 +45,12 @@ import { fetchStreakStats, type StreakStats } from '../../lib/streaks';
 import { fetchMissedDoses, type MissedDoseItem } from '../../lib/missedDoses';
 import { getRefillAlerts } from '../../lib/refills';
 import { routes } from '../../lib/routes';
-import { rescheduleAllReminders, scheduleDoseSnooze } from '../../lib/reminders';
+import {
+  cancelDoseSnooze,
+  rescheduleAllReminders,
+  scheduleDoseSnooze,
+} from '../../lib/reminders';
+import { getActiveSnoozes } from '../../lib/snooze';
 import { SnoozeModal } from '../../components/SnoozeModal';
 import {
   getCustomOrders,
@@ -292,7 +297,29 @@ export default function TodayScreen() {
   const [snoozeTarget, setSnoozeTarget] = useState<{
     med: MedicationWithStatus;
     time: string;
+    currentRemindAt: string | null;
   } | null>(null);
+  // medicationId -> { scheduleTime -> ISO remindAt } for doses snoozed today.
+  const [snoozeMap, setSnoozeMap] = useState<Record<string, Record<string, string>>>(
+    {},
+  );
+
+  const refreshSnoozes = useCallback(async () => {
+    try {
+      const records = await getActiveSnoozes();
+      const now = Date.now();
+      const map: Record<string, Record<string, string>> = {};
+      for (const rec of records) {
+        // Only show a snooze that hasn't fired yet; once it fires the normal
+        // follow-up chain resumes and the "Snooze" action returns.
+        if (new Date(rec.remindAt).getTime() <= now) continue;
+        (map[rec.medicationId] ??= {})[rec.scheduleTime] = rec.remindAt;
+      }
+      setSnoozeMap(map);
+    } catch {
+      // best-effort; status just won't show
+    }
+  }, []);
 
   useEffect(() => {
     isMissedDosesBannerDismissed().then(setMissedBannerDismissed).catch(() => {});
@@ -308,7 +335,20 @@ export default function TodayScreen() {
       scheduleTime: target.time,
       remindAt,
     });
-    if (!result.ok) setError(result.reason);
+    if (!result.ok) {
+      setError(result.reason);
+      return;
+    }
+    // Reflect the saved snooze immediately so the card shows "Snoozed until …".
+    await refreshSnoozes();
+  }
+
+  async function handleSnoozeRemove() {
+    const target = snoozeTarget;
+    setSnoozeTarget(null);
+    if (!target) return;
+    await cancelDoseSnooze({ id: target.med.id }, target.time);
+    await refreshSnoozes();
   }
 
   function openReorder() {
@@ -369,6 +409,7 @@ export default function TodayScreen() {
           if (active) setCustomOrders(orders);
         })
         .catch(() => {});
+      void refreshSnoozes();
       loadAll()
         .catch((err: unknown) => {
           if (active) {
@@ -381,7 +422,7 @@ export default function TodayScreen() {
       return () => {
         active = false;
       };
-    }, [user, loadAll]),
+    }, [user, loadAll, refreshSnoozes]),
   );
 
   async function onRefresh() {
@@ -806,8 +847,15 @@ export default function TodayScreen() {
                     key={med.id}
                     medication={med}
                     busySlot={busySlot}
+                    snoozeByTime={snoozeMap[med.id]}
                     onMarkTaken={(time) => handleMarkTaken(med, time)}
-                    onSnooze={(time) => setSnoozeTarget({ med, time })}
+                    onSnooze={(time) =>
+                      setSnoozeTarget({
+                        med,
+                        time,
+                        currentRemindAt: snoozeMap[med.id]?.[time] ?? null,
+                      })
+                    }
                     onLogPrn={(payload) => handleLogPrn(med, payload)}
                     onUndo={(slot) => handleUndo(med, slot)}
                     onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
@@ -826,8 +874,10 @@ export default function TodayScreen() {
       <SnoozeModal
         visible={snoozeTarget != null}
         medName={snoozeTarget?.med.name ?? ''}
+        currentRemindAt={snoozeTarget?.currentRemindAt ?? null}
         onCancel={() => setSnoozeTarget(null)}
         onConfirm={handleSnoozeConfirm}
+        onRemove={handleSnoozeRemove}
       />
     </SafeAreaView>
   );

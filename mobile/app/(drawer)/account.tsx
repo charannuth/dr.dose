@@ -29,16 +29,21 @@ import {
   scheduleTestReminder,
   scheduleTestNextDoseReminder,
   scheduleTestRefillReminder,
+  previewReminderSound,
   simulatorReminderNote,
 } from '../../lib/notifications';
 import { cancelAllLocalReminders, rescheduleAllReminders } from '../../lib/reminders';
 import { runReminderCheck, type ReminderCheckResult } from '../../lib/reminderDebug';
 import {
   getReminders,
+  getReminderSound,
   getTimezone,
   loadTimezone,
+  REMINDER_SOUNDS,
   setReminders,
+  setReminderSound,
   setTimezone,
+  type ReminderSound,
   type ThemeMode,
 } from '../../lib/settings';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
@@ -64,6 +69,7 @@ export default function AccountScreen() {
   );
   const [timezone, setTimezoneState] = useState(() => getTimezone());
   const [remindersOn, setRemindersOn] = useState(false);
+  const [reminderSound, setReminderSoundState] = useState<ReminderSound>('default');
   const [permissionStatus, setPermissionStatus] = useState<
     'granted' | 'denied' | 'undetermined'
   >('undetermined');
@@ -82,9 +88,22 @@ export default function AccountScreen() {
 
   useEffect(() => {
     void getReminders().then((r) => setRemindersOn(r.enabled));
+    void getReminderSound().then(setReminderSoundState);
     void getNotificationPermission().then(setPermissionStatus);
     void loadTimezone().then(setTimezoneState);
   }, []);
+
+  async function handleReminderSoundChange(sound: ReminderSound) {
+    setReminderSoundState(sound);
+    try {
+      await setReminderSound(sound);
+      if (user && remindersOn) await rescheduleAllReminders(user.id);
+      const result = await previewReminderSound(sound);
+      if (!result.ok) setMessage(result.reason);
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Could not update sound');
+    }
+  }
 
   const created = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, {
@@ -375,6 +394,35 @@ export default function AccountScreen() {
               </Pressable>
             ) : null}
             {remindersOn ? (
+              <View style={styles.soundBlock}>
+                <Text style={styles.switchLabel}>Reminder sound</Text>
+                <Text style={styles.hint}>
+                  Pick the chime for dose reminders. Tap one to hear it. Make sure your
+                  ringer is on and Silent mode is off so alerts are audible.
+                </Text>
+                <View style={styles.themeRow}>
+                  {REMINDER_SOUNDS.map((opt) => {
+                    const active = reminderSound === opt.id;
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        style={[styles.themeChip, active && styles.themeChipActive]}
+                        onPress={() => void handleReminderSoundChange(opt.id)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text
+                          style={[styles.themeChipText, active && styles.themeChipTextActive]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+            {remindersOn ? (
               <Pressable
                 style={styles.secondaryBtn}
                 disabled={busy}
@@ -588,6 +636,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     themeChipText: { fontWeight: '700', color: colors.textMuted },
     themeChipTextActive: { color: colors.accent },
     reminderSection: { marginTop: spacing.md, gap: spacing.sm },
+    soundBlock: { gap: spacing.sm, marginTop: spacing.xs },
     switchRow: {
       flexDirection: 'row',
       alignItems: 'center',

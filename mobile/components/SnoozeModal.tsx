@@ -23,13 +23,18 @@ function formatClock(date: Date): string {
 export function SnoozeModal({
   visible,
   medName,
+  currentRemindAt,
   onCancel,
   onConfirm,
+  onRemove,
 }: {
   visible: boolean;
   medName: string;
+  /** ISO timestamp of an existing snooze, if this dose is already snoozed. */
+  currentRemindAt?: string | null;
   onCancel: () => void;
   onConfirm: (remindAt: Date) => void;
+  onRemove?: () => void;
 }) {
   const { colors, isDark } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -39,13 +44,17 @@ export function SnoozeModal({
     () => new Date(Date.now() + 60 * 60 * 1000),
   );
 
+  const editing = currentRemindAt != null;
+
   useEffect(() => {
     if (visible) {
       setMode('minutes');
       setMinutes(15);
-      setTimeValue(new Date(Date.now() + 60 * 60 * 1000));
+      const existing = currentRemindAt ? new Date(currentRemindAt) : null;
+      const valid = existing && !Number.isNaN(existing.getTime());
+      setTimeValue(valid ? (existing as Date) : new Date(Date.now() + 60 * 60 * 1000));
     }
-  }, [visible]);
+  }, [visible, currentRemindAt]);
 
   const remindAt = useMemo(() => {
     if (mode === 'minutes') {
@@ -71,12 +80,18 @@ export function SnoozeModal({
               <Text style={styles.cancel}>Cancel</Text>
             </Pressable>
             <Text style={styles.title} numberOfLines={1}>
-              Snooze {medName}
+              {editing ? 'Edit snooze' : `Snooze ${medName}`}
             </Text>
             <Pressable onPress={() => onConfirm(remindAt)} accessibilityRole="button">
-              <Text style={styles.done}>Snooze</Text>
+              <Text style={styles.done}>{editing ? 'Update' : 'Snooze'}</Text>
             </Pressable>
           </View>
+
+          {editing && currentRemindAt ? (
+            <Text style={styles.currentStatus}>
+              Currently snoozed until {formatClock(new Date(currentRemindAt))}
+            </Text>
+          ) : null}
 
           <View style={styles.segment}>
             <Pressable
@@ -153,6 +168,16 @@ export function SnoozeModal({
           )}
 
           <Text style={styles.preview}>Reminds you at {formatClock(remindAt)}</Text>
+
+          {editing && onRemove ? (
+            <Pressable
+              style={styles.removeBtn}
+              onPress={onRemove}
+              accessibilityRole="button"
+            >
+              <Text style={styles.removeBtnText}>Remove snooze</Text>
+            </Pressable>
+          ) : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -240,6 +265,25 @@ function makeStyles(colors: ColorPalette) {
       fontSize: 13,
       color: colors.textMuted,
       marginTop: spacing.md,
+    },
+    currentStatus: {
+      textAlign: 'center' as const,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      color: colors.accent,
+      marginTop: spacing.md,
+      marginHorizontal: spacing.md,
+    },
+    removeBtn: {
+      alignSelf: 'center' as const,
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    removeBtnText: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+      color: colors.error,
     },
   };
 }

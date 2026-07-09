@@ -9,6 +9,21 @@ export type ReminderSettings = {
 
 export type MedSort = 'time' | 'name' | 'custom';
 
+/** Bundled reminder chimes (see app.json expo-notifications "sounds"). */
+export type ReminderSound = 'default' | 'chime' | 'bell' | 'alert';
+
+export const REMINDER_SOUNDS: {
+  id: ReminderSound;
+  label: string;
+  /** Bundled file name used by iOS content + the Android channel; null = system default. */
+  file: string | null;
+}[] = [
+  { id: 'default', label: 'Default', file: null },
+  { id: 'chime', label: 'Chime', file: 'chime.wav' },
+  { id: 'bell', label: 'Bell', file: 'bell.wav' },
+  { id: 'alert', label: 'Alert', file: 'alert.wav' },
+];
+
 /** Which Today list a custom drag order belongs to. */
 export type MedListTab = 'scheduled' | 'as_needed' | 'supplement';
 
@@ -24,6 +39,7 @@ const KEYS = {
   themeMode: 'mt-theme-mode',
   timezone: 'mt-timezone',
   reminders: 'mt-reminders',
+  reminderSound: 'mt-reminder-sound',
   medSort: 'mt-med-sort',
   customOrder: 'mt-custom-order',
   updateDismissed: 'mt-update-dismissed',
@@ -107,6 +123,28 @@ export async function getMedSort(): Promise<MedSort> {
 
 export async function setMedSort(sort: MedSort): Promise<void> {
   await AsyncStorage.setItem(KEYS.medSort, sort);
+}
+
+const REMINDER_SOUND_IDS = REMINDER_SOUNDS.map((s) => s.id);
+
+export async function getReminderSound(): Promise<ReminderSound> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.reminderSound);
+    return (REMINDER_SOUND_IDS as string[]).includes(raw ?? '')
+      ? (raw as ReminderSound)
+      : 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+export async function setReminderSound(sound: ReminderSound): Promise<void> {
+  await AsyncStorage.setItem(KEYS.reminderSound, sound);
+}
+
+/** File name for a sound id (or null for the system default). */
+export function reminderSoundFile(sound: ReminderSound): string | null {
+  return REMINDER_SOUNDS.find((s) => s.id === sound)?.file ?? null;
 }
 
 function customOrderKey(userId: string): string {

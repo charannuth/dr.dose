@@ -52,7 +52,11 @@
           "icon": "./assets/icon.png",
           "color": "#0891b2",
           "defaultChannel": "dose-reminders",
-          "sounds": [],
+          "sounds": [
+            "./assets/sounds/chime.wav",
+            "./assets/sounds/bell.wav",
+            "./assets/sounds/alert.wav"
+          ],
           "enableBackgroundRemoteNotifications": false
         }
       ],

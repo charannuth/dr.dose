@@ -106,5 +106,5 @@ export async function scheduleTestReminder(
   return { ok: true };
 }
 
-export { scheduleTestNextDoseReminder } from './reminderScheduler';
+export { scheduleTestNextDoseReminder, previewReminderSound } from './reminderScheduler';
 export { scheduleTestRefillReminder } from './refillReminders';
