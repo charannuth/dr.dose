@@ -96,7 +96,24 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4f332941-2f35-4a7c-9664-b231dabc961c"
+        "projectId": "4f332941-2f35-4a7c-9664-b231dabc961c",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.charannuth.drdose.ExpoWidgetsTarget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.charannuth.drdose"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "owner": "charannuth"
