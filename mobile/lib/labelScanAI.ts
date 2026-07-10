@@ -16,6 +16,7 @@ type AiLabelPayload = {
   dosesPerDay?: number;
   scheduleTimes?: string[];
   quantity?: number;
+  usageNotes?: string;
   warnings?: string;
 };
 
@@ -32,7 +33,8 @@ Return ONLY valid JSON with these keys (omit unknown keys):
   "dosesPerDay": number or null,
   "scheduleTimes": ["HH:mm", ...] 24h suggested reminder times if inferable,
   "quantity": number or null,
-  "warnings": "short pharmacy warnings if any"
+  "usageNotes": "how to use, storage, priming, rinsing — patient counseling only; NOT flu shots or vaccine ads",
+  "warnings": "clinical warnings on label if any (interactions, do not combine)"
 }
 Rules:
 - Prefer the generic drug name over brand.
@@ -40,6 +42,7 @@ Rules:
 - scheduleType "as_needed" only when directions say PRN/as needed/for pain/etc.
 - scheduleTimes: guess sensible defaults (e.g. twice daily → 08:00 and 20:00).
 - Never invent a drug name not present in the text.
+- usageNotes: practical how-to-use counseling only — never flu shot / vaccine / immunization promos.
 - CVS labels often show ALL CAPS drug name on one line (e.g. ADVAIR HFA) and strength on the next (115-21 MCG INHALER).`;
 
 function normalizeRoute(value: string | undefined): MedicationRouteId | undefined {
@@ -167,8 +170,12 @@ export async function parseLabelWithAI(rawText: string): Promise<PrescriptionPre
     result.directions = parsed.directions.trim();
     aiFields.push('directions');
   }
-  if (parsed.warnings?.trim()) {
-    result.notes = parsed.warnings.trim();
+  const usageNotes = [parsed.usageNotes, parsed.warnings]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join('\n\n');
+  if (usageNotes && !/\b(flu shot|covid|vaccine|immunization)\b/i.test(usageNotes)) {
+    result.notes = usageNotes;
     aiFields.push('notes');
   }
   if (scheduleType) {

@@ -101,6 +101,13 @@ export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props)
               {isLabelAiAvailable() ? ' (text only — your photo stayed on your device)' : ''}.
             </Text>
           </View>
+        ) : isLabelAiAvailable() ? (
+          <View style={styles.localBanner}>
+            <Text style={styles.localBannerText}>
+              Read on your device. AI is enabled but could not add more detail from this label —
+              please review every field below.
+            </Text>
+          </View>
         ) : (
           <View style={styles.localBanner}>
             <Text style={styles.localBannerText}>
@@ -253,20 +260,23 @@ export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props)
           />
         </View>
 
-        {notes ? (
-          <View style={styles.field}>
-            <View style={styles.fieldHeader}>
-              <Text style={styles.label}>Pharmacy warnings</Text>
-              <FieldBadge ai={aiFields.has('notes')} />
-            </View>
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
+        <View style={styles.field}>
+          <View style={styles.fieldHeader}>
+            <Text style={styles.label}>Notes from pharmacy</Text>
+            <FieldBadge ai={aiFields.has('notes')} />
           </View>
-        ) : null}
+          <Text style={styles.fieldHint}>
+            How to use, storage, priming — not vaccine or store promos.
+          </Text>
+          <TextInput
+            style={[styles.input, styles.textarea]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="e.g. Shake well before use. Rinse mouth after each dose."
+            placeholderTextColor={colors.textMuted}
+            multiline
+          />
+        </View>
 
         <Pressable
           style={styles.rawToggle}
@@ -353,6 +363,12 @@ function makeStyles(colors: ColorPalette) {
       gap: spacing.sm,
     },
     label: { fontFamily: fonts.bodySemibold, fontSize: 14, color: colors.text },
+    fieldHint: {
+      fontFamily: fonts.bodyRegular,
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 16,
+    },
     input: {
       borderWidth: 1,
       borderColor: colors.border,

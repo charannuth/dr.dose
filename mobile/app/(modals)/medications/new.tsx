@@ -94,6 +94,7 @@ export default function AddMedicationScreen() {
   const [mode, setMode] = useState<AddMode>('choose');
   const [scanResult, setScanResult] = useState<PrescriptionPrefill | null>(null);
   const [prefill, setPrefill] = useState<LabelScanPrefill | null>(null);
+  const [scanConfirmed, setScanConfirmed] = useState(false);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -198,9 +199,13 @@ export default function AddMedicationScreen() {
           scan={scanResult}
           onConfirm={(next) => {
             setPrefill(next);
+            setScanConfirmed(true);
             setMode('form');
           }}
-          onRescan={startScan}
+          onRescan={() => {
+            setScanConfirmed(false);
+            startScan();
+          }}
           onCancel={() => router.back()}
         />
       </SafeAreaView>
@@ -236,6 +241,7 @@ export default function AddMedicationScreen() {
             onPress={() => {
               setPrefill(null);
               setScanResult(null);
+              setScanConfirmed(false);
               setMode('form');
             }}
             accessibilityRole="button"
@@ -264,8 +270,15 @@ export default function AddMedicationScreen() {
         defaultScheduleType={defaultScheduleType}
         defaultCategory={defaultCategory}
         prefill={prefill}
+        skipBasicsAfterScan={scanConfirmed}
         onSave={handleSave}
-        onCancel={() => router.back()}
+        onCancel={() => {
+          if (scanConfirmed && scanResult) {
+            setMode('review');
+            return;
+          }
+          router.back();
+        }}
       />
     </SafeAreaView>
   );

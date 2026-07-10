@@ -97,6 +97,8 @@ type Props = {
   defaultScheduleType?: MedicationScheduleType;
   defaultCategory?: MedicationCategory;
   prefill?: WizardPrefill | null;
+  /** After label scan review, skip the duplicate Basics wizard page. */
+  skipBasicsAfterScan?: boolean;
   userId: string;
   onSave: (input: MedicationInput) => Promise<void>;
   onCancel: () => void;
@@ -108,6 +110,7 @@ export function MedicationFormWizard({
   defaultScheduleType = 'scheduled',
   defaultCategory = 'medication',
   prefill,
+  skipBasicsAfterScan = false,
   userId,
   onSave,
   onCancel,
@@ -162,6 +165,9 @@ export function MedicationFormWizard({
   const [busy, setBusy] = useState(false);
 
   const isEditing = Boolean(initial);
+  const wizardPages: WizardPage[] = skipBasicsAfterScan
+    ? WIZARD_PAGES.filter((p) => p !== 'basics')
+    : [...WIZARD_PAGES];
 
   useEffect(() => {
     void getReminders().then((r) => setRemindersOn(r.enabled));
@@ -169,8 +175,8 @@ export function MedicationFormWizard({
     void getNotificationPermission().then(setPermissionStatus);
   }, []);
 
-  const page = WIZARD_PAGES[pageIndex] ?? WIZARD_PAGES[0];
-  const isLastPage = pageIndex === WIZARD_PAGES.length - 1;
+  const page = wizardPages[pageIndex] ?? wizardPages[0];
+  const isLastPage = pageIndex === wizardPages.length - 1;
   const isScheduled = scheduleType !== 'as_needed';
   const isOtherRoute = route === 'other';
   const formOptions = route && !isOtherRoute ? MEDICATION_FORMS_BY_ROUTE[route] : [];
@@ -281,7 +287,11 @@ export function MedicationFormWizard({
 
   /** First page (in order) that fails validation, so Save can jump the user there. */
   function firstInvalidPage(): { page: WizardPage; message: string } | null {
-    for (const p of WIZARD_PAGES) {
+    if (skipBasicsAfterScan) {
+      const basicsMsg = validatePage('basics');
+      if (basicsMsg) return { page: wizardPages[0], message: basicsMsg };
+    }
+    for (const p of wizardPages) {
       const message = validatePage(p);
       if (message) return { page: p, message };
     }
@@ -295,7 +305,7 @@ export function MedicationFormWizard({
       return;
     }
     setError(null);
-    setPageIndex((i) => Math.min(i + 1, WIZARD_PAGES.length - 1));
+    setPageIndex((i) => Math.min(i + 1, wizardPages.length - 1));
   }
 
   function goBack() {
@@ -356,7 +366,7 @@ export function MedicationFormWizard({
     const invalid = firstInvalidPage();
     if (invalid) {
       setError(invalid.message);
-      setPageIndex(WIZARD_PAGES.indexOf(invalid.page));
+      setPageIndex(wizardPages.indexOf(invalid.page));
       return;
     }
 
@@ -833,9 +843,16 @@ export function MedicationFormWizard({
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
-        <Text style={styles.title}>{initial ? 'Edit medication' : 'Add medication'}</Text>
+        <Text style={styles.title}>
+          {initial ? 'Edit medication' : skipBasicsAfterScan ? 'Finish adding' : 'Add medication'}
+        </Text>
+        {skipBasicsAfterScan ? (
+          <Text style={styles.scanHint}>
+            Label details confirmed — set schedule, reminders, then save.
+          </Text>
+        ) : null}
         <View style={styles.tabs}>
-          {WIZARD_PAGES.map((p, i) => {
+          {wizardPages.map((p, i) => {
             const active = i === pageIndex;
             return (
               <Pressable
@@ -909,6 +926,12 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     gap: spacing.sm,
   },
   title: { fontSize: 20, fontWeight: '900' as const, color: colors.text },
+  scanHint: {
+    fontFamily: fonts.bodyRegular,
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
   tabs: { flexDirection: 'row' as const, gap: 6, flexWrap: 'wrap' as const },
   tab: {
     paddingHorizontal: 12,

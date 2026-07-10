@@ -175,11 +175,41 @@ function findPharmacyDrugName(text: string): string | null {
 }
 
 function findUsageNotes(text: string): string | null {
-  const match = text.match(
-    /\b(?:important information|usage tips?|notes from (?:the )?pharmacy)\s*[:\-]?\s*([\s\S]{20,400}?)(?=\n\s*(?:RX|QTY|CVS|REFILL|NDC|$))/i,
+  const promoNoise =
+    /\b(flu shot|covid-?19|vaccine|immunization|shingrix|pneumonia|rsv|schedule (your|a)|protect yourself|walk[- ]in|get your)\b/i;
+
+  const isPromo = (line: string) => promoNoise.test(line);
+
+  const sections: string[] = [];
+
+  const sectionMatch = text.match(
+    /\b(?:how to use|usage tips?|important (?:information|usage)|notes from (?:the )?pharmacy|patient counseling)\s*[:\-]?\s*([\s\S]{15,600}?)(?=\n\s*(?:RX|QTY|CVS|REFILL|NDC|STORE|RETAIL|$))/i,
   );
-  if (!match?.[1]) return null;
-  return match[1].replace(/\s+/g, ' ').trim();
+  if (sectionMatch?.[1]) {
+    const cleaned = sectionMatch[1]
+      .split(/\n+/)
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter((l) => l.length >= 8 && !isPromo(l))
+      .join(' ')
+      .trim();
+    if (cleaned.length >= 15) sections.push(cleaned);
+  }
+
+  const howToLines = text
+    .split(/\n+/)
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter((l) => l.length >= 12 && !isPromo(l))
+    .filter((l) =>
+      /\b(shake well|prime the|inhale|puff|rinse|mouth|spacer|wait\b.*\b(minute|second)|store at|keep (?:at|in)|do not|avoid|clean|replace cap|discard|wash hands)\b/i.test(
+        l,
+      ),
+    );
+  if (howToLines.length > 0) {
+    sections.push(howToLines.slice(0, 4).join(' '));
+  }
+
+  const combined = sections.join('\n\n').trim();
+  return combined.length >= 15 ? combined.slice(0, 500) : null;
 }
 
 function findForm(text: string): { route: MedicationRouteId; form: string } | null {
@@ -364,14 +394,13 @@ export function hasUsefulPrefill(prefill: PrescriptionPrefill | null | undefined
 }
 
 export function prefillToWizard(prefill: PrescriptionPrefill): LabelScanPrefill {
-  const notes = [prefill.directions, prefill.notes].filter(Boolean).join('\n\n') || undefined;
   return {
     name: prefill.name,
     doseMg: prefill.doseMg,
     route: prefill.route ?? null,
     form: prefill.form,
     directions: prefill.directions,
-    notes,
+    notes: prefill.notes,
     scheduleType: prefill.scheduleType,
     scheduleTimes: prefill.scheduleTimes,
     quantity: prefill.quantity,

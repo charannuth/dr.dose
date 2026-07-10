@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-07-09** (`69998c1`) — Improve label scan review flow and pharmacy notes parsing.
+
 - **2026-07-09** (`95e3daf`) — Stop follow-up nags after snoozing a dose.
 
 - **2026-07-09** (`af6510a`) — Fix Mark taken crash from wrong Live Activity API usage.
