@@ -271,8 +271,8 @@ async function cancelDoseNags(
 
 /**
  * Re-arm persisted snoozes after a full reschedule wiped them. For each active
- * snooze we schedule the snooze reminder (if still future) and its restarted
- * +5/+10/+15 chain. Taken or orphaned snoozes are pruned.
+ * snooze we schedule a single future reminder (if still future). Taken or
+ * orphaned snoozes are pruned.
  */
 async function reapplySnoozes(args: {
   Notifications: NotificationsModule;
@@ -322,33 +322,11 @@ async function reapplySnoozes(args: {
           repeats: false,
         },
       });
-    }
-
-    for (let k = 1; k <= FOLLOWUP_COUNT; k += 1) {
-      const sec = reminderSec + k * FOLLOWUP_INTERVAL_MIN * 60;
-      if (sec < 1) continue;
-      anyFuture = true;
-      await Notifications.scheduleNotificationAsync({
-        identifier: `${SNOOZE_FOLLOWUP_PREFIX}:${med.id}:${snooze.scheduleTime}:${k}`,
-        content: doseContent(
-          Notifications,
-          med,
-          snooze.scheduleTime,
-          'Dose still due',
-          `Don't forget ${med.name} (${formatScheduleTime(snooze.scheduleTime)})`,
-          sound,
-        ),
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: sec,
-          repeats: false,
-        },
-      });
       scheduled += 1;
     }
 
-    if (reminderSec >= 1) scheduled += 1;
-    // Whole snooze window (reminder + all follow-ups) has elapsed; forget it.
+    // No +5/+10/+15 chain after a snooze — user chose a later time on purpose; the
+    // Live Activity stays visible until they mark taken.
     if (!anyFuture) await removeSnooze(snooze.medicationId, snooze.scheduleTime);
   }
 
@@ -356,9 +334,9 @@ async function reapplySnoozes(args: {
 }
 
 /**
- * Snooze a specific dose: cancel its remaining nags, fire a fresh reminder at
- * `remindAt`, and restart the +5/+10/+15 chain from there. Persisted so it
- * survives the reschedule triggered when other doses are marked taken.
+ * Snooze a specific dose: cancel its remaining nags and fire one reminder at
+ * `remindAt`. Persisted so it survives the reschedule triggered when other doses
+ * are marked taken. No +5/+10/+15 chain — snooze means "remind me later on purpose."
  */
 export async function scheduleDoseSnooze(args: {
   med: Pick<Medication, 'id' | 'name'>;
@@ -396,25 +374,6 @@ export async function scheduleDoseSnooze(args: {
       repeats: false,
     },
   });
-
-  for (let k = 1; k <= FOLLOWUP_COUNT; k += 1) {
-    await Notifications.scheduleNotificationAsync({
-      identifier: `${SNOOZE_FOLLOWUP_PREFIX}:${med.id}:${scheduleTime}:${k}`,
-      content: doseContent(
-        Notifications,
-        med,
-        scheduleTime,
-        'Dose still due',
-        `Don't forget ${med.name} (${formatScheduleTime(scheduleTime)})`,
-        sound,
-      ),
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: reminderSec + k * FOLLOWUP_INTERVAL_MIN * 60,
-        repeats: false,
-      },
-    });
-  }
 
   await setSnooze({
     medicationId: med.id,
