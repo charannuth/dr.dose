@@ -13,6 +13,7 @@ import {
 } from '../lib/drugInteractions'
 import { MedicationNameInput } from '../components/MedicationNameInput'
 import { filterMedicationsActiveOn } from '../lib/medicationDates'
+import { openRows } from '../lib/crypto/seal'
 import { supabase } from '../lib/supabase'
 import { todayLocalDate } from '../lib/dates'
 import type { Medication } from '../lib/types'
@@ -83,10 +84,15 @@ export function InteractionsPage() {
 
         const today = todayLocalDate()
         const activeMeds = filterMedicationsActiveOn(
-          (data ?? []) as Medication[],
+          openRows(
+            'medications',
+            (data ?? []) as Record<string, unknown>[],
+          ) as Medication[],
           today,
         )
-        const names = activeMeds.map((m) => m.name)
+        const names = activeMeds
+          .map((m) => m.name)
+          .sort((a, b) => a.localeCompare(b))
 
         if (active) await runCheck(names)
       } catch (err) {

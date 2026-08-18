@@ -11,25 +11,26 @@ type StreakBadgesProps = {
   compact?: boolean
   /** Full badge catalog with unlock requirements (Streaks page). */
   catalog?: boolean
+  /** Click a badge to preview its streak celebration animation. */
+  onPreviewBadge?: (badge: StreakBadge) => void
 }
 
 function BadgeTile({
   badge,
   earned,
   catalog,
+  onPreview,
 }: {
   badge: StreakBadge
   earned: boolean
   catalog?: boolean
+  onPreview?: () => void
 }) {
-  const dayLabel =
-    badge.minDays === 1 ? '1 day' : `${badge.minDays} days`
+  const dayLabel = badge.minDays === 1 ? '1 day' : `${badge.minDays} days`
+  const className = `streak-badge-tile${earned ? ' streak-badge-earned' : ' streak-badge-locked'}${catalog ? ' streak-badge-tile-catalog' : ''}${onPreview ? ' streak-badge-tile-previewable' : ''}`
 
-  return (
-    <li
-      className={`streak-badge-tile${earned ? ' streak-badge-earned' : ' streak-badge-locked'}${catalog ? ' streak-badge-tile-catalog' : ''}`}
-      title={badge.description}
-    >
+  const inner = (
+    <>
       <StreakBadgeIcon earned={earned} minDays={badge.minDays} animate={false} />
       {catalog ? (
         <>
@@ -38,13 +39,40 @@ function BadgeTile({
             {earned ? 'Unlocked' : `Unlock at ${dayLabel}`}
           </span>
           <span className="streak-badge-desc">{badge.description}</span>
+          {onPreview ? (
+            <span className="streak-badge-preview-hint">Click to preview celebration</span>
+          ) : null}
         </>
       ) : (
         <>
           <span className="streak-badge-days">{badge.minDays}d</span>
           <span className="streak-badge-label">{badge.label}</span>
+          {onPreview ? (
+            <span className="streak-badge-preview-hint">Preview</span>
+          ) : null}
         </>
       )}
+    </>
+  )
+
+  if (onPreview) {
+    return (
+      <li>
+        <button
+          type="button"
+          className={className}
+          title={`Preview ${badge.label} celebration`}
+          onClick={onPreview}
+        >
+          {inner}
+        </button>
+      </li>
+    )
+  }
+
+  return (
+    <li className={className} title={badge.description}>
+      {inner}
     </li>
   )
 }
@@ -53,6 +81,7 @@ export function StreakBadges({
   longestStreak,
   compact = false,
   catalog = false,
+  onPreviewBadge,
 }: StreakBadgesProps) {
   const earned = getEarnedStreakBadges(longestStreak)
   const earnedIds = new Set(earned.map((b) => b.id))
@@ -66,7 +95,9 @@ export function StreakBadges({
         </h3>
         <p className="field-hint streak-badges-hint">
           Each badge unlocks when your <strong>longest streak</strong> reaches consecutive
-          perfect days (every scheduled dose logged).
+          perfect days (every scheduled dose logged). Your Today icon upgrades at 14, then
+          stays on Garden keeper for days 30–59, Steady growth for 60–99, and Century bloom
+          from 100 onward.
           {next && (
             <>
               {' '}
@@ -75,6 +106,7 @@ export function StreakBadges({
               {longestStreak > 0 && ` (${next.minDays - longestStreak} to go)`}.
             </>
           )}
+          {onPreviewBadge ? ' Click any badge to preview its celebration.' : null}
         </p>
         <ul className="streak-badge-grid streak-badge-grid-catalog">
           {STREAK_BADGES.map((badge) => (
@@ -83,6 +115,9 @@ export function StreakBadges({
               badge={badge}
               earned={earnedIds.has(badge.id)}
               catalog
+              onPreview={
+                onPreviewBadge ? () => onPreviewBadge(badge) : undefined
+              }
             />
           ))}
         </ul>
@@ -99,8 +134,22 @@ export function StreakBadges({
           <ul className="streak-badge-row">
             {earned.map((badge) => (
               <li key={badge.id} className="streak-badge-chip" title={badge.description}>
-                <StreakBadgeIcon earned minDays={badge.minDays} animate={false} />
-                <span>{badge.minDays}d</span>
+                {onPreviewBadge ? (
+                  <button
+                    type="button"
+                    className="streak-badge-chip-btn"
+                    onClick={() => onPreviewBadge(badge)}
+                    title={`Preview ${badge.label}`}
+                  >
+                    <StreakBadgeIcon earned minDays={badge.minDays} animate={false} />
+                    <span>{badge.minDays}d</span>
+                  </button>
+                ) : (
+                  <>
+                    <StreakBadgeIcon earned minDays={badge.minDays} animate={false} />
+                    <span>{badge.minDays}d</span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -123,10 +172,16 @@ export function StreakBadges({
             {longestStreak > 0 && ` (${next.minDays - longestStreak} to go)`}.
           </>
         )}
+        {onPreviewBadge ? ' Click any badge to preview its celebration.' : null}
       </p>
       <ul className="streak-badge-grid">
         {STREAK_BADGES.map((badge) => (
-          <BadgeTile key={badge.id} badge={badge} earned={earnedIds.has(badge.id)} />
+          <BadgeTile
+            key={badge.id}
+            badge={badge}
+            earned={earnedIds.has(badge.id)}
+            onPreview={onPreviewBadge ? () => onPreviewBadge(badge) : undefined}
+          />
         ))}
       </ul>
     </section>

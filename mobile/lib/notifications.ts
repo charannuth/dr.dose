@@ -29,6 +29,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
       allowAlert: true,
       allowBadge: true,
       allowSound: true,
+      allowCriticalAlerts: false,
+      provideAppNotificationSettings: true,
     },
   });
   return status === 'granted';
@@ -52,7 +54,7 @@ export function openNotificationSettings(): void {
 
 export function notificationPermissionHint(status: NotificationPermissionStatus): string {
   if (status === 'granted') {
-    return 'Alerts for doses, refills, and doctor visits work in Expo Go and dev builds — no Xcode rebuild required.';
+    return 'Dose alarms can wake the lock screen (Time Sensitive). Use Mark taken or Snooze on the alert — they keep nagging until you act.';
   }
   if (status === 'denied') {
     return 'Notifications are off in iPhone Settings. Tap “Open Settings” to allow alerts.';

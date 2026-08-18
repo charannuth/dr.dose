@@ -28,6 +28,7 @@ import {
   type FoundInteraction,
   type InteractionCheckResult,
 } from '../../lib/drugInteractions';
+import { openRows } from '../../lib/crypto/seal';
 import { filterMedicationsActiveOn } from '../../lib/medicationDates';
 import { supabase } from '../../lib/supabase';
 import type { Medication } from '../../lib/types';
@@ -260,8 +261,16 @@ export default function InteractionsScreen() {
         if (fetchError) throw fetchError;
 
         const today = todayLocalDate();
-        const activeMeds = filterMedicationsActiveOn((data ?? []) as Medication[], today);
-        namesToCheck = activeMeds.map((m) => m.name);
+        const activeMeds = filterMedicationsActiveOn(
+          openRows(
+            'medications',
+            (data ?? []) as Record<string, unknown>[],
+          ) as Medication[],
+          today,
+        );
+        namesToCheck = activeMeds
+          .map((m) => m.name)
+          .sort((a, b) => a.localeCompare(b));
       }
 
       const data = await checkMedicationInteractions(namesToCheck);

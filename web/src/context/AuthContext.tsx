@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { avatarStoragePath, deleteAvatar, uploadAvatar } from '../lib/avatar'
+import { lockVault } from '../lib/crypto/vault'
 import { supabase } from '../lib/supabase'
 import { evaluateSignUpResponse } from '../lib/signUpResult'
 import { AuthContext, type AuthContextValue } from './auth-context'
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    await lockVault()
     if (!supabase) return
     const { error } = await supabase.auth.signOut()
     if (error) throw error

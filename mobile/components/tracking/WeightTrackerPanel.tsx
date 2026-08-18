@@ -16,6 +16,7 @@ import type { MedicalRecord } from '../../lib/medicalRecords';
 import { CycleDayStrip } from './CycleDayStrip';
 import { HeightWeightFields } from './HeightWeightFields';
 import { SelectField } from './SelectField';
+import { sealRow } from '../../lib/crypto/seal';
 import { supabase } from '../../lib/supabase';
 import {
   computeDailyTargets,
@@ -274,9 +275,13 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
       });
       if (settings.sync_weight_to_medical_records && weight_kg != null) {
         if (!supabase) throw new Error('Supabase is not configured');
+        const sealed = sealRow('medical_records', {
+          user_id: user.id,
+          weight_kg: String(weight_kg),
+        });
         const { error: syncErr } = await supabase
           .from('medical_records')
-          .upsert({ user_id: user.id, weight_kg }, { onConflict: 'user_id' });
+          .upsert(sealed, { onConflict: 'user_id' });
         if (syncErr) throw syncErr;
       }
       await reload();

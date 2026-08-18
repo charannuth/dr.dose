@@ -1,3 +1,4 @@
+import { openRows } from './crypto/seal'
 import { supabase } from './supabase'
 import { formatDisplayDate, formatScheduleTime, lastNDays } from './dates'
 import { formatDoseDisplay } from './dose'
@@ -47,15 +48,18 @@ export async function fetchDoseHistory(
   if (medsResult.error) throw medsResult.error
 
   const medMap = new Map<string, Pick<Medication, 'id' | 'name' | 'dose_pills' | 'dose_mg'>>()
-  for (const med of (medsResult.data ?? []) as Pick<
-    Medication,
-    'id' | 'name' | 'dose_pills' | 'dose_mg'
-  >[]) {
+  for (const med of openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Pick<Medication, 'id' | 'name' | 'dose_pills' | 'dose_mg'>[]) {
     medMap.set(med.id, med)
   }
 
   const logsByDate = new Map<string, HistoryEntry[]>()
-  for (const log of (logsResult.data ?? []) as DoseLog[]) {
+  for (const log of openRows(
+    'dose_logs',
+    (logsResult.data ?? []) as Record<string, unknown>[],
+  ) as DoseLog[]) {
     const med = medMap.get(log.medication_id)
     const entry: HistoryEntry = {
       medicationId: log.medication_id,

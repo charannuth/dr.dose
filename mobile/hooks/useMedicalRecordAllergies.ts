@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { openRow } from '../lib/crypto/seal';
 import { supabase } from '../lib/supabase';
 
 export function useMedicalRecordAllergies(userId: string | undefined) {
@@ -25,8 +26,25 @@ export function useMedicalRecordAllergies(userId: string | undefined) {
           .eq('user_id', userId)
           .maybeSingle();
         if (!active) return;
-        setAllergies((data?.known_allergies as string[] | undefined) ?? []);
-        setConditions((data?.known_conditions as string[] | undefined) ?? []);
+        if (!data) {
+          setAllergies([]);
+          setConditions([]);
+          return;
+        }
+        const opened = openRow(
+          'medical_records',
+          data as Record<string, unknown>,
+        );
+        setAllergies(
+          Array.isArray(opened.known_allergies)
+            ? (opened.known_allergies as string[])
+            : [],
+        );
+        setConditions(
+          Array.isArray(opened.known_conditions)
+            ? (opened.known_conditions as string[])
+            : [],
+        );
       } catch {
         if (active) {
           setAllergies([]);

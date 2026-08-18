@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { todayLocalDate } from '../dates'
+import { openRows, sealRow, openRow } from '../crypto/seal'
 import {
   addDaysToDate,
   anchorPeriodStart,
@@ -26,6 +27,9 @@ export type CycleSettings = {
   period_late: boolean
   late_marked_on: string | null
   prediction_push_days: number
+  /** User-added labels shown with defaults until the user removes them. */
+  custom_symptoms_pre: string[]
+  custom_symptoms_during: string[]
   updated_at: string
 }
 
@@ -89,6 +93,35 @@ const DEFAULT_SETTINGS: Omit<CycleSettings, 'user_id' | 'updated_at'> = {
   period_late: false,
   late_marked_on: null,
   prediction_push_days: 0,
+  custom_symptoms_pre: [],
+  custom_symptoms_during: [],
+}
+
+/** Trim, dedupe, and drop labels that match built-in defaults. */
+export function normalizeCustomSymptoms(
+  list: unknown,
+  defaults: readonly string[],
+): string[] {
+  const defaultKeys = new Set(defaults.map((s) => s.toLowerCase()))
+  const out: string[] = []
+  const seen = new Set<string>()
+  if (!Array.isArray(list)) return out
+  for (const raw of list) {
+    const s = String(raw ?? '').trim()
+    if (!s) continue
+    const key = s.toLowerCase()
+    if (defaultKeys.has(key) || seen.has(key)) continue
+    seen.add(key)
+    out.push(s)
+  }
+  return out
+}
+
+export function mergeSymptomOptions(
+  defaults: readonly string[],
+  custom: readonly string[],
+): string[] {
+  return [...defaults, ...normalizeCustomSymptoms(custom, defaults)]
 }
 
 export type CycleCalendarDay = {
@@ -117,7 +150,11 @@ export async function fetchCycleSettings(userId: string): Promise<CycleSettings>
     .maybeSingle()
 
   if (error) throw error
-  if (data) return normalizeSettings(data as CycleSettings)
+  if (data) {
+    return normalizeSettings(
+      openRow('cycle_settings', data as Record<string, unknown>) as unknown as CycleSettings,
+    )
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from('cycle_settings')
@@ -126,7 +163,9 @@ export async function fetchCycleSettings(userId: string): Promise<CycleSettings>
     .single()
 
   if (insertError) throw insertError
-  return normalizeSettings(inserted as CycleSettings)
+  return normalizeSettings(
+    openRow('cycle_settings', inserted as Record<string, unknown>) as unknown as CycleSettings,
+  )
 }
 
 function normalizeSettings(row: CycleSettings): CycleSettings {
@@ -136,6 +175,14 @@ function normalizeSettings(row: CycleSettings): CycleSettings {
     period_late: row.period_late ?? false,
     late_marked_on: row.late_marked_on ?? null,
     prediction_push_days: row.prediction_push_days ?? 0,
+    custom_symptoms_pre: normalizeCustomSymptoms(
+      row.custom_symptoms_pre,
+      CYCLE_SYMPTOMS_PRE,
+    ),
+    custom_symptoms_during: normalizeCustomSymptoms(
+      row.custom_symptoms_during,
+      CYCLE_SYMPTOMS_DURING,
+    ),
   }
 }
 
@@ -150,19 +197,37 @@ export async function updateCycleSettings(
       | 'period_late'
       | 'late_marked_on'
       | 'prediction_push_days'
+      | 'custom_symptoms_pre'
+      | 'custom_symptoms_during'
     >
   >,
 ): Promise<void> {
   if (!supabase) return
   await fetchCycleSettings(userId)
+  const cleaned: typeof patch = { ...patch }
+  if (cleaned.custom_symptoms_pre) {
+    cleaned.custom_symptoms_pre = normalizeCustomSymptoms(
+      cleaned.custom_symptoms_pre,
+      CYCLE_SYMPTOMS_PRE,
+    )
+  }
+  if (cleaned.custom_symptoms_during) {
+    cleaned.custom_symptoms_during = normalizeCustomSymptoms(
+      cleaned.custom_symptoms_during,
+      CYCLE_SYMPTOMS_DURING,
+    )
+  }
+  const sealed = sealRow('cycle_settings', {
+    ...cleaned,
+  } as Record<string, unknown>)
   const { error } = await supabase
     .from('cycle_settings')
-    .update(patch)
+    .update(sealed)
     .eq('user_id', userId)
   if (error) throw error
 }
 
-export async function fetchCyclePeriods(userId: string, limit = 24): Promise<CyclePeriod[]> {
+export async function fetchCyclePeriods(userId: string, limit = 60): Promise<CyclePeriod[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('cycle_periods')
@@ -172,6 +237,42 @@ export async function fetchCyclePeriods(userId: string, limit = 24): Promise<Cyc
     .limit(limit)
   if (error) throw error
   return (data ?? []) as CyclePeriod[]
+}
+
+/** Periods that overlap a calendar window (including still-open periods). */
+export async function fetchCyclePeriodsInRange(
+  userId: string,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<CyclePeriod[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('cycle_periods')
+    .select('*')
+    .eq('user_id', userId)
+    .lte('started_on', rangeEnd)
+    .or(`ended_on.is.null,ended_on.gte.${rangeStart}`)
+    .order('started_on', { ascending: false })
+    .limit(120)
+  if (error) throw error
+  return (data ?? []) as CyclePeriod[]
+}
+
+/** Periods for calendar paint + prediction (range overlap ∪ recent history). */
+export async function fetchCyclePeriodsForCalendar(
+  userId: string,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<CyclePeriod[]> {
+  const [recent, inRange] = await Promise.all([
+    fetchCyclePeriods(userId, 36),
+    fetchCyclePeriodsInRange(userId, rangeStart, rangeEnd),
+  ])
+  const byId = new Map<string, CyclePeriod>()
+  for (const p of [...recent, ...inRange]) byId.set(p.id, p)
+  return [...byId.values()].sort((a, b) =>
+    a.started_on < b.started_on ? 1 : a.started_on > b.started_on ? -1 : 0,
+  )
 }
 
 export async function fetchOpenPeriod(userId: string): Promise<CyclePeriod | null> {
@@ -282,12 +383,32 @@ export async function updatePeriodStart(
   if (!open || open.id !== periodId) {
     throw new Error('Only the current open period can be edited.')
   }
+
+  // Recalculate cycle length from the previous start so predictions re-anchor
+  // when the real start date differs from what was predicted.
+  const periods = await fetchCyclePeriods(userId, 24)
+  const previous = periods
+    .filter((p) => p.id !== periodId && p.started_on < startedOn)
+    .sort((a, b) => b.started_on.localeCompare(a.started_on))[0]
+  let cycle_length_days: number | null = null
+  if (previous) {
+    const days = daysBetween(previous.started_on, startedOn)
+    if (days >= 15 && days <= 90) cycle_length_days = days
+  }
+
   const { error } = await supabase
     .from('cycle_periods')
-    .update({ started_on: startedOn })
+    .update({ started_on: startedOn, cycle_length_days })
     .eq('id', periodId)
     .eq('user_id', userId)
   if (error) throw error
+
+  await updateCycleSettings(userId, {
+    period_late: false,
+    late_marked_on: null,
+    prediction_push_days: 0,
+    expected_next_cycle_days: null,
+  })
 }
 
 export async function updatePeriodEnd(
@@ -380,15 +501,23 @@ export async function fetchCycleDayLogs(
     .lte('log_date', toDate)
     .order('log_date', { ascending: true })
   if (error) throw error
-  return (data ?? []).map(normalizeDayLog)
+  return openRows(
+    'cycle_day_logs',
+    (data ?? []) as Record<string, unknown>[],
+  ).map(normalizeDayLog)
 }
 
-function normalizeDayLog(row: CycleDayLog): CycleDayLog {
+function normalizeDayLog(row: Record<string, unknown>): CycleDayLog {
   return {
-    ...row,
-    symptoms_pre: row.symptoms_pre ?? [],
-    symptoms_post: row.symptoms_post ?? [],
-    intercourse: row.intercourse ?? false,
+    ...(row as unknown as CycleDayLog),
+    symptoms: Array.isArray(row.symptoms) ? (row.symptoms as string[]) : [],
+    symptoms_pre: Array.isArray(row.symptoms_pre)
+      ? (row.symptoms_pre as string[])
+      : [],
+    symptoms_post: Array.isArray(row.symptoms_post)
+      ? (row.symptoms_post as string[])
+      : [],
+    intercourse: Boolean(row.intercourse),
   }
 }
 
@@ -405,19 +534,19 @@ export async function upsertCycleDayLog(
   },
 ): Promise<void> {
   if (!supabase) return
-  const { error } = await supabase.from('cycle_day_logs').upsert(
-    {
-      user_id: userId,
-      log_date: logDate,
-      flow_level: patch.flow_level ?? null,
-      symptoms: patch.symptoms ?? [],
-      symptoms_pre: patch.symptoms_pre ?? [],
-      symptoms_post: patch.symptoms_post ?? [],
-      intercourse: patch.intercourse ?? false,
-      notes: patch.notes?.trim() || null,
-    },
-    { onConflict: 'user_id,log_date' },
-  )
+  const sealed = sealRow('cycle_day_logs', {
+    user_id: userId,
+    log_date: logDate,
+    flow_level: patch.flow_level ?? null,
+    symptoms: patch.symptoms ?? [],
+    symptoms_pre: patch.symptoms_pre ?? [],
+    symptoms_post: patch.symptoms_post ?? [],
+    intercourse: patch.intercourse ?? false,
+    notes: patch.notes?.trim() || null,
+  })
+  const { error } = await supabase.from('cycle_day_logs').upsert(sealed, {
+    onConflict: 'user_id,log_date',
+  })
   if (error) throw error
 }
 
@@ -427,10 +556,13 @@ export function bleedingDatesFromPeriods(
 ): Set<string> {
   const set = new Set<string>()
   for (const period of periods) {
+    // Closed periods paint their full span; open ones paint through today (or
+    // throughDate) so history stays accurate without inventing future bleeding.
     const end = period.ended_on ?? throughDate
     if (end < period.started_on) continue
+    const paintUntil = period.ended_on != null ? end : throughDate
     let cursor = period.started_on
-    while (cursor <= end && cursor <= throughDate) {
+    while (cursor <= paintUntil) {
       set.add(cursor)
       cursor = addDaysToDate(cursor, 1)
     }
@@ -476,6 +608,8 @@ export function predictedPeriodDatesInRange(
   prediction: PeriodPrediction,
   cycleLengthDays: number,
   periodLengthDays: number,
+  /** Past predicted days before this date are dropped (stale forecasts). */
+  todayFloor: string,
 ): Set<string> {
   const set = new Set<string>()
   if (!prediction.nextStart || cycleLengthDays < 1) return set
@@ -487,7 +621,16 @@ export function predictedPeriodDatesInRange(
     const cycleEnd = addDaysToDate(cycleStart, periodSpan - 1)
     let cursor = cycleStart
     while (cursor <= cycleEnd) {
-      if (cursor >= rangeStart && cursor <= rangeEnd) set.add(cursor)
+      // Never paint overdue/past predictions — once the day has passed without a
+      // logged period, those dashed rings are wrong and should disappear until the
+      // user marks an actual start (which re-anchors nextStart).
+      if (
+        cursor >= rangeStart &&
+        cursor <= rangeEnd &&
+        cursor >= todayFloor
+      ) {
+        set.add(cursor)
+      }
       cursor = addDaysToDate(cursor, 1)
     }
     cycleStart = addDaysToDate(cycleStart, cycleLengthDays)
@@ -515,6 +658,7 @@ export function buildCycleCalendarDays(
     prediction,
     effectiveLen.days,
     settings.avg_period_length,
+    today,
   )
   const open = periods.some((p) => !p.ended_on)
   const logByDate = new Map(logs.map((l) => [l.log_date, l]))

@@ -24,6 +24,10 @@ import type {
 } from '../lib/types'
 import { InteractionAlert } from '../components/InteractionAlert'
 import { MedicationCard } from '../components/MedicationCard'
+import {
+  SameTimeDoseChooseModal,
+  SameTimeDoseGroupBar,
+} from '../components/SameTimeDoseActions'
 import { MedicationForm } from '../components/MedicationForm'
 import { DueNowBanner } from '../components/DueNowBanner'
 import { MissedDosesBanner } from '../components/MissedDosesBanner'
@@ -35,8 +39,16 @@ import { TodayWellnessCheckIn } from '../components/TodayWellnessCheckIn'
 import { fetchMissedDoses, type MissedDoseItem } from '../lib/missedDoses'
 import {
   dismissMissedDosesBanner,
+  getSameTimeDoseMode,
   isMissedDosesBannerDismissed,
+  type SameTimeDoseMode,
 } from '../lib/settings'
+import {
+  buildSameTimePendingGroups,
+  buildScheduleTimeSections,
+  sameTimePendingItemKey,
+  type SameTimeDoseGroup,
+} from '../lib/sameTimeDoseGroups'
 import { todayLocalDate } from '../lib/dates'
 import { isAsNeededMed } from '../lib/medicationSchedule'
 import type { MedicationScheduleType } from '../lib/medicationSchedule'
@@ -67,6 +79,10 @@ export function TodayPage() {
   const [missedBannerDismissed, setMissedBannerDismissed] = useState(() =>
     isMissedDosesBannerDismissed(todayLocalDate()),
   )
+  const [sameTimeMode, setSameTimeMode] = useState<SameTimeDoseMode>(() => getSameTimeDoseMode())
+  const [chooseGroup, setChooseGroup] = useState<SameTimeDoseGroup | null>(null)
+  const [chooseSelected, setChooseSelected] = useState<Set<string>>(() => new Set())
+  const BATCH_DOSE_BUSY = 'batch-dose'
   const { celebrationStreak, dismissCelebration } = useStreakCelebration(
     user?.id,
     streakStats,
@@ -91,6 +107,10 @@ export function TodayPage() {
       navigate('.', { replace: true, state: {} })
     })
   }, [openAddFromNav, navigate])
+
+  useEffect(() => {
+    setSameTimeMode(getSameTimeDoseMode())
+  }, [location.pathname])
 
   const reload = useCallback(async () => {
     if (!user) return
@@ -168,6 +188,60 @@ export function TodayPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh list')
     }
+  }
+
+  async function handleMarkManyDoses(
+    items: { med: MedicationWithStatus; time: string }[],
+    options?: { confirm?: boolean; label?: string },
+  ) {
+    if (!user || items.length === 0) return
+    if (options?.confirm) {
+      const ok = window.confirm(
+        `Take all at ${options.label}?\n\nMark ${items.length} doses as taken.`,
+      )
+      if (!ok) return
+    }
+
+    setBusySlot(BATCH_DOSE_BUSY)
+    setError(null)
+    try {
+      for (const { med, time } of items) {
+        await markDoseTaken(user.id, med.id, time)
+      }
+      await reload()
+      await refreshStreakStats()
+      setBadgeReplayKey((k) => k + 1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not log doses')
+      await reload()
+    } finally {
+      setBusySlot(null)
+    }
+  }
+
+  async function handleTakeAllAtTime(
+    items: { med: MedicationWithStatus; time: string }[],
+    label: string,
+  ) {
+    await handleMarkManyDoses(items, { confirm: true, label })
+  }
+
+  function openChooseGroup(group: SameTimeDoseGroup) {
+    setChooseGroup(group)
+    setChooseSelected(
+      new Set(
+        group.pending.map((item) => sameTimePendingItemKey(item.med.id, item.time)),
+      ),
+    )
+  }
+
+  async function confirmChooseGroup() {
+    if (!chooseGroup) return
+    const items = chooseGroup.pending.filter((item) =>
+      chooseSelected.has(sameTimePendingItemKey(item.med.id, item.time)),
+    )
+    await handleMarkManyDoses(items)
+    setChooseGroup(null)
   }
 
   async function handleMarkTaken(med: MedicationWithStatus, scheduleTime: string) {
@@ -295,6 +369,96 @@ export function TodayPage() {
   const visibleMeds = todayTab === 'scheduled' ? scheduledMeds : prnMeds
   const prnLoggedToday = prnMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0)
   const refillAlerts = getRefillAlerts(medications)
+  const batchDoseBusy = busySlot === BATCH_DOSE_BUSY
+
+  const takeAllGroups = useMemo(
+    () => (todayTab === 'scheduled' ? buildSameTimePendingGroups(visibleMeds) : []),
+    [todayTab, visibleMeds],
+  )
+
+  const scheduleTimeSections = useMemo(
+    () => (todayTab === 'scheduled' ? buildScheduleTimeSections(visibleMeds) : []),
+    [todayTab, visibleMeds],
+  )
+
+  const useTimeSections = todayTab === 'scheduled' && scheduleTimeSections.length > 0
+
+  function renderMedCard(med: MedicationWithStatus, visibleScheduleTime?: string) {
+    return (
+      <MedicationCard
+        medication={med}
+        busySlot={busySlot}
+        visibleScheduleTime={visibleScheduleTime}
+        onMarkTaken={(time) => handleMarkTaken(med, time)}
+        onLogPrn={(payload) => handleLogPrn(med, payload)}
+        onUndo={(slot) => handleUndo(med, slot)}
+        onEdit={() => {
+          setEditing(med)
+          setFormOpen(true)
+        }}
+        onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
+        onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
+        onDelete={() => handleDelete(med)}
+      />
+    )
+  }
+
+  function renderSameTimeBar(group: SameTimeDoseGroup) {
+    if (sameTimeMode === 'individual' || group.pending.length < 2) return null
+    return (
+      <SameTimeDoseGroupBar
+        group={group}
+        mode={sameTimeMode}
+        disabled={busySlot != null}
+        busy={batchDoseBusy}
+        onTakeAll={() => void handleTakeAllAtTime(group.pending, group.label)}
+        onChoose={() => openChooseGroup(group)}
+      />
+    )
+  }
+
+  function renderDoseList() {
+    if (useTimeSections) {
+      return scheduleTimeSections.map((section) => (
+        <li key={section.time} className="today-time-section">
+          <div className="today-time-section-header">
+            <h4 className="today-time-section-title">{section.label}</h4>
+            {renderSameTimeBar({
+              time: section.time,
+              label: section.label,
+              pending: section.pending,
+            })}
+          </div>
+          <ul className="med-list med-list-nested">
+            {section.meds.map((med) => (
+              <li key={`${med.id}-${section.time}`}>{renderMedCard(med, section.time)}</li>
+            ))}
+          </ul>
+        </li>
+      ))
+    }
+
+    return (
+      <>
+        {sameTimeMode !== 'individual' && takeAllGroups.length > 0 ? (
+          <li className="today-same-time-batch-row">
+            {takeAllGroups.map((group) => (
+              <div key={group.time} className="today-same-time-batch-card">
+                <div>
+                  <strong>{group.label}</strong>
+                  <p className="field-hint">{group.pending.length} doses ready</p>
+                </div>
+                {renderSameTimeBar(group)}
+              </div>
+            ))}
+          </li>
+        ) : null}
+        {visibleMeds.map((med) => (
+          <li key={med.id}>{renderMedCard(med)}</li>
+        ))}
+      </>
+    )
+  }
 
   const summaryText =
     todayTab === 'scheduled'
@@ -416,26 +580,37 @@ export function TodayPage() {
               todayTab === 'scheduled' ? 'today-tab-scheduled' : 'today-tab-prn'
             }
           >
-            {visibleMeds.map((med) => (
-              <li key={med.id}>
-                <MedicationCard
-                  medication={med}
-                  busySlot={busySlot}
-                  onMarkTaken={(time) => handleMarkTaken(med, time)}
-                  onLogPrn={(payload) => handleLogPrn(med, payload)}
-                  onUndo={(slot) => handleUndo(med, slot)}
-                  onEdit={() => {
-                    setEditing(med)
-                    setFormOpen(true)
-                  }}
-                  onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
-                  onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
-                  onDelete={() => handleDelete(med)}
-                />
-              </li>
-            ))}
+            {renderDoseList()}
           </ul>
         )}
+
+        <SameTimeDoseChooseModal
+          open={chooseGroup != null}
+          group={chooseGroup}
+          selectedKeys={chooseSelected}
+          busy={batchDoseBusy}
+          onToggle={(key) => {
+            setChooseSelected((prev) => {
+              const next = new Set(prev)
+              if (next.has(key)) next.delete(key)
+              else next.add(key)
+              return next
+            })
+          }}
+          onSelectAll={() => {
+            if (!chooseGroup) return
+            setChooseSelected(
+              new Set(
+                chooseGroup.pending.map((item) =>
+                  sameTimePendingItemKey(item.med.id, item.time),
+                ),
+              ),
+            )
+          }}
+          onClearAll={() => setChooseSelected(new Set())}
+          onConfirm={() => void confirmChooseGroup()}
+          onClose={() => setChooseGroup(null)}
+        />
 
         <TodayWellnessCheckIn />
       </main>

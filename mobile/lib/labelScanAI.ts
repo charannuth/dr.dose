@@ -3,6 +3,7 @@ import type { MedicationScheduleType } from './medicationSchedule';
 import type { PrescriptionPrefill } from './prescriptionScan';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim();
+/** Prefer a current Flash model; 2.0-flash remains a fallback if needed. */
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
 type AiLabelPayload = {
@@ -95,45 +96,90 @@ function parseAiJson(text: string): AiLabelPayload | null {
   }
 }
 
-/** True when a Gemini API key is configured for optional label enhancement. */
+/** True when a Gemini API key is baked into this build. */
 export function isLabelAiAvailable(): boolean {
   return Boolean(GEMINI_API_KEY);
 }
 
+export type LabelAiError = {
+  status?: number;
+  message: string;
+};
+
+let lastLabelAiError: LabelAiError | null = null;
+
+export function getLastLabelAiError(): LabelAiError | null {
+  return lastLabelAiError;
+}
+
 /**
- * Optional: send OCR text to Google Gemini (free tier) for structured extraction.
+ * Optional: send OCR text to Google Gemini for structured extraction.
  * Only the text is sent — not the photo. Returns null when AI is unavailable or fails.
+ * Callers should ask the user before invoking (label text is health-related).
  */
 export async function parseLabelWithAI(rawText: string): Promise<PrescriptionPrefill | null> {
-  if (!GEMINI_API_KEY || rawText.trim().length < 12) return null;
+  lastLabelAiError = null;
+  if (!GEMINI_API_KEY || rawText.trim().length < 12) {
+    if (!GEMINI_API_KEY) {
+      lastLabelAiError = { message: 'AI key not configured in this build.' };
+    }
+    return null;
+  }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: `${AI_PROMPT}\n\n--- OCR TEXT ---\n${rawText.slice(0, 8000)}` }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: 'application/json',
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY,
       },
-    }),
-  });
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: `${AI_PROMPT}\n\n--- OCR TEXT ---\n${rawText.slice(0, 8000)}` }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+  } catch (e) {
+    lastLabelAiError = {
+      message: e instanceof Error ? e.message : 'Network error talking to AI.',
+    };
+    return null;
+  }
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    let detail = `AI request failed (${response.status}).`;
+    try {
+      const errJson = (await response.json()) as { error?: { message?: string } };
+      if (errJson.error?.message) detail = errJson.error.message;
+    } catch {
+      // ignore body parse
+    }
+    lastLabelAiError = { status: response.status, message: detail };
+    return null;
+  }
 
   const data = (await response.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return null;
+  if (!text) {
+    lastLabelAiError = { message: 'AI returned an empty response.' };
+    return null;
+  }
 
   const parsed = parseAiJson(text);
-  if (!parsed) return null;
+  if (!parsed) {
+    lastLabelAiError = { message: 'AI returned text that was not valid JSON.' };
+    return null;
+  }
 
   const route = normalizeRoute(parsed.route);
   const scheduleType = normalizeScheduleType(parsed.scheduleType);

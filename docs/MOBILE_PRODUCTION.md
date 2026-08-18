@@ -151,7 +151,7 @@ Purpose: app functionality. No data sold to third parties.
 
 ### Export compliance
 
-`ITSAppUsesNonExemptEncryption: false` is set in `app.json` (standard HTTPS only). Answer **No** to custom encryption on the App Store questionnaire.
+`ITSAppUsesNonExemptEncryption: false` in `app.json` claims the usual mass-market exemption (standard crypto for protecting user data / HTTPS). This does **not** disable the zero-access vault — PHI is still encrypted on-device before sync. Only set this to `true` if you file matching export-compliance documentation in App Store Connect and put the issued code in Info.plist.
 
 ### Review notes
 

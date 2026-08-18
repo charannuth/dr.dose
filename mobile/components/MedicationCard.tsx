@@ -30,6 +30,8 @@ type MedicationCardProps = {
   busySlot: string | null;
   /** When set (Custom sort mode), renders a drag handle in the card header. */
   dragHandle?: ReactNode;
+  /** When set, only show the dose slot at this schedule time (HH:mm). */
+  visibleScheduleTime?: string;
 };
 
 function makeMedicationCardStyles(colors: ColorPalette) {
@@ -256,10 +258,18 @@ export function MedicationCard({
   onDelete,
   busySlot,
   dragHandle,
+  visibleScheduleTime,
 }: MedicationCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
+
+  const slotSource = visibleScheduleTime
+    ? medication.slots.filter((s) => s.time === visibleScheduleTime)
+    : medication.slots;
+  if (visibleScheduleTime && slotSource.length === 0) {
+    return null;
+  }
 
   // Tile accent: user-picked color or route default. Background uses the soft tint.
   const accentColor = colors[tileFgKey(medication.tile_color, medication.medication_route)];
@@ -291,7 +301,7 @@ export function MedicationCard({
   const supplementPrn = asNeeded && isSupplement(medication);
   // Untaken doses first (by time), taken doses drop to the bottom of the card so
   // finished morning doses don't sit above doses still due later in the day.
-  const orderedSlots = [...medication.slots].sort((a, b) => {
+  const orderedSlots = [...slotSource].sort((a, b) => {
     if (a.taken !== b.taken) return a.taken ? 1 : -1;
     return a.time.localeCompare(b.time);
   });

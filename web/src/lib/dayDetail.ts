@@ -1,3 +1,4 @@
+import { openRows } from './crypto/seal'
 import { supabase } from './supabase'
 import {
   formatScheduleTime,
@@ -60,19 +61,24 @@ export async function fetchDayDetail(
   if (medsResult.error) throw medsResult.error
   if (logsResult.error) throw logsResult.error
 
-  const medications = filterMedicationsActiveOn(
-    (medsResult.data ?? []) as Medication[],
-    date,
-  )
+  const allMeds = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
+  const allLogs = openRows(
+    'dose_logs',
+    (logsResult.data ?? []) as Record<string, unknown>[],
+  ) as DoseLog[]
+  const medications = filterMedicationsActiveOn(allMeds, date)
   const logBySlot = new Map<string, DoseLog>()
-  for (const log of (logsResult.data ?? []) as DoseLog[]) {
+  for (const log of allLogs) {
     logBySlot.set(`${log.medication_id}|${log.schedule_time}`, log)
   }
 
   const slots: DayDoseSlot[] = []
   for (const med of medications) {
     if (isAsNeededMed(med)) {
-      const prnLogs = ((logsResult.data ?? []) as DoseLog[])
+      const prnLogs = allLogs
         .filter((log) => log.medication_id === med.id)
         .sort((a, b) => a.schedule_time.localeCompare(b.schedule_time))
       for (const log of prnLogs) {

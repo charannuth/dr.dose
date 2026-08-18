@@ -20,6 +20,10 @@ import {
   validatePasswordMatch,
 } from '../lib/passwordPolicy';
 import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult';
+import {
+  stashPendingLoginPassword,
+  stashPendingRewrapPassword,
+} from '../lib/crypto/pendingVaultPassword';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
@@ -240,12 +244,16 @@ export function AuthScreen() {
 
       if (mode === 'forgot-reset') {
         if (!assertNewPassword(newPassword, confirmPassword)) return;
+        // New password may not unlock the old vault wrap — keep rewrap + try unlock.
+        stashPendingRewrapPassword(newPassword);
+        stashPendingLoginPassword(newPassword);
         await updatePassword(newPassword);
         setMessage('Password updated. You are signed in.');
         return;
       }
 
       if (mode === 'signin') {
+        stashPendingLoginPassword(password);
         await signIn(email, password);
         return;
       }
@@ -259,6 +267,7 @@ export function AuthScreen() {
           return;
         }
         if (result.status === 'needs_verification') {
+          stashPendingLoginPassword(password);
           switchMode('signup-verify');
           setMessage('We emailed you an 8-digit verification code.');
         }
@@ -275,6 +284,7 @@ export function AuthScreen() {
     resetMessages();
     setBusy(true);
     try {
+      // Password already stashed at signup; VaultProvider unlocks on session.
       await verifySignupOtp(email, code);
     } catch (err) {
       setError(authErrorMessage(err));

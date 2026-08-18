@@ -10,17 +10,19 @@ import {
   deleteCycleDayLog,
   deleteMostRecentPeriod,
   softClearCycleDayLog,
-  CYCLE_SYMPTOMS_POST,
   CYCLE_SYMPTOMS_PRE,
   endPeriod,
   fetchCycleDayLogs,
   fetchCyclePeriods,
   fetchCycleSettings,
   fetchOpenPeriod,
+  cycleDayInPeriod,
   cycleLengthSourceLabel,
   effectiveCycleLengthForPrediction,
   getCyclePrediction,
   markPeriodLate,
+  mergeSymptomOptions,
+  normalizeCustomSymptoms,
   recentCycleLengths,
   undoLastPeriodEnd,
   updatePeriodStart,
@@ -65,15 +67,17 @@ function SymptomChipGroup({
   selected,
   onChange,
   disabled = false,
+  onAddPress,
 }: {
   title: string
   options: readonly string[]
   selected: string[]
   onChange: (next: string[]) => void
   disabled?: boolean
+  onAddPress?: () => void
 }) {
   return (
-    <fieldset className="cycle-symptom-group" disabled={disabled}>
+    <fieldset className="cycle-symptom-group">
       <legend>{title}</legend>
       <div className="cycle-symptom-chips">
         {options.map((symptom) => (
@@ -88,8 +92,133 @@ function SymptomChipGroup({
             {symptom}
           </button>
         ))}
+        {onAddPress ? (
+          <button
+            type="button"
+            className="wellness-chip cycle-symptom-add-chip"
+            aria-label={`Add custom ${title.toLowerCase()}`}
+            onClick={onAddPress}
+          >
+            +
+          </button>
+        ) : null}
       </div>
     </fieldset>
+  )
+}
+
+function EditCustomSymptomsDialog({
+  open,
+  defaults,
+  custom,
+  onCancel,
+  onSave,
+}: {
+  open: boolean
+  defaults: readonly string[]
+  custom: string[]
+  onCancel: () => void
+  onSave: (next: string[]) => void
+}) {
+  const [draftCustoms, setDraftCustoms] = useState<string[]>([])
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setDraftCustoms(normalizeCustomSymptoms(custom, defaults))
+    setAdding(false)
+    setDraft('')
+  }, [open, custom, defaults])
+
+  if (!open) return null
+
+  function commitDraft() {
+    const next = normalizeCustomSymptoms([...draftCustoms, draft], defaults)
+    setDraftCustoms(next)
+    setDraft('')
+    setAdding(false)
+  }
+
+  function handleDone() {
+    const merged = adding
+      ? normalizeCustomSymptoms([...draftCustoms, draft], defaults)
+      : normalizeCustomSymptoms(draftCustoms, defaults)
+    onSave(merged)
+  }
+
+  return (
+    <div className="cycle-symptom-edit-backdrop" role="presentation" onClick={onCancel}>
+      <div
+        className="cycle-symptom-edit-dialog cycle-symptom-edit-dialog--mini"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add symptoms"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="cycle-symptom-edit-header">
+          <h3>Add symptoms</h3>
+          <button
+            type="button"
+            className="cycle-symptom-edit-close"
+            aria-label="Close"
+            onClick={onCancel}
+          >
+            ×
+          </button>
+        </div>
+        <div className="cycle-symptom-chips">
+          {draftCustoms.map((label) => (
+            <span key={label} className="wellness-chip cycle-custom-symptom-chip">
+              {label}
+              <button
+                type="button"
+                className="cycle-custom-symptom-remove"
+                aria-label={`Remove ${label}`}
+                onClick={() =>
+                  setDraftCustoms((prev) => prev.filter((s) => s !== label))
+                }
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {adding ? (
+            <input
+              className="wellness-chip wellness-chip-custom cycle-symptom-dashed-input"
+              value={draft}
+              placeholder="Type symptom…"
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitDraft()
+                }
+              }}
+              onBlur={() => {
+                if (draft.trim()) commitDraft()
+                else setAdding(false)
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="wellness-chip cycle-symptom-add-chip"
+              aria-label="Add a symptom"
+              onClick={() => setAdding(true)}
+            >
+              +
+            </button>
+          )}
+        </div>
+        <div className="cycle-symptom-edit-actions cycle-symptom-edit-actions--center">
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleDone}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -114,6 +243,24 @@ export function CycleTrackerPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [periodEndDraft, setPeriodEndDraft] = useState(today)
+  const [editSymptomsKind, setEditSymptomsKind] = useState<'pre' | 'during' | null>(null)
+
+  const preOptions = useMemo(
+    () =>
+      mergeSymptomOptions(CYCLE_SYMPTOMS_PRE, [
+        ...(settings?.custom_symptoms_pre ?? []),
+        ...symptomsPre,
+      ]),
+    [settings?.custom_symptoms_pre, symptomsPre],
+  )
+  const duringOptions = useMemo(
+    () =>
+      mergeSymptomOptions(CYCLE_SYMPTOMS_DURING, [
+        ...(settings?.custom_symptoms_during ?? []),
+        ...symptomsDuring,
+      ]),
+    [settings?.custom_symptoms_during, symptomsDuring],
+  )
 
   const logMonth = useMemo(() => {
     const d = new Date(`${selectedDate}T12:00:00`)
@@ -183,8 +330,7 @@ export function CycleTrackerPanel({
           log.intercourse ||
           log.notes?.trim() ||
           log.symptoms.length > 0 ||
-          log.symptoms_pre.length > 0 ||
-          log.symptoms_post.length > 0,
+          log.symptoms_pre.length > 0,
       )
     },
     [dayLogs],
@@ -196,7 +342,6 @@ export function CycleTrackerPanel({
   const [flow, setFlow] = useState<FlowLevel | ''>('')
   const [symptomsPre, setSymptomsPre] = useState<string[]>([])
   const [symptomsDuring, setSymptomsDuring] = useState<string[]>([])
-  const [symptomsPost, setSymptomsPost] = useState<string[]>([])
   const [intercourse, setIntercourse] = useState(false)
   const [notes, setNotes] = useState('')
 
@@ -204,10 +349,15 @@ export function CycleTrackerPanel({
     setFlow(selectedLog?.flow_level ?? '')
     setSymptomsPre(selectedLog?.symptoms_pre ?? [])
     setSymptomsDuring(selectedLog?.symptoms ?? [])
-    setSymptomsPost(selectedLog?.symptoms_post ?? [])
     setIntercourse(selectedLog?.intercourse ?? false)
     setNotes(selectedLog?.notes ?? '')
   }, [selectedLog, selectedDate])
+
+  const selectedInPeriod = useMemo(
+    () => cycleDayInPeriod(selectedDate, periods) != null,
+    [selectedDate, periods],
+  )
+  const flowEnabled = selectedInPeriod && !isFutureDay
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true)
@@ -227,10 +377,10 @@ export function CycleTrackerPanel({
     if (!user || isFutureDay) return
     await runAction(async () => {
       await upsertCycleDayLog(user.id, selectedDate, {
-        flow_level: flow || null,
-        symptoms: symptomsDuring,
+        flow_level: flowEnabled ? flow || null : null,
+        symptoms: selectedInPeriod ? symptomsDuring : [],
         symptoms_pre: symptomsPre,
-        symptoms_post: symptomsPost,
+        symptoms_post: [],
         intercourse,
         notes,
       })
@@ -241,7 +391,6 @@ export function CycleTrackerPanel({
     setFlow('')
     setSymptomsPre([])
     setSymptomsDuring([])
-    setSymptomsPost([])
     setIntercourse(false)
     setNotes('')
   }
@@ -251,7 +400,6 @@ export function CycleTrackerPanel({
       setFlow(selectedLog.flow_level ?? '')
       setSymptomsPre(selectedLog.symptoms_pre ?? [])
       setSymptomsDuring(selectedLog.symptoms ?? [])
-      setSymptomsPost(selectedLog.symptoms_post ?? [])
       setIntercourse(selectedLog.intercourse ?? false)
       setNotes(selectedLog.notes ?? '')
       return
@@ -272,14 +420,15 @@ export function CycleTrackerPanel({
     ) {
       return
     }
-    const keepFlow = flow || selectedLog?.flow_level || null
+    const keepFlow = flowEnabled
+      ? flow || selectedLog?.flow_level || null
+      : null
     await runAction(async () => {
       if (selectedLog || keepFlow) {
         await softClearCycleDayLog(user.id, selectedDate, keepFlow)
       }
       setSymptomsPre([])
       setSymptomsDuring([])
-      setSymptomsPost([])
       setIntercourse(false)
       setNotes('')
     })
@@ -309,7 +458,6 @@ export function CycleTrackerPanel({
     cycleDayHasOptionalData(selectedLog) ||
     symptomsPre.length > 0 ||
     symptomsDuring.length > 0 ||
-    symptomsPost.length > 0 ||
     intercourse ||
     Boolean(notes.trim())
   const selectedDayHasSaved = cycleDayHasAnyData(selectedLog)
@@ -391,8 +539,15 @@ export function CycleTrackerPanel({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy}
-            onClick={() => void runAction(() => startPeriod(user!.id))}
+            disabled={busy || isFutureDay}
+            onClick={() =>
+              void runAction(() =>
+                startPeriod(
+                  user!.id,
+                  selectedDate <= today ? selectedDate : today,
+                ),
+              )
+            }
           >
             Period started
           </button>
@@ -741,54 +896,87 @@ export function CycleTrackerPanel({
           Sexual intercourse
         </label>
 
-        <fieldset className="cycle-flow-fieldset">
-          <legend>Flow (menstruation)</legend>
-          <div className="cycle-flow-options">
-            {FLOW_OPTIONS.map((opt) => (
-              <label key={opt.value} className="cycle-flow-chip">
+        {flowEnabled ? (
+          <fieldset className="cycle-flow-fieldset">
+            <legend>Flow (menstruation)</legend>
+            <div className="cycle-flow-options">
+              {FLOW_OPTIONS.map((opt) => (
+                <label key={opt.value} className="cycle-flow-chip">
+                  <input
+                    type="radio"
+                    name="flow"
+                    checked={flow === opt.value}
+                    disabled={isFutureDay}
+                    onChange={() => setFlow(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+              <label className="cycle-flow-chip">
                 <input
                   type="radio"
                   name="flow"
-                  checked={flow === opt.value}
+                  checked={flow === ''}
                   disabled={isFutureDay}
-                  onChange={() => setFlow(opt.value)}
+                  onChange={() => setFlow('')}
                 />
-                {opt.label}
+                None
               </label>
-            ))}
-            <label className="cycle-flow-chip">
-              <input
-                type="radio"
-                name="flow"
-                checked={flow === ''}
-                disabled={isFutureDay}
-                onChange={() => setFlow('')}
-              />
-              None
-            </label>
-          </div>
-        </fieldset>
+            </div>
+          </fieldset>
+        ) : !isFutureDay ? (
+          <p className="field-hint">
+            Flow tracking unlocks after you mark Period started for this day (or a
+            day that covers it).
+          </p>
+        ) : null}
 
         <SymptomChipGroup
           title="Pre-menstrual symptoms"
-          options={CYCLE_SYMPTOMS_PRE}
+          options={preOptions}
           selected={symptomsPre}
           onChange={setSymptomsPre}
           disabled={isFutureDay}
+          onAddPress={() => setEditSymptomsKind('pre')}
         />
         <SymptomChipGroup
           title="During period symptoms"
-          options={CYCLE_SYMPTOMS_DURING}
+          options={duringOptions}
           selected={symptomsDuring}
           onChange={setSymptomsDuring}
-          disabled={isFutureDay}
+          disabled={isFutureDay || !selectedInPeriod}
+          onAddPress={() => setEditSymptomsKind('during')}
         />
-        <SymptomChipGroup
-          title="Post-menstrual symptoms"
-          options={CYCLE_SYMPTOMS_POST}
-          selected={symptomsPost}
-          onChange={setSymptomsPost}
-          disabled={isFutureDay}
+        {!selectedInPeriod && !isFutureDay ? (
+          <p className="field-hint">
+            During-period toggles unlock once this day is covered by a period.
+          </p>
+        ) : null}
+
+        <EditCustomSymptomsDialog
+          open={editSymptomsKind != null}
+          defaults={
+            editSymptomsKind === 'during' ? CYCLE_SYMPTOMS_DURING : CYCLE_SYMPTOMS_PRE
+          }
+          custom={
+            editSymptomsKind === 'during'
+              ? (settings?.custom_symptoms_during ?? [])
+              : (settings?.custom_symptoms_pre ?? [])
+          }
+          onCancel={() => setEditSymptomsKind(null)}
+          onSave={(next) => {
+            if (!user || !editSymptomsKind) return
+            const kind = editSymptomsKind
+            setEditSymptomsKind(null)
+            void runAction(() =>
+              updateCycleSettings(
+                user.id,
+                kind === 'during'
+                  ? { custom_symptoms_during: next }
+                  : { custom_symptoms_pre: next },
+              ),
+            )
+          }}
         />
 
         <label className="cycle-notes-label">

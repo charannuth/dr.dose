@@ -18,7 +18,9 @@ import type {
 } from '../../lib/tracking/calendarTypes'
 import type { TrackerId } from '../../lib/tracking/catalog'
 
-const MAX_VISIBLE_EVENTS = 3
+const MAX_VISIBLE_EVENTS = 4
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 type TrackingCalendarProps = {
   today: string
@@ -41,47 +43,22 @@ function dayButtonClasses(
   cell: TrackingCalendarCell | undefined,
   selectedDate: string,
   today: string,
-  compact: boolean,
-  detailed: boolean,
+  variant: 'month' | 'week' | 'day' | 'compact',
 ): string {
   const parts = ['tracking-calendar-day', 'cycle-calendar-day']
-  if (compact) parts.push('tracking-calendar-day--compact')
-  if (detailed) parts.push('tracking-calendar-day--detailed')
+  parts.push(`tracking-calendar-day--${variant}`)
   if (!cell) return parts.join(' ')
   for (const c of cell.classNames) parts.push(c)
   if (cell.date === selectedDate) parts.push('selected')
   if (cell.date === today) parts.push('today')
-  if (detailed && cell.events.length > 0) parts.push('has-events')
+  if ((variant === 'day' || variant === 'week') && cell.events.length > 0) {
+    parts.push('has-events')
+  }
   return parts.join(' ')
 }
 
-function DayEvents({
-  events,
-  detailed,
-}: {
-  events: TrackingCalendarEvent[]
-  detailed: boolean
-}) {
-  if (events.length === 0) {
-    if (detailed) return null
-    return (
-      <span className="cycle-day-markers" aria-hidden>
-        {/* compact markers rendered by parent */}
-      </span>
-    )
-  }
-
-  if (!detailed) {
-    return (
-      <span className="cycle-day-markers" aria-hidden>
-        {events.some((e) => e.tone === 'cycle-symptom' || e.tone === 'hrt') && (
-          <span className="cycle-marker-heart">♥</span>
-        )}
-        <span className="cycle-marker-symptom" />
-      </span>
-    )
-  }
-
+function DayEvents({ events }: { events: TrackingCalendarEvent[] }) {
+  if (events.length === 0) return null
   const visible = events.slice(0, MAX_VISIBLE_EVENTS)
   const overflow = events.length - visible.length
 
@@ -103,7 +80,7 @@ function DayEvents({
   )
 }
 
-function DayCellContent({
+function DayMarkers({
   cell,
   detailed,
 }: {
@@ -122,7 +99,7 @@ function DayCellContent({
     )
   }
 
-  return <DayEvents events={events} detailed />
+  return <DayEvents events={events} />
 }
 
 function MonthGrid({
@@ -134,6 +111,7 @@ function MonthGrid({
   today,
   compact,
   detailed,
+  showTitle,
   onSelectDate,
 }: {
   year: number
@@ -144,6 +122,7 @@ function MonthGrid({
   today: string
   compact: boolean
   detailed: boolean
+  showTitle: boolean
   onSelectDate: (date: string) => void
 }) {
   const firstDow = new Date(year, month - 1, 1).getDay()
@@ -155,17 +134,25 @@ function MonthGrid({
 
   const monthTitle = new Date(year, month - 1, 1).toLocaleDateString(undefined, {
     month: compact ? 'short' : 'long',
-    year: compact ? '2-digit' : 'numeric',
+    year: compact ? 'numeric' : undefined,
   })
+  const headers = WEEKDAYS_SHORT
+  const variant = compact ? 'compact' : 'month'
 
   return (
     <div
-      className={`tracking-calendar-month${compact ? ' tracking-calendar-month--compact' : ''}${detailed ? ' tracking-calendar-month--detailed' : ''}`}
+      className={`tracking-calendar-month${compact ? ' tracking-calendar-month--compact' : ''}${detailed ? ' tracking-calendar-month--detailed' : ''}${!compact ? ' tracking-calendar-month--spacious' : ''}`}
     >
-      {compact && <h5 className="tracking-calendar-month-label">{monthTitle}</h5>}
+      {showTitle && (
+        <h5
+          className={`tracking-calendar-month-label${!compact ? ' tracking-calendar-month-label--hero' : ''}`}
+        >
+          {monthTitle}
+        </h5>
+      )}
       <div className="tracking-calendar-weekdays cycle-calendar-weekdays">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-          <span key={d}>{compact ? d.slice(0, 1) : d}</span>
+        {headers.map((d, i) => (
+          <span key={`${d}-${i}`}>{d}</span>
         ))}
       </div>
       <div className="tracking-calendar-grid cycle-calendar-grid">
@@ -174,24 +161,23 @@ function MonthGrid({
             <button
               key={cell.date}
               type="button"
-              className={dayButtonClasses(
+              className={`${dayButtonClasses(
                 cells.get(cell.date),
                 selectedDate,
                 today,
-                compact,
-                detailed,
-              )}
+                variant,
+              )}${detailed ? ' tracking-calendar-day--detailed' : ''}`}
               onClick={() => onSelectDate(cell.date)}
             >
               <span className="tracking-calendar-day-header">
                 <span className="cycle-day-num">{cell.label}</span>
               </span>
-              <DayCellContent cell={cells.get(cell.date)} detailed={detailed} />
+              <DayMarkers cell={cells.get(cell.date)} detailed={detailed} />
             </button>
           ) : (
             <span
               key={`pad-${year}-${month}-${i}`}
-              className="tracking-calendar-day cycle-calendar-day--empty tracking-calendar-day--empty"
+              className={`tracking-calendar-day cycle-calendar-day--empty tracking-calendar-day--empty tracking-calendar-day--${variant}`}
             />
           ),
         )}
@@ -200,39 +186,71 @@ function MonthGrid({
   )
 }
 
-function StripView({
+function StripLayout({
   dates,
   cells,
   selectedDate,
   today,
+  range,
   onSelectDate,
 }: {
   dates: string[]
   cells: Map<string, TrackingCalendarCell>
   selectedDate: string
   today: string
+  range: CalendarViewRange
   onSelectDate: (date: string) => void
 }) {
+  if (range === 'day') {
+    const date = dates[0]
+    if (!date) return null
+    const d = new Date(`${date}T12:00:00`)
+    const weekday = d.toLocaleDateString(undefined, { weekday: 'long' })
+    const cell = cells.get(date)
+    return (
+      <div className="tracking-calendar-focus">
+        <button
+          type="button"
+          className={dayButtonClasses(cell, selectedDate, today, 'day')}
+          onClick={() => onSelectDate(date)}
+        >
+          <span className="tracking-calendar-focus-dow">{weekday}</span>
+          <span className="cycle-day-num">{d.getDate()}</span>
+          <DayMarkers cell={cell} detailed />
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="tracking-calendar-strip">
-      {dates.map((date) => {
-        const d = new Date(`${date}T12:00:00`)
-        const cell = cells.get(date)
-        return (
-          <button
-            key={date}
-            type="button"
-            className={dayButtonClasses(cell, selectedDate, today, false, false)}
-            onClick={() => onSelectDate(date)}
-          >
-            <span className="tracking-calendar-strip-dow">
+    <div className="tracking-calendar-strip-wrap">
+      <div className="tracking-calendar-weekdays cycle-calendar-weekdays tracking-calendar-strip-headers">
+        {dates.map((date) => {
+          const d = new Date(`${date}T12:00:00`)
+          return (
+            <span key={`h-${date}`}>
               {d.toLocaleDateString(undefined, { weekday: 'short' })}
             </span>
-            <span className="cycle-day-num">{d.getDate()}</span>
-            <DayCellContent cell={cell} detailed={false} />
-          </button>
-        )
-      })}
+          )
+        })}
+      </div>
+      <div className="tracking-calendar-strip">
+        {dates.map((date) => {
+          const d = new Date(`${date}T12:00:00`)
+          const cell = cells.get(date)
+          return (
+            <button
+              key={date}
+              type="button"
+              className={dayButtonClasses(cell, selectedDate, today, 'week')}
+              onClick={() => onSelectDate(date)}
+            >
+              <span className="cycle-day-num">{d.getDate()}</span>
+              <DayMarkers cell={cell} detailed />
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -263,6 +281,7 @@ export function TrackingCalendar({
   const isOverview = source === CALENDAR_SOURCE_ALL
   const detailedMonth =
     !window.isStripLayout && window.months.length === 1 && (isOverview || range === 'month')
+  const multiMonthCompact = window.months.length >= 6
 
   function renderSourceOptions(meta: CalendarSourceMeta) {
     if (meta.support === 'full') {
@@ -294,40 +313,52 @@ export function TrackingCalendar({
           ←
         </button>
 
-        <label className="tracking-calendar-control">
-          <span className="tracking-calendar-control-label">View</span>
-          <select
-            value={range}
-            onChange={(e) => onRangeChange(e.target.value as CalendarViewRange)}
-          >
-            {CALENDAR_RANGE_OPTIONS.filter((o) => o.group === 'short').map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-            <optgroup label="Longer ranges">
-              {CALENDAR_RANGE_OPTIONS.filter((o) => o.group === 'long').map((o) => (
+        <div className="tracking-calendar-toolbar-center">
+          <label className="tracking-calendar-control">
+            <span className="tracking-calendar-control-label">View</span>
+            <select
+              value={range}
+              onChange={(e) => onRangeChange(e.target.value as CalendarViewRange)}
+            >
+              {CALENDAR_RANGE_OPTIONS.filter((o) => o.group === 'short').map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </optgroup>
-          </select>
-        </label>
-
-        {sourceOptions.length > 1 && (
-          <label className="tracking-calendar-control">
-            <span className="tracking-calendar-control-label">Show</span>
-            <select
-              value={source ?? ''}
-              onChange={(e) => onSourceChange(e.target.value as CalendarSourceId)}
-            >
-              {sourceOptions.map(renderSourceOptions)}
+              <optgroup label="Longer ranges">
+                {CALENDAR_RANGE_OPTIONS.filter((o) => o.group === 'long').map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
-        )}
 
-        <h4 className="tracking-calendar-title">{window.title}</h4>
+          {sourceOptions.length > 1 && (
+            <label className="tracking-calendar-control">
+              <span className="tracking-calendar-control-label">Show</span>
+              <select
+                value={source ?? ''}
+                onChange={(e) => onSourceChange(e.target.value as CalendarSourceId)}
+              >
+                {sourceOptions.map(renderSourceOptions)}
+              </select>
+            </label>
+          )}
+
+          <h4 className="tracking-calendar-title">{window.title}</h4>
+
+          {anchor !== today && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm tracking-calendar-today-jump"
+              onClick={() => onAnchorChange(today)}
+            >
+              Today
+            </button>
+          )}
+        </div>
 
         <button
           type="button"
@@ -372,14 +403,23 @@ export function TrackingCalendar({
 
       {showGrid && (
         <div
-          className={`tracking-calendar-body${window.isStripLayout ? ' tracking-calendar-body--strip' : ''}${window.months.length > 1 ? ' tracking-calendar-body--multi' : ''}${detailedMonth ? ' tracking-calendar-body--detailed' : ''}`}
+          className={[
+            'tracking-calendar-body',
+            window.isStripLayout ? 'tracking-calendar-body--strip' : '',
+            window.months.length > 1 ? 'tracking-calendar-body--multi' : '',
+            multiMonthCompact ? 'tracking-calendar-body--multi-compact' : '',
+            detailedMonth ? 'tracking-calendar-body--detailed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           {window.isStripLayout ? (
-            <StripView
+            <StripLayout
               dates={window.dates}
               cells={data.cells}
               selectedDate={selectedDate}
               today={today}
+              range={range}
               onSelectDate={onSelectDate}
             />
           ) : window.months.length === 1 ? (
@@ -392,23 +432,31 @@ export function TrackingCalendar({
               today={today}
               compact={false}
               detailed={detailedMonth}
+              showTitle={false}
               onSelectDate={onSelectDate}
             />
           ) : (
-            <div className="tracking-calendar-multi">
+            <div
+              className={`tracking-calendar-multi${multiMonthCompact ? ' tracking-calendar-multi--compact' : ''}`}
+            >
               {window.months.map((block) => (
-                <MonthGrid
+                <div
                   key={`${block.year}-${block.month}`}
-                  year={block.year}
-                  month={block.month}
-                  dates={block.dates}
-                  cells={data.cells}
-                  selectedDate={selectedDate}
-                  today={today}
-                  compact
-                  detailed={false}
-                  onSelectDate={onSelectDate}
-                />
+                  className={multiMonthCompact ? 'tracking-calendar-mini-slot' : undefined}
+                >
+                  <MonthGrid
+                    year={block.year}
+                    month={block.month}
+                    dates={block.dates}
+                    cells={data.cells}
+                    selectedDate={selectedDate}
+                    today={today}
+                    compact={multiMonthCompact}
+                    detailed={false}
+                    showTitle
+                    onSelectDate={onSelectDate}
+                  />
+                </div>
               ))}
             </div>
           )}

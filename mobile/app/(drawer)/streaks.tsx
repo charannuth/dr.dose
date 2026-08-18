@@ -19,6 +19,7 @@ import { routes } from '../../lib/routes';
 import type { StreakStats } from '../../lib/streaks';
 import { StreakCard } from '../../components/streaks/StreakCard';
 import { StreakBadges } from '../../components/streaks/StreakBadges';
+import { StreakCelebration } from '../../components/StreakCelebration';
 
 function emptyStats(): StreakStats {
   return {
@@ -85,6 +86,7 @@ export default function StreaksScreen() {
   const router = useRouter();
   const { stats, loading, error, reload } = useStreakStats(user?.id);
   const [refreshing, setRefreshing] = useState(false);
+  const [previewStreakDays, setPreviewStreakDays] = useState<number | null>(null);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -97,6 +99,13 @@ export default function StreaksScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {previewStreakDays != null ? (
+        <StreakCelebration
+          key={previewStreakDays}
+          streakDays={previewStreakDays}
+          onDismiss={() => setPreviewStreakDays(null)}
+        />
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -110,7 +119,8 @@ export default function StreaksScreen() {
         <View style={styles.headerCard}>
           <Text style={styles.h1}>Streaks</Text>
           <Text style={styles.sub}>
-            Current streak, tulip badges, and what it takes to earn each one.
+            Current streak, tulip badges, and what it takes to earn each one. Tap a badge
+            to preview its celebration.
           </Text>
         </View>
 
@@ -124,7 +134,10 @@ export default function StreaksScreen() {
 
         {!loading && stats ? (
           <>
-            <StreakBadges longestStreak={stats.longestStreak} />
+            <StreakBadges
+              longestStreak={stats.longestStreak}
+              onPreviewBadge={(badge) => setPreviewStreakDays(badge.minDays)}
+            />
 
             {!stats.hasMedications ? (
               <View style={styles.card}>

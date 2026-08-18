@@ -16,6 +16,7 @@ import {
   type DosageWizardValues,
 } from '../../lib/doseByRoute';
 import type { Medication, MedicationTrackingSync } from '../../lib/types';
+import { asStringArray } from '../../lib/asStringArray';
 import {
   defaultTileColorForRoute,
   isTileColorId,
@@ -91,15 +92,15 @@ export function buildDosageWizardState(
       initial?.max_doses_per_day != null ? String(initial.max_doses_per_day) : '',
     prnTypicalAmount: '',
     prnHintInput: '',
-    prnAmountHints: [...(initial?.prn_amount_hints ?? [])],
+    prnAmountHints: asStringArray(initial?.prn_amount_hints),
     prnSymptomHintInput: '',
-    prnSymptomHints: [...(initial?.prn_symptom_hints ?? [])],
+    prnSymptomHints: asStringArray(initial?.prn_symptom_hints),
   };
 
   if (!initial) return base;
 
   if (scheduleType === 'as_needed') {
-    const hints = [...(initial.prn_amount_hints ?? [])];
+    const hints = asStringArray(initial.prn_amount_hints);
     let typical = initial.dose_pills?.trim() ?? '';
     if (typical === 'Varies') typical = '';
     if (typical && hints.includes(typical)) {

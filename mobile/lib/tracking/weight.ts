@@ -1,6 +1,7 @@
+import { openRow, openRows, sealRow } from '../crypto/seal'
 import { supabase } from '../supabase'
 import { todayLocalDate } from '../dates'
-import type { MedicalRecord } from '../medicalRecords'
+import { fetchMedicalRecord } from '../medicalRecords'
 
 export type WeightGoalDirection = 'lose' | 'gain'
 export type WeightGoalRate = 'mild' | 'regular' | 'extreme'
@@ -96,6 +97,35 @@ function parseMaybeNumber(value: unknown): number | null {
   return null
 }
 
+function settingsFromRow(row: Record<string, unknown>): WeightSettings {
+  const opened = openRow('weight_settings', row)
+  return {
+    user_id: opened.user_id as string,
+    baseline_height_cm: parseMaybeNumber(opened.baseline_height_cm),
+    baseline_weight_kg: parseMaybeNumber(opened.baseline_weight_kg),
+    goal_direction: opened.goal_direction as WeightGoalDirection,
+    goal_rate: opened.goal_rate as WeightGoalRate,
+    activity_level: opened.activity_level as WeightActivityLevel,
+    log_frequency_days: Number(opened.log_frequency_days),
+    log_frequency_anchor_date: opened.log_frequency_anchor_date as string,
+    sync_weight_to_medical_records: Boolean(opened.sync_weight_to_medical_records),
+    updated_at: opened.updated_at as string,
+  }
+}
+
+function logFromRow(row: Record<string, unknown>): WeightLog {
+  const opened = openRow('weight_logs', row)
+  return {
+    ...(opened as unknown as WeightLog),
+    weight_kg: parseMaybeNumber(opened.weight_kg),
+  }
+}
+
+function stringifyNumber(value: number | null | undefined): string | null {
+  if (value == null) return null
+  return String(value)
+}
+
 export async function fetchWeightSettings(userId: string): Promise<WeightSettings> {
   const today = todayLocalDate()
   if (!supabase) {
@@ -121,67 +151,40 @@ export async function fetchWeightSettings(userId: string): Promise<WeightSetting
 
   if (error) throw error
   if (data) {
-    return {
-      user_id: data.user_id,
-      baseline_height_cm: parseMaybeNumber(data.baseline_height_cm),
-      baseline_weight_kg: parseMaybeNumber(data.baseline_weight_kg),
-      goal_direction: data.goal_direction,
-      goal_rate: data.goal_rate,
-      activity_level: data.activity_level,
-      log_frequency_days: Number(data.log_frequency_days),
-      log_frequency_anchor_date: data.log_frequency_anchor_date,
-      sync_weight_to_medical_records: Boolean(data.sync_weight_to_medical_records),
-      updated_at: data.updated_at,
-    }
+    return settingsFromRow(data as Record<string, unknown>)
   }
 
   // Seed baseline from medical_records if they exist.
-  let medical: MedicalRecord | null = null
+  let baseline_height_cm: number | null = null
+  let baseline_weight_kg: number | null = null
   try {
-    const res = await supabase
-      .from('medical_records')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
-    medical = (res.data ?? null) as MedicalRecord | null
+    const medical = await fetchMedicalRecord(userId)
+    baseline_height_cm = medical?.height_cm ?? null
+    baseline_weight_kg = medical?.weight_kg ?? null
   } catch {
-    medical = null
+    // keep nulls
   }
 
-  const baseline_height_cm = medical?.height_cm ?? null
-  const baseline_weight_kg = medical?.weight_kg ?? null
-
-  const insert = {
+  const sealed = sealRow('weight_settings', {
     user_id: userId,
-    baseline_height_cm,
-    baseline_weight_kg,
+    baseline_height_cm: stringifyNumber(baseline_height_cm),
+    baseline_weight_kg: stringifyNumber(baseline_weight_kg),
     goal_direction: 'lose' as WeightGoalDirection,
     goal_rate: 'mild' as WeightGoalRate,
     activity_level: 'light' as WeightActivityLevel,
     log_frequency_days: 1,
     log_frequency_anchor_date: today,
     sync_weight_to_medical_records: false,
-  }
+  })
 
   const { data: inserted, error: insertError } = await supabase
     .from('weight_settings')
-    .insert(insert)
+    .insert(sealed)
     .select('*')
     .single()
 
   if (insertError) throw insertError
-  return {
-    user_id: inserted.user_id,
-    baseline_height_cm: parseMaybeNumber(inserted.baseline_height_cm),
-    baseline_weight_kg: parseMaybeNumber(inserted.baseline_weight_kg),
-    goal_direction: inserted.goal_direction,
-    goal_rate: inserted.goal_rate,
-    activity_level: inserted.activity_level,
-    log_frequency_days: Number(inserted.log_frequency_days),
-    log_frequency_anchor_date: inserted.log_frequency_anchor_date,
-    sync_weight_to_medical_records: Boolean(inserted.sync_weight_to_medical_records),
-    updated_at: inserted.updated_at,
-  }
+  return settingsFromRow(inserted as Record<string, unknown>)
 }
 
 export async function updateWeightSettings(
@@ -206,8 +209,27 @@ export async function updateWeightSettings(
   if (patch.log_frequency_days != null) {
     updatePatch.log_frequency_anchor_date = today
   }
+  if ('baseline_height_cm' in updatePatch) {
+    updatePatch.baseline_height_cm = stringifyNumber(
+      updatePatch.baseline_height_cm as number | null,
+    )
+  }
+  if ('baseline_weight_kg' in updatePatch) {
+    updatePatch.baseline_weight_kg = stringifyNumber(
+      updatePatch.baseline_weight_kg as number | null,
+    )
+  }
 
-  const { error } = await supabase.from('weight_settings').update(updatePatch).eq('user_id', userId)
+  const sealed = sealRow('weight_settings', {
+    user_id: userId,
+    ...updatePatch,
+  })
+  const { user_id: _uid, ...payload } = sealed
+
+  const { error } = await supabase
+    .from('weight_settings')
+    .update(payload)
+    .eq('user_id', userId)
 
   if (error) throw error
   return fetchWeightSettings(userId)
@@ -229,7 +251,13 @@ export async function fetchWeightLogs(
     .order('log_date', { ascending: true })
 
   if (error) throw error
-  return (data ?? []) as WeightLog[]
+  return openRows(
+    'weight_logs',
+    (data ?? []) as Record<string, unknown>[],
+  ).map((row) => ({
+    ...(row as unknown as WeightLog),
+    weight_kg: parseMaybeNumber(row.weight_kg),
+  }))
 }
 
 export async function fetchWeightLog(
@@ -244,7 +272,8 @@ export async function fetchWeightLog(
     .eq('log_date', logDate)
     .maybeSingle()
   if (error) throw error
-  return (data ?? null) as WeightLog | null
+  if (!data) return null
+  return logFromRow(data as Record<string, unknown>)
 }
 
 export async function upsertWeightLog(
@@ -265,21 +294,21 @@ export async function upsertWeightLog(
 ): Promise<void> {
   if (!supabase) return
 
-  const { error } = await supabase.from('weight_logs').upsert(
-    {
-      user_id: userId,
-      log_date: logDate,
-      weight_kg: patch.weight_kg ?? null,
-      breakfast_calories: patch.breakfast_calories ?? null,
-      lunch_calories: patch.lunch_calories ?? null,
-      dinner_calories: patch.dinner_calories ?? null,
-      did_workout: patch.did_workout ?? false,
-      workout_calories_burned: patch.workout_calories_burned ?? null,
-      notes: patch.notes?.trim() || null,
-    },
-    { onConflict: 'user_id,log_date' },
-  )
+  const sealed = sealRow('weight_logs', {
+    user_id: userId,
+    log_date: logDate,
+    weight_kg: stringifyNumber(patch.weight_kg ?? null),
+    breakfast_calories: patch.breakfast_calories ?? null,
+    lunch_calories: patch.lunch_calories ?? null,
+    dinner_calories: patch.dinner_calories ?? null,
+    did_workout: patch.did_workout ?? false,
+    workout_calories_burned: patch.workout_calories_burned ?? null,
+    notes: patch.notes?.trim() || null,
+  })
+
+  const { error } = await supabase.from('weight_logs').upsert(sealed, {
+    onConflict: 'user_id,log_date',
+  })
 
   if (error) throw error
 }
-

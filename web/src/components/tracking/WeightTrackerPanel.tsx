@@ -6,6 +6,7 @@ import type { BodyMetricUnit } from '../../lib/bodyMetrics'
 import { fetchMedicalRecord, updateBodyMetricUnits } from '../../lib/medicalRecords'
 import type { MedicalRecord } from '../../lib/medicalRecords'
 import { CycleDayStrip } from './CycleDayStrip'
+import { sealRow } from '../../lib/crypto/seal'
 import { supabase } from '../../lib/supabase'
 import {
   computeDailyTargets,
@@ -299,9 +300,13 @@ export function WeightTrackerPanel({
       // Optional: keep medical_records.weight_kg in sync.
       if (settings.sync_weight_to_medical_records && weight_kg != null) {
         if (!supabase) throw new Error('Supabase is not configured')
+        const sealed = sealRow('medical_records', {
+          user_id: user.id,
+          weight_kg: String(weight_kg),
+        })
         const { error } = await supabase
           .from('medical_records')
-          .upsert({ user_id: user.id, weight_kg }, { onConflict: 'user_id' })
+          .upsert(sealed, { onConflict: 'user_id' })
         if (error) throw error
       }
 

@@ -1,3 +1,4 @@
+import { openRows } from './crypto/seal'
 import { supabase } from './supabase'
 import {
   addDaysToDateString,
@@ -79,9 +80,15 @@ export async function fetchMissedDoses(userId: string): Promise<MissedDoseItem[]
   if (medsResult.error) throw medsResult.error
   if (logsResult.error) throw logsResult.error
 
-  const medications = (medsResult.data ?? []) as Medication[]
+  const medications = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
   const logsByDate = new Map<string, DoseLog[]>()
-  for (const log of (logsResult.data ?? []) as DoseLog[]) {
+  for (const log of openRows(
+    'dose_logs',
+    (logsResult.data ?? []) as Record<string, unknown>[],
+  ) as DoseLog[]) {
     const list = logsByDate.get(log.taken_on) ?? []
     list.push(log)
     logsByDate.set(log.taken_on, list)

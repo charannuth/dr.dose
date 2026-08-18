@@ -10,8 +10,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import { getActiveStreakBadge } from '../lib/streakBadges';
+import { getActiveStreakBadge, bouquetTulipCount } from '../lib/streakBadges';
 import { StreakCelebrationScene } from './streaks/StreakCelebrationScene';
+import { TulipBadgeIcon } from './streaks/TulipBadgeIcon';
 
 type Props = {
   streakDays: number;
@@ -76,8 +77,8 @@ function makeCelebrationStyles(colors: ColorPalette) {
 }
 
 export function StreakCelebration({ streakDays, onDismiss }: Props) {
-  const dual = streakDays >= 7;
   const badge = getActiveStreakBadge(streakDays);
+  const tulipCount = bouquetTulipCount(badge?.minDays ?? 1);
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.88)).current;
   const styles = useThemedStyles(makeCelebrationStyles);
@@ -116,7 +117,15 @@ export function StreakCelebration({ streakDays, onDismiss }: Props) {
             style={styles.card}
           >
             <View style={styles.illustration}>
-              <StreakCelebrationScene dual={dual} />
+              {tulipCount <= 2 ? (
+                <StreakCelebrationScene dual={tulipCount >= 2} />
+              ) : (
+                <TulipBadgeIcon
+                  earned
+                  minDays={badge?.minDays ?? streakDays}
+                  size={112}
+                />
+              )}
             </View>
             <Text style={styles.title}>{label}</Text>
             <Text style={styles.body}>

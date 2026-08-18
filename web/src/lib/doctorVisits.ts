@@ -1,4 +1,5 @@
 import { formatDisplayDate, todayLocalDate } from './dates'
+import { openRow, openRows, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
 
 export const DOCTOR_APPOINTMENT_TYPES = [
@@ -194,7 +195,10 @@ export async function fetchDoctorVisits(userId: string, limit = 48): Promise<Doc
     .order('visit_date', { ascending: false })
     .limit(limit)
   if (error) throw error
-  return (data ?? []) as DoctorVisit[]
+  return openRows(
+    'doctor_visits',
+    (data ?? []) as Record<string, unknown>[],
+  ) as unknown as DoctorVisit[]
 }
 
 export async function fetchDoctorVisitsForCalendar(
@@ -224,7 +228,10 @@ export async function fetchDoctorVisitsOnDate(
     .eq('visit_date', visitDate)
     .order('visit_time', { ascending: true })
   if (error) throw error
-  return (data ?? []) as DoctorVisit[]
+  return openRows(
+    'doctor_visits',
+    (data ?? []) as Record<string, unknown>[],
+  ) as unknown as DoctorVisit[]
 }
 
 export async function insertDoctorVisit(
@@ -234,7 +241,7 @@ export async function insertDoctorVisit(
   if (!supabase) throw new Error('Supabase is not configured')
   if (!input.visit_date.trim()) throw new Error('Visit date is required.')
 
-  const payload = {
+  const sealed = sealRow('doctor_visits', {
     user_id: userId,
     visit_date: input.visit_date.trim(),
     visit_time: input.visit_time.trim() || null,
@@ -245,16 +252,16 @@ export async function insertDoctorVisit(
     reason: input.reason.trim() || null,
     notes: input.notes.trim() || null,
     follow_up_date: input.follow_up_date.trim() || null,
-  }
+  })
 
   const { data, error } = await supabase
     .from('doctor_visits')
-    .insert(payload)
+    .insert(sealed)
     .select('*')
     .single()
 
   if (error) throw error
-  return data as DoctorVisit
+  return openRow('doctor_visits', data as Record<string, unknown>) as unknown as DoctorVisit
 }
 
 export async function updateDoctorVisit(
@@ -265,7 +272,8 @@ export async function updateDoctorVisit(
   if (!supabase) throw new Error('Supabase is not configured')
   if (!input.visit_date.trim()) throw new Error('Visit date is required.')
 
-  const payload = {
+  const sealed = sealRow('doctor_visits', {
+    id: visitId,
     visit_date: input.visit_date.trim(),
     visit_time: input.visit_time.trim() || null,
     appointment_type: input.appointment_type || null,
@@ -275,7 +283,9 @@ export async function updateDoctorVisit(
     reason: input.reason.trim() || null,
     notes: input.notes.trim() || null,
     follow_up_date: input.follow_up_date.trim() || null,
-  }
+  })
+
+  const { id: _id, ...payload } = sealed
 
   const { data, error } = await supabase
     .from('doctor_visits')
@@ -286,7 +296,7 @@ export async function updateDoctorVisit(
     .single()
 
   if (error) throw error
-  return data as DoctorVisit
+  return openRow('doctor_visits', data as Record<string, unknown>) as unknown as DoctorVisit
 }
 
 export async function deleteDoctorVisit(userId: string, visitId: string): Promise<void> {

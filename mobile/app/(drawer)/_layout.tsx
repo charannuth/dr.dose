@@ -9,7 +9,9 @@ import { accentBgKey, accentForIndex, fonts, radii, spacing } from '../../consta
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
 import { AddEntryTypeSheet, type AddEntryType } from '../../components/AddEntryTypeSheet';
 import { LoadingScreen } from '../../components/LoadingScreen';
+import { VaultGate } from '../../components/VaultGate';
 import { useAuth } from '../../hooks/useAuth';
+import { useVault } from '../../hooks/useVault';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { DemoTour } from '../../components/DemoTour';
@@ -138,6 +140,7 @@ function DrawerNavItem({
 function DrawerContent(props: DrawerContentProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { lock: lockVault } = useVault();
   const insets = useSafeAreaInsets();
   const { styles, colors, state, navigation, descriptors, ...drawerProps } = props;
   const streaksRef = useRef<View>(null);
@@ -203,6 +206,7 @@ function DrawerContent(props: DrawerContentProps) {
 
       <Pressable
         onPress={async () => {
+          await lockVault();
           await signOut();
           navigation.closeDrawer();
           router.replace(routes.login);
@@ -231,7 +235,11 @@ export default function DrawerLayout() {
     return <LoadingScreen />;
   }
 
-  return <DrawerLayoutInner user={user} />;
+  return (
+    <VaultGate>
+      <DrawerLayoutInner user={user} />
+    </VaultGate>
+  );
 }
 
 function DrawerLayoutInner({

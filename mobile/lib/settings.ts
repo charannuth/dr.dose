@@ -9,6 +9,31 @@ export type ReminderSettings = {
 
 export type MedSort = 'time' | 'name' | 'custom';
 
+/** How to mark multiple scheduled doses that share the same time on Today. */
+export type SameTimeDoseMode = 'individual' | 'take_all' | 'choose';
+
+export const SAME_TIME_DOSE_MODES: {
+  value: SameTimeDoseMode;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: 'individual',
+    label: 'One at a time',
+    hint: 'Use each medication’s Mark taken button. No batch shortcuts.',
+  },
+  {
+    value: 'take_all',
+    label: 'Take all at once',
+    hint: 'When 2+ doses share a time, offer a single Take all action for that time.',
+  },
+  {
+    value: 'choose',
+    label: 'Pick which doses',
+    hint: 'Choose which medications you took when several are due at the same time.',
+  },
+];
+
 /** Bundled reminder chimes (see app.json expo-notifications "sounds"). */
 export type ReminderSound = 'default' | 'chime' | 'bell' | 'alert';
 
@@ -45,6 +70,8 @@ const KEYS = {
   updateDismissed: 'mt-update-dismissed',
   onboarding: 'mt-onboarding-v1',
   onboardingLegacy: 'mt-onboarding-v1',
+  labelAiEnabled: 'mt-label-ai-enabled',
+  sameTimeDoseMode: 'mt-same-time-dose-mode',
 } as const;
 
 let timezoneCache: string | null = null;
@@ -123,6 +150,20 @@ export async function getMedSort(): Promise<MedSort> {
 
 export async function setMedSort(sort: MedSort): Promise<void> {
   await AsyncStorage.setItem(KEYS.medSort, sort);
+}
+
+export async function getSameTimeDoseMode(): Promise<SameTimeDoseMode> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.sameTimeDoseMode);
+    if (raw === 'individual' || raw === 'take_all' || raw === 'choose') return raw;
+    return 'choose';
+  } catch {
+    return 'choose';
+  }
+}
+
+export async function setSameTimeDoseMode(mode: SameTimeDoseMode): Promise<void> {
+  await AsyncStorage.setItem(KEYS.sameTimeDoseMode, mode);
 }
 
 const REMINDER_SOUND_IDS = REMINDER_SOUNDS.map((s) => s.id);
@@ -207,3 +248,20 @@ export async function isOnboardingDone(userId: string): Promise<boolean> {
 export async function setOnboardingDone(userId: string): Promise<void> {
   await AsyncStorage.setItem(onboardingKey(userId), '1');
 }
+
+/**
+ * Cloud label AI (Gemini) is OFF by default — OCR never leaves the device unless
+ * the user explicitly opts in (sends label text to Google).
+ */
+export async function isLabelAiOptInEnabled(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(KEYS.labelAiEnabled)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export async function setLabelAiOptInEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.labelAiEnabled, enabled ? '1' : '0');
+}
+

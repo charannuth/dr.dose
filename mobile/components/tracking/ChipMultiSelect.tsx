@@ -7,13 +7,22 @@ type Props = {
   selected: string[];
   onChange: (next: string[]) => void;
   disabled?: boolean;
+  /** Trailing "+" chip that opens the add-symptoms popup. */
+  onAddPress?: () => void;
 };
 
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
-export function ChipMultiSelect({ title, options, selected, onChange, disabled }: Props) {
+export function ChipMultiSelect({
+  title,
+  options,
+  selected,
+  onChange,
+  disabled,
+  onAddPress,
+}: Props) {
   const trackingStyles = useTrackingStyles();
   return (
     <View style={disabled ? trackingStyles.disabled : undefined}>
@@ -36,6 +45,16 @@ export function ChipMultiSelect({ title, options, selected, onChange, disabled }
             </Pressable>
           );
         })}
+        {onAddPress ? (
+          <Pressable
+            onPress={onAddPress}
+            style={trackingStyles.chip}
+            accessibilityRole="button"
+            accessibilityLabel={`Add custom ${title.toLowerCase()}`}
+          >
+            <Text style={[trackingStyles.chipText, { fontWeight: '700' }]}>+</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

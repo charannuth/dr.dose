@@ -4,6 +4,31 @@ export type ReminderSettings = {
   enabled: boolean
 }
 
+/** How to mark multiple scheduled doses that share the same time on Today. */
+export type SameTimeDoseMode = 'individual' | 'take_all' | 'choose'
+
+export const SAME_TIME_DOSE_MODES: {
+  value: SameTimeDoseMode
+  label: string
+  hint: string
+}[] = [
+  {
+    value: 'individual',
+    label: 'One at a time',
+    hint: 'Use each medication’s Mark taken button. No batch shortcuts.',
+  },
+  {
+    value: 'take_all',
+    label: 'Take all at once',
+    hint: 'When 2+ doses share a time, offer a single Take all action for that time.',
+  },
+  {
+    value: 'choose',
+    label: 'Pick which doses',
+    hint: 'Choose which medications you took when several are due at the same time.',
+  },
+]
+
 const KEYS = {
   theme: 'mt-theme',
   timezone: 'mt-timezone',
@@ -11,6 +36,7 @@ const KEYS = {
   missedBanner: 'mt-missed-banner-dismiss',
   onboarding: 'mt-onboarding-v1',
   onboardingLegacy: 'mt-onboarding-v1',
+  sameTimeDoseMode: 'mt-same-time-dose-mode',
 } as const
 
 function onboardingKey(userId: string): string {
@@ -91,4 +117,18 @@ export function isMissedDosesBannerDismissed(forDate: string): boolean {
 
 export function dismissMissedDosesBanner(forDate: string): void {
   localStorage.setItem(`${KEYS.missedBanner}:${forDate}`, '1')
+}
+
+export function getSameTimeDoseMode(): SameTimeDoseMode {
+  try {
+    const raw = localStorage.getItem(KEYS.sameTimeDoseMode)
+    if (raw === 'individual' || raw === 'take_all' || raw === 'choose') return raw
+    return 'choose'
+  } catch {
+    return 'choose'
+  }
+}
+
+export function setSameTimeDoseMode(mode: SameTimeDoseMode): void {
+  localStorage.setItem(KEYS.sameTimeDoseMode, mode)
 }

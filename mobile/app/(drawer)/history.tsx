@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -205,6 +206,18 @@ export default function HistoryScreen() {
 
   async function handleUndoLate(slot: DayDoseSlot) {
     if (!slot.doseLogId) return;
+    const confirmed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Undo this dose?',
+        `Remove the “taken” mark for ${slot.medicationName}? You can log it again later.`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Undo', style: 'destructive', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!confirmed) return;
+
     setRedeemError(null);
     setRedeemBusy(`${slot.medicationId}-${slot.scheduleTime}`);
     try {

@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-08-18** (`7530a40`) — Enable silent vault encryption locked to the login password.
+
 - **2026-07-09** (`20ea389`) — Sync local iOS build number after TestFlight Build 37.
 
 - **2026-07-09** (`69998c1`) — Improve label scan review flow and pharmacy notes parsing.

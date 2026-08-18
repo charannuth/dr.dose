@@ -575,6 +575,137 @@ textarea:focus-visible {
   gap: 1rem;
 }
 
+.today-time-section {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.today-time-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.today-time-section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.med-list-nested {
+  gap: 0.75rem;
+}
+
+.today-same-time-batch-row {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.today-same-time-batch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.same-time-dose-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.same-time-dose-modal {
+  width: min(28rem, 100%);
+  max-height: min(85vh, 32rem);
+  overflow: auto;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.15rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.same-time-dose-modal h4 {
+  margin: 0 0 0.35rem;
+}
+
+.same-time-dose-modal-quick {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.same-time-dose-modal-list {
+  list-style: none;
+  margin: 0.65rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.same-time-dose-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.same-time-dose-modal-row.checked {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 35%, var(--surface));
+}
+
+.same-time-dose-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.same-time-dose-modal-actions .btn-primary {
+  flex: 2;
+}
+
+.account-same-time-doses {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-same-time-doses legend {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.account-field-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.45rem 0;
+  cursor: pointer;
+}
+
+.account-field-radio input {
+  margin-top: 0.2rem;
+}
+
 .med-card {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
@@ -4734,6 +4865,39 @@ textarea:focus-visible {
   text-align: center;
 }
 
+button.streak-badge-tile {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.streak-badge-tile-previewable:hover,
+.streak-badge-tile-previewable:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.streak-badge-preview-hint {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 0.15rem;
+}
+
+.streak-badge-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
 .streak-badge-earned {
   border-color: var(--account-purple-border);
   background: color-mix(in srgb, var(--account-purple-soft) 55%, var(--surface));
@@ -6012,17 +6176,20 @@ textarea:focus-visible {
 .cycle-calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  font-size: 0.7rem;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-muted);
   text-align: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .cycle-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 0.45rem 0.4rem;
   margin-bottom: 1.25rem;
 }
 
@@ -6072,10 +6239,24 @@ textarea:focus-visible {
 
 .tracking-calendar-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
+  align-items: flex-start;
   gap: 0.35rem 0.5rem;
   margin-bottom: 0.65rem;
+}
+
+.tracking-calendar-toolbar-center {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+}
+
+.tracking-calendar-today-jump {
+  font-weight: 600;
 }
 
 .tracking-calendar-control {
@@ -6120,107 +6301,190 @@ textarea:focus-visible {
 }
 
 .tracking-calendar-body--strip {
-  overflow-x: auto;
+  margin-top: 0.35rem;
   padding-bottom: 0.25rem;
+}
+
+.tracking-calendar-focus {
+  width: 100%;
+}
+
+.tracking-calendar-focus .tracking-calendar-day--day {
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.tracking-calendar-focus-dow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tracking-calendar-strip-wrap {
+  width: 100%;
+}
+
+.tracking-calendar-strip-headers {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  grid-template-columns: none;
+}
+
+.tracking-calendar-strip-headers > span {
+  flex: 1;
+  text-align: center;
 }
 
 .tracking-calendar-strip {
   display: flex;
   gap: 0.35rem;
-  min-width: min-content;
+  width: 100%;
 }
 
-.tracking-calendar-strip .tracking-calendar-day {
-  flex: 0 0 auto;
-  min-width: 3.25rem;
+.tracking-calendar-strip .tracking-calendar-day--week {
+  flex: 1;
+  min-width: 0;
+  min-height: 5.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0.45rem 0.35rem;
+  padding: 0.35rem 0.25rem;
 }
 
-.tracking-calendar-strip-dow {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+.tracking-calendar-day--week .tracking-calendar-day-events,
+.tracking-calendar-day--day .tracking-calendar-day-events {
+  width: 100%;
 }
 
 .tracking-calendar-body--multi .tracking-calendar-multi {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-  gap: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tracking-calendar-multi--compact {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 0.65rem;
+}
+
+.tracking-calendar-mini-slot {
+  min-width: 0;
 }
 
 .tracking-calendar-month--compact .tracking-calendar-grid {
-  gap: 2px;
+  gap: 3px;
   margin-bottom: 0;
 }
 
 .tracking-calendar-month--compact .tracking-calendar-day--compact {
-  min-height: 1.65rem;
-  font-size: 0.7rem;
-  padding: 0.15rem;
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 0.1rem;
+  font-size: 0.65rem;
+  border-radius: 0.35rem;
+}
+
+.tracking-calendar-day--month {
+  min-height: 4.75rem;
+  border-radius: 0.75rem;
+  padding: 0.4rem 0.25rem 0.35rem;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
 }
 
 .tracking-calendar-month-label {
-  margin: 0 0 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-align: center;
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+}
+
+.tracking-calendar-month-label--hero {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0.15rem 0 0.65rem;
+}
+
+.tracking-calendar-month--spacious .tracking-calendar-grid {
+  gap: 0.5rem 0.4rem;
 }
 
 .tracking-calendar-body--detailed .tracking-calendar-grid {
-  gap: 1px;
-  background: var(--border-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  gap: 0.5rem 0.4rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .tracking-calendar-day--detailed {
   aspect-ratio: unset;
-  min-height: 6.75rem;
+  min-height: 7.5rem;
   align-items: stretch;
   justify-content: flex-start;
-  padding: 0.35rem 0.4rem 0.45rem;
-  background: var(--surface);
-  border-radius: 0;
+  padding: 0.45rem 0.4rem 0.5rem;
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+  border-radius: 0.75rem;
   overflow: hidden;
+  border: none;
 }
 
-.tracking-calendar-day--detailed.today .cycle-day-num {
+.tracking-calendar-day--detailed.today .cycle-day-num,
+.tracking-calendar-day--month.today .cycle-day-num,
+.tracking-calendar-day--week.today .cycle-day-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.35rem;
-  min-height: 1.35rem;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
   border-radius: 999px;
-  background: var(--brand-crimson);
+  background: #e11d48;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.tracking-calendar-day--detailed.selected .cycle-day-num,
+.tracking-calendar-day--month.selected .cycle-day-num,
+.tracking-calendar-day--week.selected .cycle-day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
 }
 
 .tracking-calendar-day-header {
   display: flex;
   width: 100%;
-  justify-content: flex-end;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.tracking-calendar-day--detailed .cycle-day-num {
-  font-size: 0.78rem;
+.tracking-calendar-day--detailed .cycle-day-num,
+.tracking-calendar-day--month .cycle-day-num {
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
 .tracking-calendar-day-events {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
-  margin-top: 0.2rem;
+  margin-top: 0.35rem;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -6229,10 +6493,10 @@ textarea:focus-visible {
 .tracking-calendar-event {
   display: block;
   width: 100%;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1.25;
-  padding: 0.14rem 0.35rem;
-  border-radius: 4px;
+  padding: 0.18rem 0.4rem;
+  border-radius: 5px;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -6491,11 +6755,11 @@ textarea:focus-visible {
 
 @media (min-width: 640px) {
   .tracking-calendar-day--detailed {
-    min-height: 7.25rem;
+    min-height: 8.25rem;
   }
 
   .tracking-calendar-event {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
   }
 }
 
@@ -6519,42 +6783,81 @@ textarea:focus-visible {
 .cycle-legend-swatch {
   width: 0.85rem;
   height: 0.85rem;
-  border-radius: 999px;
+  border-radius: 0.25rem;
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .cycle-legend-swatch.logged-period {
-  border: 2px solid #e11d48;
-  background: color-mix(in srgb, #e11d48 25%, transparent);
+  border: 2px solid #f472b6;
+  background: #4c0519;
 }
 
 .cycle-legend-swatch.predicted-period {
-  border: 2px dashed #e11d48;
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent 0 2px,
-    color-mix(in srgb, #e11d48 20%, transparent) 2px 4px
-  );
+  border: 2px dashed #e879f9;
+  background: #3b0764;
 }
 
 .cycle-legend-swatch.phase-follicular {
-  background: color-mix(in srgb, #1e3a8a 35%, var(--surface));
+  background: #064e3b;
+  border-color: #34d399;
 }
 
 .cycle-legend-swatch.phase-ovulation {
-  background: color-mix(in srgb, #7dd3fc 55%, var(--surface));
+  background: #422006;
+  border-color: #fbbf24;
 }
 
 .cycle-legend-swatch.phase-luteal {
-  background: color-mix(in srgb, #f9a8d4 55%, var(--surface));
+  background: #312e81;
+  border-color: #a78bfa;
+}
+
+.cycle-legend-swatch.phase-menstrual {
+  background: color-mix(in srgb, #f43f5e 35%, var(--surface));
+  border-color: #fb7185;
+}
+
+.cycle-legend-swatch.cycle-symptom {
+  background: #431407;
+  border-color: #fdba74;
+}
+
+[data-theme='light'] .cycle-legend-swatch.logged-period {
+  border-color: #f9a8d4;
+  background: #fce7f3;
+}
+
+[data-theme='light'] .cycle-legend-swatch.predicted-period {
+  border-color: #f9a8d4;
+  background: #fdf2f8;
+}
+
+[data-theme='light'] .cycle-legend-swatch.phase-follicular {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+[data-theme='light'] .cycle-legend-swatch.phase-ovulation {
+  background: #fef9c3;
+  border-color: #facc15;
+}
+
+[data-theme='light'] .cycle-legend-swatch.phase-luteal {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+
+[data-theme='light'] .cycle-legend-swatch.cycle-symptom {
+  background: #fff7ed;
+  border-color: #fdba74;
 }
 
 .cycle-legend-dot.symptom {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: #9333ea;
+  background: #fdba74;
   border: none;
 }
 
@@ -6566,21 +6869,21 @@ textarea:focus-visible {
 
 .cycle-calendar-day {
   position: relative;
-  aspect-ratio: 1;
-  min-height: 2.5rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  aspect-ratio: auto;
+  min-height: 4.5rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   cursor: pointer;
   color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  padding: 0.15rem;
+  justify-content: flex-start;
+  gap: 0.15rem;
+  padding: 0.4rem 0.25rem 0.35rem;
 }
 
 .cycle-day-num {
@@ -6604,7 +6907,7 @@ textarea:focus-visible {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #9333ea;
+  background: #fdba74;
 }
 
 .cycle-calendar-day--empty {
@@ -6613,84 +6916,72 @@ textarea:focus-visible {
 }
 
 .cycle-calendar-day.phase-follicular:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #1e3a8a 14%, var(--bg));
+  background: #ecfdf5;
 }
 
 .cycle-calendar-day.phase-ovulation:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #7dd3fc 28%, var(--bg));
+  background: #fef9c3;
 }
 
 .cycle-calendar-day.phase-luteal:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #f9a8d4 30%, var(--bg));
+  background: #ede9fe;
 }
 
 .cycle-calendar-day.phase-menstrual:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #fda4af 18%, var(--bg));
-}
-
-/* Dark mode: stronger phase tints + edge so follicular / ovulation / luteal read clearly */
-[data-theme='dark'] .cycle-legend-swatch.phase-follicular {
-  background: color-mix(in srgb, #3b82f6 65%, var(--surface));
-  border-color: #60a5fa;
-}
-
-[data-theme='dark'] .cycle-legend-swatch.phase-ovulation {
-  background: color-mix(in srgb, #22d3ee 60%, var(--surface));
-  border-color: #67e8f9;
-}
-
-[data-theme='dark'] .cycle-legend-swatch.phase-luteal {
-  background: color-mix(in srgb, #f472b6 62%, var(--surface));
-  border-color: #fb7185;
+  background: color-mix(in srgb, #fda4af 35%, var(--bg));
 }
 
 [data-theme='dark'] .cycle-calendar-day.phase-follicular:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #2563eb 42%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #60a5fa 55%, transparent);
+  background: #064e3b;
 }
 
 [data-theme='dark'] .cycle-calendar-day.phase-ovulation:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #06b6d4 44%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #67e8f9 60%, transparent);
+  background: #422006;
 }
 
 [data-theme='dark'] .cycle-calendar-day.phase-luteal:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #ec4899 40%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f9a8d4 55%, transparent);
+  background: #312e81;
 }
 
 [data-theme='dark'] .cycle-calendar-day.phase-menstrual:not(.logged-period):not(.predicted-period) {
-  background: color-mix(in srgb, #f43f5e 30%, var(--bg));
+  background: color-mix(in srgb, #f43f5e 35%, var(--bg));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #fb7185 40%, transparent);
 }
 
 .cycle-calendar-day.logged-period {
-  box-shadow: inset 0 0 0 2.5px #e11d48;
-  background: color-mix(in srgb, #e11d48 22%, var(--surface));
+  box-shadow: inset 0 0 0 2px #f472b6;
+  background: #4c0519;
 }
 
 .cycle-calendar-day.predicted-period {
-  background-color: var(--bg);
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent 0 5px,
-    color-mix(in srgb, #e11d48 22%, transparent) 5px 10px
-  );
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, #e11d48 50%, transparent);
+  background: #3b0764;
+  box-shadow: inset 0 0 0 2px #e879f9;
+  background-image: none;
+  border-style: dashed;
+}
+
+[data-theme='light'] .cycle-calendar-day.logged-period {
+  box-shadow: inset 0 0 0 2px #f9a8d4;
+  background: #fce7f3;
+}
+
+[data-theme='light'] .cycle-calendar-day.predicted-period {
+  background: #fdf2f8;
+  box-shadow: inset 0 0 0 2px #f9a8d4;
 }
 
 /* Weight tiles: indicate whether weight + meals/workout were logged. */
-.cycle-calendar-day.weight-logged {
+.cycle-calendar-day.weight-logged:not(.logged-period):not(.predicted-period) {
   background: color-mix(in srgb, #22c55e 22%, var(--surface));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #22c55e 55%, transparent);
 }
 
-.cycle-calendar-day.weight-meals:not(.weight-logged) {
+.cycle-calendar-day.weight-meals:not(.weight-logged):not(.logged-period) {
   background: color-mix(in srgb, #16a34a 14%, var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #22c55e 35%, transparent);
 }
 
-.cycle-calendar-day.weight-workout:not(.weight-logged) {
+.cycle-calendar-day.weight-workout:not(.weight-logged):not(.logged-period) {
   border-color: color-mix(in srgb, #ec4899 55%, transparent);
 }
 
@@ -6699,7 +6990,7 @@ textarea:focus-visible {
 }
 
 /* HRT tiles: journaling days show a distinct tint. */
-.cycle-calendar-day.hrt-logged {
+.cycle-calendar-day.hrt-logged:not(.logged-period):not(.predicted-period) {
   background: color-mix(in srgb, #a855f7 22%, var(--surface));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #d946ef 55%, transparent);
 }
@@ -6721,17 +7012,17 @@ textarea:focus-visible {
 }
 
 /* Medication progress calendar tiles */
-.cycle-calendar-day.med-perfect {
+.cycle-calendar-day.med-perfect:not(.logged-period) {
   background: color-mix(in srgb, #22c55e 20%, var(--surface));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #22c55e 55%, transparent);
 }
 
-.cycle-calendar-day.med-partial {
+.cycle-calendar-day.med-partial:not(.logged-period) {
   background: color-mix(in srgb, #f59e0b 16%, var(--surface));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #f59e0b 45%, transparent);
 }
 
-.cycle-calendar-day.med-missed:not(.selected) {
+.cycle-calendar-day.med-missed:not(.selected):not(.logged-period) {
   background: color-mix(in srgb, #ef4444 14%, var(--surface));
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #ef4444 45%, transparent);
 }
@@ -6776,8 +7067,7 @@ textarea:focus-visible {
 }
 
 .cycle-calendar-day.selected {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
   z-index: 1;
 }
 
@@ -6809,6 +7099,106 @@ textarea:focus-visible {
   font-size: 0.88rem;
   font-weight: 600;
   margin-bottom: 0.4rem;
+}
+
+.cycle-symptom-add-chip {
+  font-weight: 700;
+  min-width: 2.25rem;
+}
+
+.cycle-symptom-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, #000 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.cycle-symptom-edit-dialog {
+  width: min(420px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  padding: 1rem 1.1rem 1.1rem;
+  box-shadow: 0 12px 40px color-mix(in srgb, #000 25%, transparent);
+}
+
+.cycle-symptom-edit-dialog--mini {
+  width: min(300px, 100%);
+  padding: 0.85rem 0.95rem 1rem;
+}
+
+.cycle-symptom-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.cycle-symptom-edit-dialog h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cycle-symptom-edit-close {
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, var(--muted));
+  cursor: pointer;
+  padding: 0.1rem 0.35rem;
+}
+
+.cycle-custom-symptom-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding-right: 1.15rem;
+  cursor: default;
+}
+
+.cycle-custom-symptom-remove {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--error, #ef4444);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cycle-symptom-dashed-input {
+  min-width: 7.5rem;
+  cursor: text;
+}
+
+.cycle-symptom-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.cycle-symptom-edit-actions--center {
+  justify-content: center;
 }
 
 .cycle-notes-label {
@@ -7275,4 +7665,96 @@ textarea:focus-visible {
 
 .dose-slots-prn {
   margin-top: 0.75rem;
+}
+
+/* Vault gate */
+.vault-title {
+  margin: 0.5rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.vault-mnemonic-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 4.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--auth-input-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.vault-mnemonic-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.vault-banner {
+  position: fixed;
+  z-index: 200;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: #0f172a;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.vault-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.vault-modal {
+  width: 100%;
+  max-width: 28rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vault-modal h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.vault-modal p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.vault-mnemonic {
+  margin: 0;
+  padding: 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
 }

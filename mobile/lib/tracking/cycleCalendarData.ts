@@ -2,7 +2,7 @@ import { addDaysToDateString, todayLocalDate } from '../dates'
 import {
   buildCycleCalendarDays,
   fetchCycleDayLogs,
-  fetchCyclePeriods,
+  fetchCyclePeriodsForCalendar,
   fetchCycleSettings,
   type CycleCalendarDay,
 } from './cycle'
@@ -21,9 +21,15 @@ function phaseLabel(phase: NonNullable<CycleCalendarDay['phase']>): string {
 
 function cellFromCycleDay(day: CycleCalendarDay): TrackingCalendarCell {
   const classNames: string[] = []
-  if (day.phase) classNames.push(`phase-${day.phase}`)
-  if (day.isLoggedPeriod) classNames.push('logged-period')
-  if (day.isPredictedPeriod) classNames.push('predicted-period')
+  // Logged / predicted period styling wins the cell; don't also paint a phase tint
+  // underneath (that made "Period" labels appear on follicular-green days).
+  if (day.isLoggedPeriod) {
+    classNames.push('logged-period')
+  } else if (day.isPredictedPeriod) {
+    classNames.push('predicted-period')
+  } else if (day.phase) {
+    classNames.push(`phase-${day.phase}`)
+  }
   if (day.isFuture) classNames.push('is-future')
   if (day.hasSymptoms) classNames.push('has-symptoms')
 
@@ -36,8 +42,7 @@ function cellFromCycleDay(day: CycleCalendarDay): TrackingCalendarCell {
     events.push({ id: 'period', label: 'Period', tone: 'cycle-period' })
   } else if (day.isPredictedPeriod) {
     events.push({ id: 'predicted', label: 'Predicted period', tone: 'cycle-period' })
-  }
-  if (day.phase && !day.isLoggedPeriod) {
+  } else if (day.phase) {
     events.push({
       id: `phase-${day.phase}`,
       label: phaseLabel(day.phase),
@@ -54,19 +59,15 @@ function cellFromCycleDay(day: CycleCalendarDay): TrackingCalendarCell {
   return { date: day.date, classNames, markers, events }
 }
 
+/** Matches day-cell fills and event pills shown on the cycle calendar. */
 const CYCLE_LEGEND = [
-  { id: 'logged', label: 'Logged period (solid red ring)', swatchClass: 'logged-period' },
-  {
-    id: 'predicted',
-    label: 'Predicted period (dashed ring)',
-    swatchClass: 'predicted-period',
-  },
-  { id: 'symptom', label: 'Symptoms logged', icon: 'dot' as const },
+  { id: 'logged', label: 'Logged period', swatchClass: 'logged-period' },
+  { id: 'predicted', label: 'Predicted period', swatchClass: 'predicted-period' },
+  { id: 'follicular', label: 'Follicular', swatchClass: 'phase-follicular' },
+  { id: 'ovulation', label: 'Ovulation', swatchClass: 'phase-ovulation' },
+  { id: 'luteal', label: 'Luteal', swatchClass: 'phase-luteal' },
+  { id: 'symptom', label: 'Symptoms', swatchClass: 'cycle-symptom' },
   { id: 'heart', label: 'Intercourse', icon: 'heart' as const },
-  { id: 'menstrual', label: 'Menstrual phase tint', swatchClass: 'phase-menstrual' },
-  { id: 'follicular', label: 'Follicular phase tint', swatchClass: 'phase-follicular' },
-  { id: 'ovulation', label: 'Ovulation phase tint', swatchClass: 'phase-ovulation' },
-  { id: 'luteal', label: 'Luteal phase tint', swatchClass: 'phase-luteal' },
 ]
 
 export async function loadCycleCalendarData(
@@ -77,7 +78,7 @@ export async function loadCycleCalendarData(
   const today = todayLocalDate()
   const [settings, periods, logs] = await Promise.all([
     fetchCycleSettings(userId),
-    fetchCyclePeriods(userId),
+    fetchCyclePeriodsForCalendar(userId, start, end),
     fetchCycleDayLogs(userId, start, end),
   ])
 

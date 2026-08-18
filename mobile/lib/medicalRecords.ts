@@ -1,4 +1,5 @@
 import { normalizeBodyMetricUnit, type BodyMetricUnit } from './bodyMetrics'
+import { openRow, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
 
 export type BloodType =
@@ -107,6 +108,45 @@ function parseOptionalNumber(value: string): number | null {
   return n
 }
 
+function parseMaybeNumber(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+function normalizeMedicalRecord(row: Record<string, unknown>): MedicalRecord {
+  const opened = openRow('medical_records', row)
+  return {
+    ...(opened as unknown as MedicalRecord),
+    height_cm: parseMaybeNumber(opened.height_cm),
+    weight_kg: parseMaybeNumber(opened.weight_kg),
+    height_unit: normalizeBodyMetricUnit(opened.height_unit as BodyMetricUnit),
+    weight_unit: normalizeBodyMetricUnit(opened.weight_unit as BodyMetricUnit),
+    known_allergies: Array.isArray(opened.known_allergies)
+      ? (opened.known_allergies as string[])
+      : [],
+    known_conditions: Array.isArray(opened.known_conditions)
+      ? (opened.known_conditions as string[])
+      : [],
+    past_surgeries:
+      typeof opened.past_surgeries === 'string'
+        ? opened.past_surgeries
+        : Array.isArray(opened.past_surgeries)
+          ? (opened.past_surgeries as string[]).join('\n')
+          : null,
+    family_history:
+      typeof opened.family_history === 'string'
+        ? opened.family_history
+        : Array.isArray(opened.family_history)
+          ? (opened.family_history as string[]).join('\n')
+          : null,
+  }
+}
+
 export async function fetchMedicalRecord(
   userId: string,
 ): Promise<MedicalRecord | null> {
@@ -117,7 +157,8 @@ export async function fetchMedicalRecord(
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw error
-  return data as MedicalRecord | null
+  if (!data) return null
+  return normalizeMedicalRecord(data as Record<string, unknown>)
 }
 
 export async function upsertMedicalRecord(
@@ -126,13 +167,15 @@ export async function upsertMedicalRecord(
 ): Promise<MedicalRecord> {
   if (!supabase) throw new Error('Supabase is not configured')
 
-  const payload = {
+  const height = parseOptionalNumber(input.height_cm)
+  const weight = parseOptionalNumber(input.weight_kg)
+  const sealed = sealRow('medical_records', {
     user_id: userId,
     blood_type: input.blood_type || null,
     date_of_birth: input.date_of_birth.trim() || null,
     gender: input.gender.trim() || null,
-    height_cm: parseOptionalNumber(input.height_cm),
-    weight_kg: parseOptionalNumber(input.weight_kg),
+    height_cm: height != null ? String(height) : null,
+    weight_kg: weight != null ? String(weight) : null,
     height_unit: input.height_unit,
     weight_unit: input.weight_unit,
     known_allergies: input.known_allergies,
@@ -141,16 +184,16 @@ export async function upsertMedicalRecord(
     family_history: input.family_history.trim() || null,
     emergency_notes: input.emergency_notes.trim() || null,
     other_notes: input.other_notes.trim() || null,
-  }
+  })
 
   const { data, error } = await supabase
     .from('medical_records')
-    .upsert(payload, { onConflict: 'user_id' })
+    .upsert(sealed, { onConflict: 'user_id' })
     .select('*')
     .single()
 
   if (error) throw error
-  return data as MedicalRecord
+  return normalizeMedicalRecord(data as Record<string, unknown>)
 }
 
 /** Persist unit preference immediately (creates a row if needed). */
@@ -162,19 +205,20 @@ export async function updateBodyMetricUnits(
 
   const existing = await fetchMedicalRecord(userId)
   if (!existing) {
+    const sealed = sealRow('medical_records', {
+      user_id: userId,
+      height_unit: units.height_unit ?? 'metric',
+      weight_unit: units.weight_unit ?? 'metric',
+      known_allergies: [],
+      known_conditions: [],
+    })
     const { data, error } = await supabase
       .from('medical_records')
-      .insert({
-        user_id: userId,
-        height_unit: units.height_unit ?? 'metric',
-        weight_unit: units.weight_unit ?? 'metric',
-        known_allergies: [],
-        known_conditions: [],
-      })
+      .insert(sealed)
       .select('*')
       .single()
     if (error) throw error
-    return data as MedicalRecord
+    return normalizeMedicalRecord(data as Record<string, unknown>)
   }
 
   const patch: { height_unit?: BodyMetricUnit; weight_unit?: BodyMetricUnit } = {}
@@ -189,5 +233,5 @@ export async function updateBodyMetricUnits(
     .single()
 
   if (error) throw error
-  return data as MedicalRecord
+  return normalizeMedicalRecord(data as Record<string, unknown>)
 }

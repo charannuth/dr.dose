@@ -1,3 +1,4 @@
+import { openRows } from './crypto/seal'
 import { supabase } from './supabase'
 import { addDaysToDateString, todayLocalDate } from './dates'
 import {
@@ -82,8 +83,16 @@ export async function fetchWeeklySummary(userId: string): Promise<WeeklySummary>
   if (medsResult.error) throw medsResult.error
   if (logsResult.error) throw logsResult.error
 
-  const medications = (medsResult.data ?? []) as Medication[]
-  const logsByDate = groupLogsByDate((logsResult.data ?? []) as DoseLog[])
+  const medications = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
+  const logsByDate = groupLogsByDate(
+    openRows(
+      'dose_logs',
+      (logsResult.data ?? []) as Record<string, unknown>[],
+    ) as DoseLog[],
+  )
 
   let scheduledTaken = 0
   let scheduledExpected = 0

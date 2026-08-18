@@ -365,12 +365,15 @@ function mergePrefills(local: PrescriptionPrefill, ai: PrescriptionPrefill): Pre
 }
 
 /** Run on-device OCR, optional AI text analysis, and return confirmable suggestions. */
-export async function recognizePrescription(uri: string): Promise<PrescriptionPrefill> {
+export async function recognizePrescription(
+  uri: string,
+  options: { useCloudAi?: boolean } = {},
+): Promise<PrescriptionPrefill> {
   const recognition = await recognizeText(uri);
   const rawText = recognition?.text ?? '';
   const local = parsePrescriptionText(rawText);
 
-  if (!isLabelAiAvailable()) return local;
+  if (!options.useCloudAi || !isLabelAiAvailable()) return local;
 
   try {
     const ai = await parseLabelWithAI(rawText);

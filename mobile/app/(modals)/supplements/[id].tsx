@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { ColorPalette } from '../../../constants/theme';
 import { spacing } from '../../../constants/theme';
 import { useTheme } from '../../../context/ThemeProvider';
+import { openRow } from '../../../lib/crypto/seal';
 import { supabase } from '../../../lib/supabase';
 import { repairMedicationSchedule } from '../../../lib/medications';
 import { useAuth } from '../../../hooks/useAuth';
@@ -46,7 +47,10 @@ export default function EditSupplementScreen() {
         .eq('id', id)
         .single();
       if (fetchError) throw fetchError;
-      const row = data as Medication;
+      const row = openRow(
+        'medications',
+        data as Record<string, unknown>,
+      ) as unknown as Medication;
       await repairMedicationSchedule(row.id);
       if (active) setMed(row);
     }

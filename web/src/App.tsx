@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { AuthProvider } from './context/AuthContext'
+import { VaultProvider } from './context/VaultProvider'
 import { useAuth } from './hooks/useAuth'
 import { AppLayout } from './components/AppLayout'
 import { AuthPage } from './components/AuthPage'
 import { ConfigGuard } from './components/ConfigGuard'
 import { DemoTour } from './components/DemoTour'
 import { OnboardingModal } from './components/OnboardingModal'
+import { VaultGate } from './components/VaultGate'
 import { userHasMedications } from './lib/medications'
 import { isDemoTourDone, setDemoTourDone } from './lib/demoTour'
 import { isOnboardingDone, setOnboardingDone } from './lib/settings'
@@ -92,7 +94,7 @@ function AuthenticatedRoutes({ user }: { user: User }) {
   }
 
   return (
-    <>
+    <VaultGate>
       {showOnboarding && (
         <OnboardingModal
           userId={user.id}
@@ -130,7 +132,7 @@ function AuthenticatedRoutes({ user }: { user: User }) {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </>
+    </VaultGate>
   )
 }
 
@@ -159,9 +161,11 @@ export default function App() {
   return (
     <ConfigGuard>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <VaultProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </VaultProvider>
       </AuthProvider>
     </ConfigGuard>
   )

@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import type { MedicationTrackingSync } from '../types'
+import { openRows, sealRow } from '../crypto/seal'
 
 const SYNC_TO_TRACKER: Record<Exclude<MedicationTrackingSync, 'none'>, string> = {
   hrt: 'hrt',
@@ -21,20 +22,21 @@ export async function syncDoseLogToTracking(input: {
   const trackerId = SYNC_TO_TRACKER[input.trackingSync]
   if (!trackerId) return
 
-  const { error } = await supabase.from('tracker_dose_events').upsert(
-    {
-      user_id: input.userId,
-      medication_id: input.medicationId,
-      dose_log_id: input.doseLogId,
-      tracker_id: trackerId,
-      taken_on: input.takenOn,
-      schedule_time: input.scheduleTime,
-      medication_name: input.medicationName,
-      dose_pills: input.dosePills,
-      dose_mg: input.doseMg,
-    },
-    { onConflict: 'dose_log_id,tracker_id' },
-  )
+  const sealed = sealRow('tracker_dose_events', {
+    user_id: input.userId,
+    medication_id: input.medicationId,
+    dose_log_id: input.doseLogId,
+    tracker_id: trackerId,
+    taken_on: input.takenOn,
+    schedule_time: input.scheduleTime,
+    medication_name: input.medicationName,
+    dose_pills: input.dosePills,
+    dose_mg: input.doseMg,
+  })
+
+  const { error } = await supabase.from('tracker_dose_events').upsert(sealed, {
+    onConflict: 'dose_log_id,tracker_id',
+  })
 
   if (error) throw error
 }
@@ -77,7 +79,10 @@ export async function fetchTrackerDoseEvents(
     .order('schedule_time', { ascending: false })
     .limit(limit)
   if (error) throw error
-  return (data ?? []) as TrackerDoseEvent[]
+  return openRows(
+    'tracker_dose_events',
+    (data ?? []) as Record<string, unknown>[],
+  ) as TrackerDoseEvent[]
 }
 
 export async function fetchTrackerDoseEventsInRange(
@@ -101,5 +106,8 @@ export async function fetchTrackerDoseEventsInRange(
     .limit(limit)
 
   if (error) throw error
-  return (data ?? []) as TrackerDoseEvent[]
+  return openRows(
+    'tracker_dose_events',
+    (data ?? []) as Record<string, unknown>[],
+  ) as TrackerDoseEvent[]
 }

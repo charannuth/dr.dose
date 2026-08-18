@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { openRows } from './crypto/seal';
 import { supabase } from './supabase';
 import {
   formatScheduleTime,
@@ -11,7 +12,10 @@ import { filterMedicationsActiveOn } from './medicationDates';
 import { isAsNeededMed } from './medicationSchedule';
 import { getExpoNotifications } from './expoNotifications';
 import {
+  DOSE_ALARM_CATEGORY_ID,
+  DOSE_ALARM_CHANNEL_ID,
   DOSE_REMINDER_CHANNEL_ID,
+  ensureDoseAlarmChannel,
   ensureDoseChannel,
   ensureNotificationInfrastructure,
 } from './notificationSetup';
@@ -44,49 +48,110 @@ const SNOOZE_FOLLOWUP_PREFIX = 'dose-reminder-snooze-followup';
 /** iOS allows at most 64 pending local notifications per app. */
 const IOS_SCHEDULE_LIMIT = 64;
 
+/** One daily alert per clock time (not per medication). */
+function timeDailyId(time: string): string {
+  return `${REMINDER_PREFIX}:at:${time}`;
+}
+
+/** One follow-up nag per clock time per step. */
+function timeFollowupId(time: string, k: number): string {
+  return `${FOLLOWUP_PREFIX}:at:${time}:${k}`;
+}
+
+function formatMedNames(names: string[]): string {
+  const clean = names.map((n) => n.trim()).filter(Boolean);
+  if (clean.length === 0) return 'your medications';
+  if (clean.length === 1) return clean[0]!;
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+  return `${clean[0]}, ${clean[1]}, and ${clean.length - 2} more`;
+}
+
+function doseDueCopy(meds: Pick<Medication, 'name'>[], time: string) {
+  const label = formatScheduleTime(time);
+  const names = formatMedNames(meds.map((m) => m.name));
+  if (meds.length <= 1) {
+    return {
+      title: 'Dose due',
+      body: `Time for ${names} (${label}). Mark taken or Snooze — this alert will keep coming back until you act.`,
+    };
+  }
+  return {
+    title: `${meds.length} doses due`,
+    body: `${names} at ${label}. Mark taken logs all remaining at this time, or open the app to choose.`,
+  };
+}
+
+function doseStillDueCopy(meds: Pick<Medication, 'name'>[], time: string) {
+  const label = formatScheduleTime(time);
+  const names = formatMedNames(meds.map((m) => m.name));
+  if (meds.length <= 1) {
+    return {
+      title: 'Dose still due',
+      body: `Still due (${label}). Mark taken or Snooze from this alert — it will keep reminding until you do.`,
+    };
+  }
+  return {
+    title: `${meds.length} doses still due`,
+    body: `${names} still due at ${label}. Mark taken logs all remaining, or open the app to choose.`,
+  };
+}
+
 /** Re-notify an untaken dose this many times after its scheduled time... */
-const FOLLOWUP_COUNT = 3;
-/** ...spaced this many minutes apart (so a dose nags until it is marked taken). */
-const FOLLOWUP_INTERVAL_MIN = 5;
+const FOLLOWUP_COUNT = 8;
+/** ...spaced this many minutes apart (nag until marked taken / snoozed). */
+const FOLLOWUP_INTERVAL_MIN = 3;
 
 type NotificationsModule = NonNullable<Awaited<ReturnType<typeof getExpoNotifications>>>;
 
 /** iOS sound value + resolved Android channel for the user's chosen chime. */
 type ResolvedSound = { iosSound: string; androidChannelId: string };
-
-/** Read the user's chosen reminder sound and ensure its Android channel exists. */
 async function resolveReminderSound(): Promise<ResolvedSound> {
   const file = reminderSoundFile(await getReminderSound());
-  const androidChannelId = await ensureDoseChannel(file);
+  // Prefer the urgent "dose alarms" channel on Android so heads-up + sticky work.
+  const androidChannelId =
+    Platform.OS === 'android'
+      ? await ensureDoseAlarmChannel()
+      : await ensureDoseChannel(file);
+  // Keep custom chime channel created too so refill/doctor visit paths still work.
+  if (Platform.OS === 'android') await ensureDoseChannel(file);
   return { iosSound: file ?? 'default', androidChannelId };
 }
 
-/** Shared notification content so every dose alert carries the sound + deep-link data. */
+/**
+ * Shared notification content for dose due / still-due / snooze alerts.
+ * Lock-screen actions (Mark taken / Snooze) come from DOSE_ALARM_CATEGORY_ID.
+ * Android uses sticky + max priority so the alert behaves closer to an alarm.
+ * Multiple meds at the same clock time share one notification (medicationIds).
+ */
 function doseContent(
   Notifications: NotificationsModule,
-  med: Pick<Medication, 'id' | 'name'>,
+  meds: Pick<Medication, 'id' | 'name'>[],
   time: string,
   title: string,
   body: string,
   sound: ResolvedSound,
 ) {
+  const medicationIds = meds.map((m) => m.id);
   return {
     title,
     body,
     sound: sound.iosSound,
+    categoryIdentifier: DOSE_ALARM_CATEGORY_ID,
     interruptionLevel: 'timeSensitive' as const,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-    data: { medicationId: med.id, scheduleTime: time, screen: 'today' },
-    ...(Platform.OS === 'android' ? { channelId: sound.androidChannelId } : {}),
+    priority: Notifications.AndroidNotificationPriority.MAX,
+    sticky: Platform.OS === 'android',
+    data: {
+      medicationId: medicationIds[0] ?? '',
+      medicationIds,
+      scheduleTime: time,
+      screen: 'today',
+      kind: medicationIds.length > 1 ? 'dose_alarm_group' : 'dose_alarm',
+    },
+    ...(Platform.OS === 'android'
+      ? { channelId: sound.androidChannelId || DOSE_ALARM_CHANNEL_ID }
+      : {}),
   };
 }
-
-type SlotToSchedule = {
-  med: Medication;
-  time: string;
-  hour: number;
-  minute: number;
-};
 
 function buildDailyTrigger(
   Notifications: NotificationsModule,
@@ -128,6 +193,8 @@ export async function cancelAllDoseReminders(): Promise<void> {
  * Cancel every dose alert (daily, follow-ups, and snooze chain) for one
  * medication and forget its snoozes. Called when a medication is deleted so a
  * pending snooze can't fire for something that no longer exists.
+ * Same-time group alerts that also list other meds are cancelled here; a full
+ * reschedule afterward rebuilds the group without this medication.
  */
 export async function cancelDoseRemindersForMedication(
   medicationId: string,
@@ -142,30 +209,52 @@ export async function cancelDoseRemindersForMedication(
     scheduled
       .filter((n) => {
         if (!n.identifier.startsWith(REMINDER_PREFIX)) return false;
-        const data = n.content?.data as { medicationId?: string } | undefined;
-        return data?.medicationId === medicationId;
+        const data = n.content?.data as
+          | { medicationId?: string; medicationIds?: string[] }
+          | undefined;
+        if (data?.medicationId === medicationId) return true;
+        if (Array.isArray(data?.medicationIds) && data.medicationIds.includes(medicationId)) {
+          return true;
+        }
+        // Legacy per-med identifiers.
+        return n.identifier.includes(`:${medicationId}:`);
       })
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
   );
 }
 
-function collectSlots(medications: Medication[]): SlotToSchedule[] {
-  const slots: SlotToSchedule[] = [];
+type TimeSlotGroup = {
+  time: string;
+  hour: number;
+  minute: number;
+  meds: Medication[];
+};
+
+/** Group active scheduled dose slots by clock time (one alert per time). */
+function collectTimeGroups(medications: Medication[]): TimeSlotGroup[] {
+  const map = new Map<string, TimeSlotGroup>();
   for (const med of medications) {
     if (isAsNeededMed(med)) continue;
     if (med.reminders_enabled === false) continue;
     for (const time of normalizeScheduleTimes(med.schedule_times ?? [])) {
       const mins = scheduleTimeToMinutes(time);
       if (!Number.isFinite(mins)) continue;
-      slots.push({
-        med,
-        time,
-        hour: Math.floor(mins / 60),
-        minute: mins % 60,
-      });
+      let group = map.get(time);
+      if (!group) {
+        group = {
+          time,
+          hour: Math.floor(mins / 60),
+          minute: mins % 60,
+          meds: [],
+        };
+        map.set(time, group);
+      }
+      group.meds.push(med);
     }
   }
-  return slots;
+  return [...map.values()].sort(
+    (a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute),
+  );
 }
 
 export type ReminderScheduleSummary = {
@@ -176,11 +265,9 @@ export type ReminderScheduleSummary = {
 };
 
 /**
- * Schedules one-time "still need to take it" follow-ups for each of today's
- * untaken dose slots, at +5/+10/+15 min after the dose time. iOS cannot keep a
- * banner pinned until acknowledged, so repeated alerts approximate that until the
- * user marks the dose taken (which triggers a reschedule that drops them).
- * Only future fire times are scheduled, and we respect the iOS 64-pending cap.
+ * Schedules one-time "still need to take it" follow-ups for each clock time that
+ * still has untaken (and unsnoozed) doses today. Multiple meds at the same time
+ * share one nag — not one per medication. Respects the iOS 64-pending cap.
  */
 async function scheduleDoseFollowups(args: {
   Notifications: NotificationsModule;
@@ -201,29 +288,35 @@ async function scheduleDoseFollowups(args: {
   if (budget <= 0) return 0;
 
   const nowMins = currentMinutesSinceMidnight();
+  const groups = collectTimeGroups(activeMeds);
 
-  type Followup = { id: string; med: Medication; time: string; fireInSeconds: number };
+  type Followup = {
+    id: string;
+    meds: Medication[];
+    time: string;
+    fireInSeconds: number;
+  };
   const followups: Followup[] = [];
 
-  for (const med of activeMeds) {
-    if (isAsNeededMed(med)) continue;
-    if (med.reminders_enabled === false) continue;
-    for (const time of normalizeScheduleTimes(med.schedule_times ?? [])) {
-      const slotKey = `${med.id}:${time}`;
-      if (takenKeys.has(slotKey)) continue;
-      if (snoozedKeys.has(slotKey)) continue;
-      const slotMins = scheduleTimeToMinutes(time);
-      if (!Number.isFinite(slotMins)) continue;
-      for (let k = 1; k <= FOLLOWUP_COUNT; k += 1) {
-        const fireMins = slotMins + k * FOLLOWUP_INTERVAL_MIN;
-        if (fireMins <= nowMins || fireMins >= 24 * 60) continue;
-        followups.push({
-          id: `${FOLLOWUP_PREFIX}:${med.id}:${time}:${k}`,
-          med,
-          time,
-          fireInSeconds: (fireMins - nowMins) * 60,
-        });
-      }
+  for (const group of groups) {
+    const pending = group.meds.filter((med) => {
+      const slotKey = `${med.id}:${group.time}`;
+      return !takenKeys.has(slotKey) && !snoozedKeys.has(slotKey);
+    });
+    if (pending.length === 0) continue;
+
+    const slotMins = scheduleTimeToMinutes(group.time);
+    if (!Number.isFinite(slotMins)) continue;
+
+    for (let k = 1; k <= FOLLOWUP_COUNT; k += 1) {
+      const fireMins = slotMins + k * FOLLOWUP_INTERVAL_MIN;
+      if (fireMins <= nowMins || fireMins >= 24 * 60) continue;
+      followups.push({
+        id: timeFollowupId(group.time, k),
+        meds: pending,
+        time: group.time,
+        fireInSeconds: (fireMins - nowMins) * 60,
+      });
     }
   }
 
@@ -233,14 +326,15 @@ async function scheduleDoseFollowups(args: {
   let scheduled = 0;
   for (const followup of followups) {
     if (scheduled >= budget) break;
+    const copy = doseStillDueCopy(followup.meds, followup.time);
     await Notifications.scheduleNotificationAsync({
       identifier: followup.id,
       content: doseContent(
         Notifications,
-        followup.med,
+        followup.meds,
         followup.time,
-        'Dose still due',
-        `Don't forget ${followup.med.name} (${formatScheduleTime(followup.time)})`,
+        copy.title,
+        copy.body,
         sound,
       ),
       trigger: {
@@ -255,14 +349,41 @@ async function scheduleDoseFollowups(args: {
   return scheduled;
 }
 
-/** Cancel a single dose's pending nags (regular follow-ups + any snooze chain). */
+/**
+ * Cancel pending alerts for one dose slot: daily reminder, follow-ups, and snooze
+ * chain. Exported so marking taken can clear today's fire immediately — before the
+ * slower full reschedule runs.
+ *
+ * Same-time doses share one daily/follow-up chain per clock time, so cancelling
+ * one med clears that time's group alert; the next reschedule rebuilds it for any
+ * remaining untaken meds at that time.
+ */
+export async function cancelDoseSlotReminders(
+  medicationId: string,
+  time: string,
+): Promise<void> {
+  const Notifications = await getExpoNotifications();
+  if (!Notifications) return;
+  await cancelDoseNags(Notifications, medicationId, time);
+}
+
+/**
+ * Cancel pending alerts for one dose slot: shared time-group daily/follow-ups,
+ * this med's snooze chain, and legacy per-med identifiers.
+ */
 async function cancelDoseNags(
   Notifications: NotificationsModule,
   medicationId: string,
   time: string,
 ): Promise<void> {
-  const ids: string[] = [`${SNOOZE_PREFIX}:${medicationId}:${time}`];
+  const ids: string[] = [
+    timeDailyId(time),
+    // Legacy per-med daily (pre-grouping).
+    `${REMINDER_PREFIX}:${medicationId}:${time}`,
+    `${SNOOZE_PREFIX}:${medicationId}:${time}`,
+  ];
   for (let k = 1; k <= FOLLOWUP_COUNT; k += 1) {
+    ids.push(timeFollowupId(time, k));
     ids.push(`${FOLLOWUP_PREFIX}:${medicationId}:${time}:${k}`);
     ids.push(`${SNOOZE_FOLLOWUP_PREFIX}:${medicationId}:${time}:${k}`);
   }
@@ -310,10 +431,10 @@ async function reapplySnoozes(args: {
         identifier: `${SNOOZE_PREFIX}:${med.id}:${snooze.scheduleTime}`,
         content: doseContent(
           Notifications,
-          med,
+          [med],
           snooze.scheduleTime,
           'Snoozed dose',
-          `Time for ${med.name} (${formatScheduleTime(snooze.scheduleTime)})`,
+          `Snoozed dose is due (${formatScheduleTime(snooze.scheduleTime)}). Mark taken or Snooze again from this alert.`,
           sound,
         ),
         trigger: {
@@ -362,10 +483,10 @@ export async function scheduleDoseSnooze(args: {
     identifier: `${SNOOZE_PREFIX}:${med.id}:${scheduleTime}`,
     content: doseContent(
       Notifications,
-      med,
+      [med],
       scheduleTime,
       'Snoozed dose',
-      `Time for ${med.name} (${formatScheduleTime(scheduleTime)})`,
+      `Snoozed dose is due (${formatScheduleTime(scheduleTime)}). Mark taken or Snooze again from this alert.`,
       sound,
     ),
     trigger: {
@@ -385,7 +506,7 @@ export async function scheduleDoseSnooze(args: {
   await startSnoozeLiveActivity({
     medicationId: med.id,
     scheduleTime,
-    medName: med.name,
+    medName: 'Medication',
     remindAt,
   });
 
@@ -393,9 +514,10 @@ export async function scheduleDoseSnooze(args: {
 }
 
 /**
- * Clear an active snooze for a single dose: cancels the snoozed reminder and its
- * follow-up chain and forgets the stored record. The medication's normal daily
- * reminder (which repeats) is left intact.
+ * Clear an active snooze for a single dose: cancels the snoozed reminder, its
+ * follow-up chain, and the daily reminder for that slot, then forgets the
+ * stored snooze. Callers should reschedule reminders afterward so tomorrow's
+ * (or the normal daily) alert is re-armed.
  */
 export async function cancelDoseSnooze(
   med: Pick<Medication, 'id'>,
@@ -444,18 +566,24 @@ export async function rescheduleDoseReminders(
     .eq('user_id', userId);
   if (error) throw error;
 
-  const active = filterMedicationsActiveOn((data ?? []) as Medication[], today);
-  const slots = collectSlots(active).sort(
-    (a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute),
-  );
+  const medications = openRows(
+    'medications',
+    (data ?? []) as Record<string, unknown>[],
+  ) as Medication[];
+  const active = filterMedicationsActiveOn(medications, today);
+  const groups = collectTimeGroups(active);
 
   const { data: logs } = await supabase
     .from('dose_logs')
     .select('medication_id, schedule_time')
     .eq('user_id', userId)
     .eq('taken_on', today);
+  const openedLogs = openRows(
+    'dose_logs',
+    (logs ?? []) as Record<string, unknown>[],
+  ) as { medication_id: string; schedule_time: string }[];
   const takenKeys = new Set(
-    (logs ?? []).map((l) => `${l.medication_id}:${l.schedule_time}`),
+    openedLogs.map((l) => `${l.medication_id}:${l.schedule_time}`),
   );
 
   const activeSnoozes = await getActiveSnoozes();
@@ -463,26 +591,58 @@ export async function rescheduleDoseReminders(
     activeSnoozes.map((s) => `${s.medicationId}:${s.scheduleTime}`),
   );
 
-  let toSchedule = slots;
+  let toSchedule = groups;
   let skippedOverLimit = 0;
-  if (Platform.OS === 'ios' && slots.length > IOS_SCHEDULE_LIMIT) {
-    skippedOverLimit = slots.length - IOS_SCHEDULE_LIMIT;
-    toSchedule = slots.slice(0, IOS_SCHEDULE_LIMIT);
+  if (Platform.OS === 'ios' && groups.length > IOS_SCHEDULE_LIMIT) {
+    skippedOverLimit = groups.length - IOS_SCHEDULE_LIMIT;
+    toSchedule = groups.slice(0, IOS_SCHEDULE_LIMIT);
   }
 
-  for (const { med, time, hour, minute } of toSchedule) {
-    const id = `${REMINDER_PREFIX}:${med.id}:${time}`;
+  for (const group of toSchedule) {
+    const pending = group.meds.filter(
+      (med) => !takenKeys.has(`${med.id}:${group.time}`),
+    );
+    const contentMeds = pending.length > 0 ? pending : group.meds;
+    const copy = doseDueCopy(contentMeds, group.time);
+    const content = doseContent(
+      Notifications,
+      contentMeds,
+      group.time,
+      copy.title,
+      copy.body,
+      sound,
+    );
+    const id = timeDailyId(group.time);
+
+    // All doses at this time already logged → never arm a same-day fire.
+    // One-shot tomorrow only; the next full reschedule restores the daily after midnight.
+    if (pending.length === 0) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(group.hour, group.minute, 0, 0);
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: tomorrow,
+          ...(Platform.OS === 'android'
+            ? { channelId: sound.androidChannelId }
+            : {}),
+        },
+      });
+      continue;
+    }
+
     await Notifications.scheduleNotificationAsync({
       identifier: id,
-      content: doseContent(
+      content,
+      trigger: buildDailyTrigger(
         Notifications,
-        med,
-        time,
-        'Dose due',
-        `Time for ${med.name} (${formatScheduleTime(time)})`,
-        sound,
+        group.hour,
+        group.minute,
+        sound.androidChannelId,
       ),
-      trigger: buildDailyTrigger(Notifications, hour, minute, sound.androidChannelId),
     });
   }
 
@@ -534,7 +694,11 @@ export async function scheduleTestNextDoseReminder(
   const { data, error } = await supabase.from('medications').select('*').eq('user_id', userId);
   if (error) return { ok: false, reason: error.message };
 
-  const active = filterMedicationsActiveOn((data ?? []) as Medication[], today);
+  const medications = openRows(
+    'medications',
+    (data ?? []) as Record<string, unknown>[],
+  ) as Medication[];
+  const active = filterMedicationsActiveOn(medications, today);
   const nowMins = currentMinutesSinceMidnight();
 
   type Candidate = { med: Medication; time: string; mins: number };
@@ -559,14 +723,17 @@ export async function scheduleTestNextDoseReminder(
   await Notifications.cancelScheduledNotificationAsync(TEST_NEXT_DOSE_ID);
 
   const seconds = Math.max(10, Math.round(secondsFromNow));
+  // Prefer every med due at the next clock time so the test matches production grouping.
+  const atSameTime = candidates.filter((c) => c.time === next.time).map((c) => c.med);
+  const copy = doseDueCopy(atSameTime, next.time);
   await Notifications.scheduleNotificationAsync({
     identifier: TEST_NEXT_DOSE_ID,
     content: doseContent(
       Notifications,
-      next.med,
+      atSameTime,
       next.time,
-      'Dose due',
-      `Time for ${next.med.name} (${formatScheduleTime(next.time)})`,
+      copy.title,
+      copy.body,
       sound,
     ),
     trigger: {
@@ -578,7 +745,10 @@ export async function scheduleTestNextDoseReminder(
 
   return {
     ok: true,
-    label: `${next.med.name} at ${formatScheduleTime(next.time)}`,
+    label:
+      atSameTime.length > 1
+        ? `${atSameTime.length} doses at ${formatScheduleTime(next.time)}`
+        : `${next.med.name} at ${formatScheduleTime(next.time)}`,
   };
 }
 

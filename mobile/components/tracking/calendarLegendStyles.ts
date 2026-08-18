@@ -1,46 +1,50 @@
 import type { TextStyle, ViewStyle } from 'react-native';
 import type { ColorPalette } from '../../constants/theme';
 
+/**
+ * Legend swatches use the same fills as calendar day cells / event pills
+ * (`calendarCellStyles`), not hollow “ring” illustrations.
+ */
 function legendTints(isDark: boolean) {
   if (isDark) {
     return {
-      period: { bg: 'rgba(244, 63, 94, 0.35)', border: '#fb7185' },
-      periodPredicted: { bg: 'rgba(244, 63, 94, 0.18)', border: '#fb7185' },
+      period: { bg: '#4c0519', border: '#f472b6' },
+      periodPredicted: { bg: '#3b0764', border: '#e879f9' },
       follicular: { bg: '#064e3b', border: '#34d399' },
-      ovulation: { bg: '#0c4a6e', border: '#38bdf8' },
-      luteal: { bg: '#831843', border: '#f472b6' },
-      menstrual: { bg: '#881337', border: '#fb7185' },
-      weight: { bg: 'rgba(34, 197, 94, 0.45)', border: '#4ade80' },
-      weightMeals: { bg: 'rgba(22, 163, 74, 0.35)', border: '#22c55e' },
-      hrt: { bg: 'rgba(168, 85, 247, 0.45)', border: '#e879f9' },
-      doctorUpcoming: { bg: 'rgba(96, 165, 250, 0.45)', border: '#60a5fa' },
-      doctorLogged: { bg: 'rgba(52, 211, 153, 0.4)', border: '#34d399' },
-      doctorNeedsNotes: { bg: 'rgba(251, 191, 36, 0.45)', border: '#fbbf24' },
-      doctorFollowup: { bg: 'rgba(196, 181, 253, 0.45)', border: '#a78bfa' },
-      dot: '#c084fc',
+      ovulation: { bg: '#422006', border: '#fbbf24' },
+      luteal: { bg: '#312e81', border: '#a78bfa' },
+      menstrual: { bg: 'rgba(244, 63, 94, 0.35)', border: '#fb7185' },
+      symptom: { bg: '#431407', border: '#fdba74' },
+      weight: { bg: '#0c4a6e', border: '#7dd3fc' },
+      weightMeals: { bg: '#14532d', border: '#86efac' },
+      hrt: { bg: '#581c87', border: '#e9d5ff' },
+      doctorUpcoming: { bg: '#1e3a5f', border: '#93c5fd' },
+      doctorLogged: { bg: '#064e3b', border: '#6ee7b7' },
+      doctorNeedsNotes: { bg: '#78350f', border: '#fcd34d' },
+      doctorFollowup: { bg: '#4c1d95', border: '#c4b5fd' },
       heart: '#f472b6',
     };
   }
   return {
-    period: { bg: 'rgba(225, 29, 72, 0.25)', border: '#e11d48' },
-    periodPredicted: { bg: 'rgba(225, 29, 72, 0.12)', border: '#e11d48' },
-    follicular: { bg: '#c7d2fe', border: '#6366f1' },
-    ovulation: { bg: '#bae6fd', border: '#0ea5e9' },
-    luteal: { bg: '#fbcfe8', border: '#ec4899' },
-    menstrual: { bg: '#fecdd3', border: '#f43f5e' },
-    weight: { bg: 'rgba(34, 197, 94, 0.45)', border: '#16a34a' },
-    weightMeals: { bg: 'rgba(22, 163, 74, 0.28)', border: '#22c55e' },
-    hrt: { bg: 'rgba(168, 85, 247, 0.4)', border: '#d946ef' },
-    doctorUpcoming: { bg: 'rgba(96, 165, 250, 0.35)', border: '#3b82f6' },
-    doctorLogged: { bg: 'rgba(34, 197, 94, 0.35)', border: '#22c55e' },
-    doctorNeedsNotes: { bg: 'rgba(251, 191, 36, 0.4)', border: '#f59e0b' },
-    doctorFollowup: { bg: 'rgba(167, 139, 250, 0.4)', border: '#8b5cf6' },
-    dot: '#9333ea',
+    period: { bg: '#fce7f3', border: '#f9a8d4' },
+    periodPredicted: { bg: '#fdf2f8', border: '#f9a8d4' },
+    follicular: { bg: '#ecfdf5', border: '#6ee7b7' },
+    ovulation: { bg: '#fef9c3', border: '#facc15' },
+    luteal: { bg: '#ede9fe', border: '#c4b5fd' },
+    menstrual: { bg: 'rgba(253, 164, 175, 0.35)', border: '#fb7185' },
+    symptom: { bg: '#fff7ed', border: '#fdba74' },
+    weight: { bg: '#e0f2fe', border: '#7dd3fc' },
+    weightMeals: { bg: '#f0fdf4', border: '#86efac' },
+    hrt: { bg: '#fae8ff', border: '#e9d5ff' },
+    doctorUpcoming: { bg: '#dbeafe', border: '#93c5fd' },
+    doctorLogged: { bg: '#d1fae5', border: '#6ee7b7' },
+    doctorNeedsNotes: { bg: '#fef3c7', border: '#fcd34d' },
+    doctorFollowup: { bg: '#ede9fe', border: '#c4b5fd' },
     heart: '#ec4899',
   };
 }
 
-/** Legend + day-cell swatch styles aligned with web tracking calendar. */
+/** Legend + day-cell swatch styles aligned with calendar fills. */
 export function legendSwatchStyle(
   swatchClass: string,
   colors: ColorPalette,
@@ -50,14 +54,19 @@ export function legendSwatchStyle(
   const base: ViewStyle = {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: colors.border,
   };
 
   switch (swatchClass) {
     case 'logged-period':
-      return { ...base, borderWidth: 2, borderColor: t.period.border, backgroundColor: t.period.bg };
+      return {
+        ...base,
+        borderWidth: 2,
+        borderColor: t.period.border,
+        backgroundColor: t.period.bg,
+      };
     case 'predicted-period':
       return {
         ...base,
@@ -74,6 +83,13 @@ export function legendSwatchStyle(
       return { ...base, backgroundColor: t.luteal.bg, borderColor: t.luteal.border };
     case 'phase-menstrual':
       return { ...base, backgroundColor: t.menstrual.bg, borderColor: t.menstrual.border };
+    case 'cycle-symptom':
+      return {
+        ...base,
+        backgroundColor: t.symptom.bg,
+        borderColor: t.symptom.border,
+        borderRadius: 3,
+      };
     case 'weight-logged':
       return {
         ...base,
@@ -144,11 +160,12 @@ export function legendSwatchStyle(
 }
 
 export function legendDotStyle(isDark: boolean): ViewStyle {
+  const t = legendTints(isDark);
   return {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: legendTints(isDark).dot,
+    backgroundColor: t.symptom.border,
   };
 }
 

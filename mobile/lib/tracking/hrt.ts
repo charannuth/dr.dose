@@ -1,3 +1,4 @@
+import { openRow, openRows, sealRow } from '../crypto/seal'
 import { supabase } from '../supabase'
 
 export type HrtDayLog = {
@@ -53,6 +54,25 @@ export const HRT_MOOD_CHANGE_OPTIONS: readonly HrtMoodChange[] = [
   'Other',
 ] as const
 
+function normalizeHrtDayLog(row: Record<string, unknown>): HrtDayLog {
+  const other = row.other_changes
+  return {
+    ...(row as unknown as HrtDayLog),
+    bodily_changes: Array.isArray(row.bodily_changes)
+      ? (row.bodily_changes as string[])
+      : [],
+    mood_changes: Array.isArray(row.mood_changes)
+      ? (row.mood_changes as string[])
+      : [],
+    other_changes:
+      typeof other === 'string'
+        ? other
+        : Array.isArray(other)
+          ? (other as string[]).join('\n')
+          : null,
+  }
+}
+
 export async function fetchHrtDayLog(
   userId: string,
   logDate: string,
@@ -67,7 +87,10 @@ export async function fetchHrtDayLog(
     .maybeSingle()
 
   if (error) throw error
-  return (data ?? null) as HrtDayLog | null
+  if (!data) return null
+  return normalizeHrtDayLog(
+    openRow('hrt_day_logs', data as Record<string, unknown>),
+  )
 }
 
 export async function upsertHrtDayLog(
@@ -79,17 +102,18 @@ export async function upsertHrtDayLog(
 ): Promise<void> {
   if (!supabase) return
 
-  const { error } = await supabase.from('hrt_day_logs').upsert(
-    {
-      user_id: userId,
-      log_date: logDate,
-      bodily_changes: patch.bodily_changes ?? [],
-      mood_changes: patch.mood_changes ?? [],
-      other_changes: patch.other_changes?.trim() || null,
-      notes: patch.notes?.trim() || null,
-    },
-    { onConflict: 'user_id,log_date' },
-  )
+  const sealed = sealRow('hrt_day_logs', {
+    user_id: userId,
+    log_date: logDate,
+    bodily_changes: patch.bodily_changes ?? [],
+    mood_changes: patch.mood_changes ?? [],
+    other_changes: patch.other_changes?.trim() || null,
+    notes: patch.notes?.trim() || null,
+  })
+
+  const { error } = await supabase.from('hrt_day_logs').upsert(sealed, {
+    onConflict: 'user_id,log_date',
+  })
 
   if (error) throw error
 }
@@ -110,6 +134,8 @@ export async function fetchHrtDayLogsInRange(
     .order('log_date', { ascending: true })
 
   if (error) throw error
-  return (data ?? []) as HrtDayLog[]
+  return openRows(
+    'hrt_day_logs',
+    (data ?? []) as Record<string, unknown>[],
+  ).map(normalizeHrtDayLog)
 }
-

@@ -3,6 +3,7 @@ import {
   type MedicationRouteId,
 } from './medicationForms'
 import type { MedicationScheduleType } from './medicationSchedule'
+import { asStringArray } from './asStringArray'
 
 export type InjectionLogStyle = 'simple' | 'measured'
 
@@ -272,7 +273,7 @@ export function prnAmountOptions(med: {
   dose_pills: string | null
   prn_amount_hints?: string[] | null
 }): string[] {
-  const hints = (med.prn_amount_hints ?? []).filter((h) => h && h !== 'Other…')
+  const hints = asStringArray(med.prn_amount_hints).filter((h) => h !== 'Other…')
   if (hints.length > 0) return [...hints, 'Other…']
   const typical = med.dose_pills?.trim()
   if (typical && typical !== 'Varies') return [typical, '1 dose', 'Other…']

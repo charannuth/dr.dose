@@ -17,6 +17,8 @@ type MedicationCardProps = {
   onMoveToDailySchedule?: () => void
   onDelete: () => void
   busySlot: string | null
+  /** When set, only show the dose slot at this schedule time (HH:mm). */
+  visibleScheduleTime?: string
 }
 
 export function MedicationCard({
@@ -29,8 +31,15 @@ export function MedicationCard({
   onMoveToDailySchedule,
   onDelete,
   busySlot,
+  visibleScheduleTime,
 }: MedicationCardProps) {
   const asNeeded = isAsNeededMed(medication)
+  const slotSource = visibleScheduleTime
+    ? medication.slots.filter((s) => s.time === visibleScheduleTime)
+    : medication.slots
+  if (visibleScheduleTime && slotSource.length === 0) {
+    return null
+  }
   const migrateToPrnBusy = busySlot === `${medication.id}-migrate-prn`
   const migrateToDailyBusy = busySlot === `${medication.id}-migrate-daily`
   const lowSupply =
@@ -136,9 +145,9 @@ export function MedicationCard({
             <p className="med-times med-times-empty">No doses logged today yet.</p>
           )}
         </>
-      ) : medication.slots.length > 0 ? (
+      ) : slotSource.length > 0 ? (
         <ul className="dose-slots">
-          {medication.slots.map((slot, index) => {
+          {slotSource.map((slot, index) => {
             const slotKey = `${medication.id}-${slot.time}`
             const busy = busySlot === slotKey
             return (

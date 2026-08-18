@@ -1,3 +1,4 @@
+import { openRow, openRows, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
 import { localDateString, todayLocalDate } from './dates'
 type SubstanceKey = 'alcohol' | 'cannabis' | 'tobacco'
@@ -222,11 +223,22 @@ export function lastNDates(n: number, endDate?: string): string[] {
   return dates
 }
 
-function profileFromRow(row: WellnessProfile): WellnessProfile {
+function profileFromRow(row: Record<string, unknown>): WellnessProfile {
+  const opened = openRow('wellness_profiles', row)
   return {
-    ...row,
-    substance_use: (row.substance_use ?? {}) as WellnessProfile['substance_use'],
-    symptom_focus: row.symptom_focus ?? [],
+    ...(opened as unknown as WellnessProfile),
+    substance_use: (opened.substance_use ?? {}) as WellnessProfile['substance_use'],
+    symptom_focus: Array.isArray(opened.symptom_focus)
+      ? (opened.symptom_focus as string[])
+      : [],
+  }
+}
+
+function logFromDbRow(row: Record<string, unknown>): WellnessLog {
+  const opened = openRow('wellness_logs', row)
+  return {
+    ...(opened as unknown as WellnessLog),
+    symptoms: Array.isArray(opened.symptoms) ? (opened.symptoms as string[]) : [],
   }
 }
 
@@ -240,7 +252,7 @@ export async function fetchWellnessProfile(
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw error
-  return data ? profileFromRow(data as WellnessProfile) : null
+  return data ? profileFromRow(data as Record<string, unknown>) : null
 }
 
 export async function upsertWellnessProfile(
@@ -248,7 +260,7 @@ export async function upsertWellnessProfile(
   input: WellnessProfileInput,
 ): Promise<WellnessProfile> {
   if (!supabase) throw new Error('Supabase is not configured')
-  const payload = {
+  const sealed = sealRow('wellness_profiles', {
     user_id: userId,
     usual_bedtime: input.usual_bedtime.trim() || null,
     usual_wake_time: input.usual_wake_time.trim() || null,
@@ -256,14 +268,14 @@ export async function upsertWellnessProfile(
     substance_use: input.substance_use,
     symptom_focus: input.symptom_focus,
     profile_notes: input.profile_notes.trim() || null,
-  }
+  })
   const { data, error } = await supabase
     .from('wellness_profiles')
-    .upsert(payload, { onConflict: 'user_id' })
+    .upsert(sealed, { onConflict: 'user_id' })
     .select('*')
     .single()
   if (error) throw error
-  return profileFromRow(data as WellnessProfile)
+  return profileFromRow(data as Record<string, unknown>)
 }
 
 export async function fetchWellnessLog(
@@ -278,7 +290,8 @@ export async function fetchWellnessLog(
     .eq('log_date', logDate)
     .maybeSingle()
   if (error) throw error
-  return data as WellnessLog | null
+  if (!data) return null
+  return logFromDbRow(data as Record<string, unknown>)
 }
 
 export async function fetchWellnessLogsForDates(
@@ -293,7 +306,13 @@ export async function fetchWellnessLogsForDates(
     .in('log_date', dates)
     .order('log_date', { ascending: false })
   if (error) throw error
-  return (data ?? []) as WellnessLog[]
+  return openRows(
+    'wellness_logs',
+    (data ?? []) as Record<string, unknown>[],
+  ).map((row) => ({
+    ...(row as unknown as WellnessLog),
+    symptoms: Array.isArray(row.symptoms) ? (row.symptoms as string[]) : [],
+  }))
 }
 
 export async function upsertWellnessLog(
@@ -301,7 +320,7 @@ export async function upsertWellnessLog(
   input: WellnessLogInput,
 ): Promise<WellnessLog> {
   if (!supabase) throw new Error('Supabase is not configured')
-  const payload = {
+  const sealed = sealRow('wellness_logs', {
     user_id: userId,
     log_date: input.log_date,
     sleep_hours: input.sleep_hours,
@@ -312,12 +331,12 @@ export async function upsertWellnessLog(
     exercise_minutes: input.exercised ? input.exercise_minutes : null,
     symptoms: input.symptoms,
     notes: input.notes.trim() || null,
-  }
+  })
   const { data, error } = await supabase
     .from('wellness_logs')
-    .upsert(payload, { onConflict: 'user_id,log_date' })
+    .upsert(sealed, { onConflict: 'user_id,log_date' })
     .select('*')
     .single()
   if (error) throw error
-  return data as WellnessLog
+  return logFromDbRow(data as Record<string, unknown>)
 }

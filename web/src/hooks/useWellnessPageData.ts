@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { filterMedicationsActiveOn } from '../lib/medicationDates'
 import { todayLocalDate } from '../lib/dates'
+import { openRows } from '../lib/crypto/seal'
 import { supabase } from '../lib/supabase'
 import type { Medication } from '../lib/types'
 import type { ActiveMedicationSummary } from '../lib/wellnessReport'
@@ -84,7 +85,10 @@ export function useWellnessPageData(
           .order('name')
         if (medError) throw medError
         const activeMedRows = filterMedicationsActiveOn(
-          (data ?? []) as Medication[],
+          openRows(
+            'medications',
+            (data ?? []) as Record<string, unknown>[],
+          ) as Medication[],
           today,
         )
         setActiveMeds(

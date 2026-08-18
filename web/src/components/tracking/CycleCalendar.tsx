@@ -71,12 +71,6 @@ export function CycleCalendar({
           <span className="cycle-legend-swatch predicted-period" /> Predicted period
         </li>
         <li>
-          <span className="cycle-legend-dot symptom" /> Symptoms
-        </li>
-        <li>
-          <span className="cycle-legend-heart" aria-hidden>♥</span> Intercourse
-        </li>
-        <li>
           <span className="cycle-legend-swatch phase-follicular" /> Follicular
         </li>
         <li>
@@ -84,6 +78,12 @@ export function CycleCalendar({
         </li>
         <li>
           <span className="cycle-legend-swatch phase-luteal" /> Luteal
+        </li>
+        <li>
+          <span className="cycle-legend-swatch cycle-symptom" /> Symptoms
+        </li>
+        <li>
+          <span className="cycle-legend-heart" aria-hidden>♥</span> Intercourse
         </li>
       </ul>
 

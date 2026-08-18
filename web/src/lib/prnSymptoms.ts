@@ -1,4 +1,5 @@
 import { isMedicationRouteId, type MedicationRouteId } from './medicationForms'
+import { asStringArray } from './asStringArray'
 
 export type MedForPrnSymptoms = {
   name: string
@@ -169,7 +170,7 @@ function defaultSymptomsForMed(med: MedForPrnSymptoms): string[] {
 
 /** Chip options for PRN logging — configured hints override inferred defaults. */
 export function prnSymptomOptionsForMed(med: MedForPrnSymptoms): string[] {
-  const configured = (med.prn_symptom_hints ?? []).filter(Boolean)
+  const configured = asStringArray(med.prn_symptom_hints)
   if (configured.length > 0) return configured
 
   return defaultSymptomsForMed(med)
@@ -181,7 +182,7 @@ export function prnSymptomLegend(med: MedForPrnSymptoms): string {
 }
 
 export function prnSymptomHint(med: MedForPrnSymptoms): string {
-  const configured = (med.prn_symptom_hints ?? []).length > 0
+  const configured = asStringArray(med.prn_symptom_hints).length > 0
   if (configured) {
     return 'Tap what you are feeling now, or add your own below.'
   }

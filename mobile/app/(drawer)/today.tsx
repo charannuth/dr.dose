@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,15 +18,17 @@ import {
   type ReorderableListReorderEvent,
 } from 'react-native-reorderable-list';
 import { MedicationCard } from '../../components/MedicationCard';
+import {
+  SameTimeDoseChooseModal,
+  SameTimeDoseGroupBar,
+} from '../../components/SameTimeDoseActions';
 import { StreakSnippet } from '../../components/StreakSnippet';
 import { StreakCelebration } from '../../components/StreakCelebration';
 import { useStreakCelebration } from '../../hooks/useStreakCelebration';
-import { useAppUpdateCheck } from '../../hooks/useAppUpdateCheck';
 import { DueNowBanner } from '../../components/banners/DueNowBanner';
 import { MissedDosesBanner } from '../../components/banners/MissedDosesBanner';
 import { RefillBanner } from '../../components/banners/RefillBanner';
 import { InteractionAlert } from '../../components/banners/InteractionAlert';
-import { UpdateBanner } from '../../components/banners/UpdateBanner';
 import { TodayWellnessCheckIn } from '../../components/TodayWellnessCheckIn';
 import { useAuth } from '../../hooks/useAuth';
 import { useDemoTourTarget, useDemoTourTargets } from '../../context/DemoTourTargetsContext';
@@ -59,25 +62,33 @@ import {
 } from '../../lib/reminders';
 import { getActiveSnoozes } from '../../lib/snooze';
 import { SnoozeModal } from '../../components/SnoozeModal';
+import { takePendingDoseAction } from '../../lib/pendingDoseAction';
 import {
   getCustomOrders,
   getMedSort,
   getReminders,
+  getSameTimeDoseMode,
   setCustomOrder,
   setMedSort,
   type CustomOrders,
   type MedListTab,
   type MedSort,
+  type SameTimeDoseMode,
 } from '../../lib/settings';
+import {
+  buildSameTimePendingGroups,
+  buildScheduleTimeSections,
+  sameTimePendingItemKey,
+  type SameTimeDoseGroup,
+} from '../../lib/sameTimeDoseGroups';
 import {
   dismissMissedDosesBanner,
   isMissedDosesBannerDismissed,
 } from '../../lib/bannerSettings';
 import type { DoseSlotStatus, MedicationWithStatus } from '../../lib/types';
-import type { ColorPalette } from '../../constants/theme';
 import { fonts, radii, spacing, typography } from '../../constants/theme';
+import type { ColorPalette } from '../../constants/theme';
 import type { PrnDoseLogPayload } from '../../lib/prnCheckIn';
-import { Alert } from 'react-native';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 
@@ -298,6 +309,48 @@ function makeTodayStyles(colors: ColorPalette) {
     reorderItem: {
       marginBottom: spacing.md,
     },
+    takeAllRow: {
+      gap: spacing.sm,
+    },
+    takeAllChip: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      paddingVertical: 12,
+      paddingHorizontal: spacing.md,
+    },
+    timeSection: {
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    timeSectionHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: spacing.sm,
+      paddingHorizontal: 2,
+    },
+    timeSectionTitle: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 16,
+      color: colors.text,
+      flex: 1,
+    },
+    takeAllTitle: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 15,
+      color: colors.text,
+    },
+    takeAllMeta: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
   };
 }
 
@@ -329,7 +382,6 @@ export default function TodayScreen() {
     user?.id,
     streakStats,
   );
-  const { updateInfo, dismissUpdate } = useAppUpdateCheck();
   const [snoozeTarget, setSnoozeTarget] = useState<{
     med: MedicationWithStatus;
     time: string;
@@ -339,6 +391,11 @@ export default function TodayScreen() {
   const [snoozeMap, setSnoozeMap] = useState<Record<string, Record<string, string>>>(
     {},
   );
+  const [sameTimeMode, setSameTimeMode] = useState<SameTimeDoseMode>('choose');
+  const [chooseGroup, setChooseGroup] = useState<SameTimeDoseGroup | null>(null);
+  const [chooseSelected, setChooseSelected] = useState<Set<string>>(() => new Set());
+
+  const BATCH_DOSE_BUSY = 'batch-dose';
 
   const refreshSnoozes = useCallback(async () => {
     try {
@@ -362,6 +419,12 @@ export default function TodayScreen() {
     getMedSort().then(setMedSortState).catch(() => {});
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      getSameTimeDoseMode().then(setSameTimeMode).catch(() => {});
+    }, []),
+  );
+
   async function handleSnoozeConfirm(remindAt: Date) {
     const target = snoozeTarget;
     setSnoozeTarget(null);
@@ -377,6 +440,8 @@ export default function TodayScreen() {
     }
     // Reflect the saved snooze immediately so the card shows "Snoozed until …".
     await refreshSnoozes();
+    // Rebuild same-time group alerts without this snoozed slot in the nag chain.
+    await syncRemindersAfterSupplyChange();
   }
 
   async function handleSnoozeRemove() {
@@ -385,6 +450,7 @@ export default function TodayScreen() {
     if (!target) return;
     await cancelDoseSnooze({ id: target.med.id }, target.time);
     await refreshSnoozes();
+    await syncRemindersAfterSupplyChange();
   }
 
   async function changeMedSort(next: MedSort) {
@@ -460,6 +526,72 @@ export default function TodayScreen() {
     }, [user, loadAll, refreshSnoozes]),
   );
 
+  // Lock-screen Mark taken / Snooze 10 min queue work here after vault unlock.
+  // Grouped same-time alerts may include several medicationIds.
+  useEffect(() => {
+    if (!user || loading) return;
+    let cancelled = false;
+    void (async () => {
+      const pending = await takePendingDoseAction();
+      if (!pending || cancelled) return;
+      try {
+        const ids =
+          pending.medicationIds?.length > 0
+            ? pending.medicationIds
+            : [pending.medicationId];
+
+        if (pending.type === 'mark_taken') {
+          for (const medicationId of ids) {
+            try {
+              await cancelDoseSnooze({ id: medicationId }, pending.scheduleTime);
+              await markDoseTaken(user.id, medicationId, pending.scheduleTime);
+            } catch (err) {
+              // Already taken / inactive — continue others in the group.
+              const message = err instanceof Error ? err.message : '';
+              if (!/already marked as taken/i.test(message)) {
+                throw err;
+              }
+            }
+          }
+          await loadAll();
+          await syncRemindersAfterSupplyChange();
+          return;
+        }
+        if (pending.type === 'snooze') {
+          const remindAt = new Date(Date.now() + pending.minutes * 60_000);
+          for (const medicationId of ids) {
+            const med = medications.find((m) => m.id === medicationId);
+            const result = await scheduleDoseSnooze({
+              med: {
+                id: medicationId,
+                name: med?.name ?? 'Medication',
+              },
+              scheduleTime: pending.scheduleTime,
+              remindAt,
+            });
+            if (!result.ok) {
+              setError(result.reason);
+              return;
+            }
+          }
+          await refreshSnoozes();
+          await syncRemindersAfterSupplyChange();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not apply notification action',
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // medications intentionally omitted — use snapshot at unlock; re-run on focus via loading flip
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]);
+
   async function onRefresh() {
     setRefreshing(true);
     try {
@@ -499,8 +631,90 @@ export default function TodayScreen() {
     }
   }
 
+  async function handleMarkManyDoses(
+    items: { med: MedicationWithStatus; time: string }[],
+    options?: { confirmTitle?: string; confirmMessage?: string },
+  ) {
+    if (!user || items.length === 0) return;
+    if (options?.confirmTitle) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(options.confirmTitle!, options.confirmMessage ?? '', [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Mark taken', onPress: () => resolve(true) },
+        ]);
+      });
+      if (!confirmed) return;
+    }
+
+    setBusySlot(BATCH_DOSE_BUSY);
+    setError(null);
+    try {
+      const failures: string[] = [];
+      for (const { med, time } of items) {
+        try {
+          await cancelDoseSnooze({ id: med.id }, time);
+          await markDoseTaken(user.id, med.id, time);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Could not log dose';
+          if (/already marked as taken/i.test(message)) continue;
+          failures.push(`${med.name}: ${message}`);
+        }
+      }
+      await loadAll();
+      await syncRemindersAfterSupplyChange();
+      if (failures.length > 0) {
+        setError(failures.join(' '));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not log doses');
+      await loadAll();
+    } finally {
+      setBusySlot(null);
+    }
+  }
+
+  async function handleTakeAllAtTime(
+    items: { med: MedicationWithStatus; time: string }[],
+    label: string,
+  ) {
+    await handleMarkManyDoses(items, {
+      confirmTitle: `Take all at ${label}?`,
+      confirmMessage: `Mark ${items.length} doses as taken.`,
+    });
+  }
+
+  function openChooseGroup(group: SameTimeDoseGroup) {
+    setChooseGroup(group);
+    setChooseSelected(
+      new Set(
+        group.pending.map((item) => sameTimePendingItemKey(item.med.id, item.time)),
+      ),
+    );
+  }
+
+  async function confirmChooseGroup() {
+    if (!chooseGroup) return;
+    const items = chooseGroup.pending.filter((item) =>
+      chooseSelected.has(sameTimePendingItemKey(item.med.id, item.time)),
+    );
+    await handleMarkManyDoses(items);
+    setChooseGroup(null);
+  }
+
   async function handleUndo(med: MedicationWithStatus, slot: DoseSlotStatus) {
     if (!slot.doseLogId) return;
+    const confirmed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Undo this dose?',
+        `Remove the “taken” mark for ${med.name}${slot.label ? ` (${slot.label})` : ''}? You can log it again later.`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Undo', style: 'destructive', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!confirmed) return;
+
     const key = `${med.id}-${slot.time}`;
     setBusySlot(key);
     setError(null);
@@ -639,6 +853,18 @@ export default function TodayScreen() {
   const showSortRow = visibleMeds.length > 1;
   const refillAlerts = getRefillAlerts(medications);
 
+  const takeAllGroups = useMemo(
+    () => (todayTab === 'as_needed' ? [] : buildSameTimePendingGroups(visibleMeds)),
+    [todayTab, visibleMeds],
+  );
+
+  const scheduleTimeSections = useMemo(
+    () => (todayTab === 'as_needed' ? [] : buildScheduleTimeSections(visibleMeds)),
+    [todayTab, visibleMeds],
+  );
+
+  const batchDoseBusy = busySlot === BATCH_DOSE_BUSY;
+
   function openAddMedication(
     scheduleType: MedicationScheduleType = 'scheduled',
     category: MedicationCategory = 'medication',
@@ -677,12 +903,17 @@ export default function TodayScreen() {
           : `${supplementsLogged} supplement dose${supplementsLogged === 1 ? '' : 's'} logged today`;
   }
 
-  const renderMedCard = (med: MedicationWithStatus, dragHandle?: ReactNode) => (
+  const renderMedCard = (
+    med: MedicationWithStatus,
+    dragHandle?: ReactNode,
+    visibleScheduleTime?: string,
+  ) => (
     <MedicationCard
       key={med.id}
       medication={med}
       busySlot={busySlot}
       snoozeByTime={snoozeMap[med.id]}
+      visibleScheduleTime={visibleScheduleTime}
       onMarkTaken={(time) => handleMarkTaken(med, time)}
       onSnooze={(time) =>
         setSnoozeTarget({
@@ -699,6 +930,62 @@ export default function TodayScreen() {
       dragHandle={dragHandle}
     />
   );
+
+  function renderSameTimeBar(group: SameTimeDoseGroup) {
+    if (sameTimeMode === 'individual' || group.pending.length < 2) return null;
+    return (
+      <SameTimeDoseGroupBar
+        group={group}
+        mode={sameTimeMode}
+        disabled={busySlot != null}
+        busy={batchDoseBusy}
+        onTakeAll={() => void handleTakeAllAtTime(group.pending, group.label)}
+        onChoose={() => openChooseGroup(group)}
+      />
+    );
+  }
+
+  function renderDoseList() {
+    const useTimeSections =
+      todayTab !== 'as_needed' && medSort === 'time' && scheduleTimeSections.length > 0;
+
+    if (useTimeSections) {
+      return scheduleTimeSections.map((section) => (
+        <View key={section.time} style={styles.timeSection}>
+          <View style={styles.timeSectionHeader}>
+            <Text style={styles.timeSectionTitle}>{section.label}</Text>
+            {renderSameTimeBar({
+              time: section.time,
+              label: section.label,
+              pending: section.pending,
+            })}
+          </View>
+          {section.meds.map((med) => renderMedCard(med, undefined, section.time))}
+        </View>
+      ));
+    }
+
+    return (
+      <>
+        {sameTimeMode !== 'individual' && takeAllGroups.length > 0 ? (
+          <View style={styles.takeAllRow}>
+            {takeAllGroups.map((group) => (
+              <View key={group.time} style={styles.takeAllChip}>
+                <View>
+                  <Text style={styles.takeAllTitle}>{group.label}</Text>
+                  <Text style={styles.takeAllMeta}>
+                    {group.pending.length} doses ready
+                  </Text>
+                </View>
+                {renderSameTimeBar(group)}
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {visibleMeds.map((med) => renderMedCard(med))}
+      </>
+    );
+  }
 
   if (loading) {
     return (
@@ -728,8 +1015,6 @@ export default function TodayScreen() {
             <StreakSnippet stats={streakStats} onPreviewCelebration={previewCelebration} />
           ) : null}
         </View>
-
-        <UpdateBanner info={updateInfo} onDismiss={() => void dismissUpdate()} />
 
         <RefillBanner
           alerts={refillAlerts}
@@ -905,15 +1190,41 @@ export default function TodayScreen() {
                 )}
               />
             ) : (
-              <View style={styles.list}>
-                {visibleMeds.map((med) => renderMedCard(med))}
-              </View>
+              <View style={styles.list}>{renderDoseList()}</View>
             )}
           </SwipeTabView>
         )}
 
         <TodayWellnessCheckIn />
       </ScrollViewContainer>
+
+      <SameTimeDoseChooseModal
+        visible={chooseGroup != null}
+        group={chooseGroup}
+        selectedKeys={chooseSelected}
+        busy={batchDoseBusy}
+        onToggle={(key) => {
+          setChooseSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+          });
+        }}
+        onSelectAll={() => {
+          if (!chooseGroup) return;
+          setChooseSelected(
+            new Set(
+              chooseGroup.pending.map((item) =>
+                sameTimePendingItemKey(item.med.id, item.time),
+              ),
+            ),
+          );
+        }}
+        onClearAll={() => setChooseSelected(new Set())}
+        onConfirm={() => void confirmChooseGroup()}
+        onClose={() => setChooseGroup(null)}
+      />
 
       <SnoozeModal
         visible={snoozeTarget != null}

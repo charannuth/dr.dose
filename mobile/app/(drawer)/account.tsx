@@ -19,6 +19,12 @@ import { TimezonePickerField } from '../../components/account/TimezonePickerFiel
 import { StreakBadges } from '../../components/streaks/StreakBadges';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
+import { useVault } from '../../hooks/useVault';
+import {
+  PASSWORD_REQUIREMENTS_HINT,
+  validatePassword,
+  validatePasswordMatch,
+} from '../../lib/passwordPolicy';
 import { useStreakStats } from '../../hooks/useStreakStats';
 import { getDisplayName } from '../../lib/profile';
 import {
@@ -37,13 +43,17 @@ import { runReminderCheck, type ReminderCheckResult } from '../../lib/reminderDe
 import {
   getReminders,
   getReminderSound,
+  getSameTimeDoseMode,
   getTimezone,
   loadTimezone,
   REMINDER_SOUNDS,
+  SAME_TIME_DOSE_MODES,
   setReminders,
   setReminderSound,
+  setSameTimeDoseMode,
   setTimezone,
   type ReminderSound,
+  type SameTimeDoseMode,
   type ThemeMode,
 } from '../../lib/settings';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
@@ -57,7 +67,8 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 ];
 
 export default function AccountScreen() {
-  const { user, signOut, updateDisplayName, deleteAccount } = useAuth();
+  const { user, signOut, updateDisplayName, deleteAccount, updatePassword } = useAuth();
+  const vault = useVault();
   const router = useRouter();
   const { colors, themeMode, setThemeMode } = useTheme();
   const { stats: streakStats, loading: streakLoading, error: streakError } = useStreakStats(
@@ -79,6 +90,11 @@ export default function AccountScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [reminderDebug, setReminderDebug] = useState<ReminderCheckResult | null>(null);
+  const [sameTimeDoseMode, setSameTimeDoseModeState] = useState<SameTimeDoseMode>('choose');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
+  const [confirmNextPassword, setConfirmNextPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -91,7 +107,49 @@ export default function AccountScreen() {
     void getReminderSound().then(setReminderSoundState);
     void getNotificationPermission().then(setPermissionStatus);
     void loadTimezone().then(setTimezoneState);
+    void getSameTimeDoseMode().then(setSameTimeDoseModeState);
   }, []);
+
+  async function savePassword() {
+    setSettingsError(null);
+    setMessage(null);
+    const policy = validatePassword(nextPassword);
+    if (!policy.ok) {
+      setSettingsError(policy.message);
+      return;
+    }
+    const match = validatePasswordMatch(nextPassword, confirmNextPassword);
+    if (!match.ok) {
+      setSettingsError(match.message);
+      return;
+    }
+    if (!currentPassword) {
+      setSettingsError('Enter your current password.');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await vault.changePassphrase(currentPassword, nextPassword);
+      await updatePassword(nextPassword);
+      setCurrentPassword('');
+      setNextPassword('');
+      setConfirmNextPassword('');
+      setMessage('Password updated.');
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Could not update password');
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
+  async function handleSameTimeDoseModeChange(mode: SameTimeDoseMode) {
+    setSameTimeDoseModeState(mode);
+    try {
+      await setSameTimeDoseMode(mode);
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Could not save preference');
+    }
+  }
 
   async function handleReminderSoundChange(sound: ReminderSound) {
     setReminderSoundState(sound);
@@ -351,6 +409,45 @@ export default function AccountScreen() {
             <Text style={styles.secondaryBtnText}>{profileBusy ? 'Saving…' : 'Save name'}</Text>
           </Pressable>
 
+          <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Change password</Text>
+          <Text style={styles.hint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
+          <TextInput
+            style={styles.input}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Current password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            value={nextPassword}
+            onChangeText={setNextPassword}
+            placeholder="New password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            value={confirmNextPassword}
+            onChangeText={setConfirmNextPassword}
+            placeholder="Confirm new password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+          />
+          <Pressable
+            style={[styles.secondaryBtn, passwordBusy && styles.btnDisabled]}
+            disabled={passwordBusy}
+            onPress={() => void savePassword()}
+          >
+            <Text style={styles.secondaryBtnText}>
+              {passwordBusy ? 'Updating…' : 'Update password'}
+            </Text>
+          </Pressable>
+
           <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Appearance</Text>
           <View style={styles.themeRow}>
             {THEME_OPTIONS.map((opt) => {
@@ -370,6 +467,35 @@ export default function AccountScreen() {
           </View>
 
           <TimezonePickerField value={timezone} onChange={(tz) => void handleTimezoneChange(tz)} />
+
+          <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>
+            Same-time doses on Today
+          </Text>
+          <Text style={styles.hint}>
+            When several medications share a dose time, choose how batch marking works. Each
+            logged dose is identical to tapping Mark taken on that medication.
+          </Text>
+          <View style={styles.themeRow}>
+            {SAME_TIME_DOSE_MODES.map((opt) => {
+              const active = sameTimeDoseMode === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.themeChip, active && styles.themeChipActive]}
+                  onPress={() => void handleSameTimeDoseModeChange(opt.value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.hint}>
+            {SAME_TIME_DOSE_MODES.find((o) => o.value === sameTimeDoseMode)?.hint}
+          </Text>
 
           <View style={styles.reminderSection}>
             <Text style={styles.fieldLabel}>Reminders</Text>

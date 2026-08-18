@@ -1,3 +1,4 @@
+import { openRows } from './crypto/seal'
 import { todayLocalDate } from './dates'
 import { filterMedicationsActiveOn } from './medicationDates'
 import { isAsNeededMed } from './medicationSchedule'
@@ -9,6 +10,7 @@ import {
 import { supabase } from './supabase'
 import type { DoseLog, Medication } from './types'
 import {
+import { asStringArray } from './asStringArray'
   isWellnessLogFilled,
   lastNDates,
   logFromRow,
@@ -208,7 +210,7 @@ function groupPrnDosesByMedAndDate(
     if (log.logged_amount?.trim()) day.amounts.push(log.logged_amount.trim())
     if (log.prn_reason?.trim()) day.reasons.push(log.prn_reason.trim())
     if (log.prn_notes?.trim()) day.notes.push(log.prn_notes.trim())
-    for (const s of log.prn_symptoms ?? []) {
+    for (const s of asStringArray(log.prn_symptoms)) {
       if (s.trim() && !day.symptoms.includes(s.trim())) {
         day.symptoms.push(s.trim())
       }
@@ -253,18 +255,27 @@ export async function fetchPrnInsights(
   if (logsResult.error) throw logsResult.error
   if (wellnessResult.error) throw wellnessResult.error
 
-  const allMeds = (medsResult.data ?? []) as Medication[]
+  const allMeds = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
   const prnMeds = filterMedicationsActiveOn(allMeds, today).filter(isAsNeededMed)
 
   const wellnessByDate = new Map<string, WellnessLog>()
-  for (const row of (wellnessResult.data ?? []) as WellnessLog[]) {
+  for (const row of openRows(
+    'wellness_logs',
+    (wellnessResult.data ?? []) as Record<string, unknown>[],
+  ) as WellnessLog[]) {
     wellnessByDate.set(row.log_date, row)
   }
 
   const prnMedIds = new Set(prnMeds.map((m) => m.id))
-  const prnLogs = ((logsResult.data ?? []) as DoseLog[]).filter((l) =>
-    prnMedIds.has(l.medication_id),
-  )
+  const prnLogs = (
+    openRows(
+      'dose_logs',
+      (logsResult.data ?? []) as Record<string, unknown>[],
+    ) as DoseLog[]
+  ).filter((l) => prnMedIds.has(l.medication_id))
 
   const grouped = groupPrnDosesByMedAndDate(prnLogs)
 

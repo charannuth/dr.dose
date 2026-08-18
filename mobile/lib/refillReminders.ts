@@ -84,7 +84,7 @@ export async function rescheduleRefillReminders(
       identifier: `${REFILL_PREFIX}:${alert.medicationId}`,
       content: {
         title: 'Refill soon',
-        body: `${alert.name} — ${alert.remainingLabel} left`,
+        body: `A medication is running low (${alert.remainingLabel} left). Open Dr. Dose to update supply.`,
         sound: 'default',
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { screen: 'today', medicationId: alert.medicationId, kind: 'refill' },
@@ -133,7 +133,7 @@ export async function scheduleTestRefillReminder(
     identifier: TEST_REFILL_ID,
     content: {
       title: 'Refill soon',
-      body: `${alert.name} — ${alert.remainingLabel} left`,
+      body: `A medication is running low (${alert.remainingLabel} left). Open Dr. Dose to update supply.`,
       sound: 'default',
       data: { screen: 'today', medicationId: alert.medicationId, kind: 'refill' },
       ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),
@@ -145,5 +145,5 @@ export async function scheduleTestRefillReminder(
     },
   });
 
-  return { ok: true, label: `${alert.name} (${alert.remainingLabel} left)` };
+  return { ok: true, label: `Low supply (${alert.remainingLabel} left)` };
 }

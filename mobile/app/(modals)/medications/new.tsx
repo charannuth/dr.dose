@@ -133,7 +133,22 @@ export default function AddMedicationScreen() {
         return;
       }
 
-      const parsed = await recognizePrescription(result.assets[0].uri);
+      // Cloud AI is opt-in per scan: OCR text (not the photo) would leave the device.
+      let useCloudAi = false;
+      if (isLabelAiAvailable()) {
+        useCloudAi = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Enhance with AI?',
+            'On-device OCR always runs. Optionally send the scanned label text (not the photo) to Google to fill more fields. Skip to keep everything on this device.',
+            [
+              { text: 'On-device only', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Enhance with AI', onPress: () => resolve(true) },
+            ],
+          );
+        });
+      }
+
+      const parsed = await recognizePrescription(result.assets[0].uri, { useCloudAi });
       setScanResult(parsed);
       setMode('review');
       if (!hasUsefulPrefill(parsed)) {

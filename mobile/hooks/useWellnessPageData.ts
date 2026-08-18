@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { openRows } from '../lib/crypto/seal';
 import { filterMedicationsActiveOn } from '../lib/medicationDates';
 import { todayLocalDate } from '../lib/dates';
 import { supabase } from '../lib/supabase';
@@ -77,7 +78,13 @@ export function useWellnessPageData(userId: string | undefined, selectedDate: st
           .eq('user_id', userId)
           .order('name');
         if (medError) throw medError;
-        const activeMedRows = filterMedicationsActiveOn((data ?? []) as Medication[], today);
+        const activeMedRows = filterMedicationsActiveOn(
+          openRows(
+            'medications',
+            (data ?? []) as Record<string, unknown>[],
+          ) as Medication[],
+          today,
+        );
         setActiveMeds(
           activeMedRows.map((m) => ({
             name: m.name,

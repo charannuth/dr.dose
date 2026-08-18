@@ -1,3 +1,4 @@
+import { asStringArray } from './asStringArray'
 export type PrnDoseLogPayload = {
   amount: string
   symptoms: string[]
@@ -51,7 +52,7 @@ export function formatPrnDoseSummary(log: {
   const amount = log.logged_amount?.trim()
   if (amount) parts.push(amount)
   if (log.prn_reason?.trim()) parts.push(log.prn_reason.trim())
-  const symptoms = log.prn_symptoms ?? []
+  const symptoms = asStringArray(log.prn_symptoms)
   if (symptoms.length > 0) {
     const shown = symptoms.slice(0, 2).join(', ')
     parts.push(symptoms.length > 2 ? `${shown}…` : shown)

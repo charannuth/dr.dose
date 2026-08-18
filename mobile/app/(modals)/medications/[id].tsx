@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { ColorPalette } from '../../../constants/theme';
 import { spacing } from '../../../constants/theme';
 import { useTheme } from '../../../context/ThemeProvider';
+import { openRow } from '../../../lib/crypto/seal';
 import { supabase } from '../../../lib/supabase';
 import {
   fetchMedicationsWithStatus,
@@ -52,7 +53,10 @@ export default function EditMedicationScreen() {
         fetchMedicationsWithStatus(user!.id),
       ]);
       if (medRes.error) throw medRes.error;
-      const row = medRes.data as Medication;
+      const row = openRow(
+        'medications',
+        medRes.data as Record<string, unknown>,
+      ) as unknown as Medication;
       await repairMedicationSchedule(row.id);
       if (active) {
         setMed(row);

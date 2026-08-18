@@ -9,6 +9,10 @@ import {
   validatePasswordMatch,
 } from '../lib/passwordPolicy'
 import { EMAIL_ALREADY_IN_USE_MESSAGE } from '../lib/signUpResult'
+import {
+  stashPendingLoginPassword,
+  stashPendingRewrapPassword,
+} from '../lib/crypto/pendingVaultPassword'
 
 type AuthMode =
   | 'signin'
@@ -85,12 +89,15 @@ export function AuthPage() {
 
       if (mode === 'forgot-reset') {
         if (!assertNewPassword(newPassword, confirmPassword)) return
+        stashPendingRewrapPassword(newPassword)
+        stashPendingLoginPassword(newPassword)
         await updatePassword(newPassword)
         setMessage('Password updated. You are signed in.')
         return
       }
 
       if (mode === 'signin') {
+        stashPendingLoginPassword(password)
         await signIn(email, password)
         return
       }
@@ -104,6 +111,7 @@ export function AuthPage() {
           return
         }
         if (result.status === 'needs_verification') {
+          stashPendingLoginPassword(password)
           switchMode('signup-verify')
           setMessage('We emailed you an 8-digit verification code.')
         }

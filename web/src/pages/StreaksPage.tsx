@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StreakBadges } from '../components/StreakBadges'
 import { StreakCard } from '../components/StreakCard'
+import { StreakCelebration } from '../components/StreakCelebration'
 import { useAuth } from '../hooks/useAuth'
 import { useStreakStats } from '../hooks/useStreakStats'
 import type { StreakStats } from '../lib/streaks'
@@ -8,13 +10,15 @@ import type { StreakStats } from '../lib/streaks'
 export function StreaksPage() {
   const { user } = useAuth()
   const { stats, loading, error } = useStreakStats(user?.id)
+  const [previewStreakDays, setPreviewStreakDays] = useState<number | null>(null)
 
   return (
     <main className="page streaks-page">
       <header className="page-header">
         <h2>Streaks</h2>
         <p className="page-subtitle">
-          Current streak, tulip badges, and what it takes to earn each one
+          Current streak, tulip badges, and what it takes to earn each one. Click a badge
+          to preview its celebration.
         </p>
       </header>
 
@@ -23,7 +27,11 @@ export function StreaksPage() {
       <StreakCard stats={stats ?? emptyStats()} loading={loading} />
 
       {!loading && stats && (
-        <StreakBadges longestStreak={stats.longestStreak} catalog />
+        <StreakBadges
+          longestStreak={stats.longestStreak}
+          catalog
+          onPreviewBadge={(badge) => setPreviewStreakDays(badge.minDays)}
+        />
       )}
 
       {!loading && stats && !stats.hasMedications && (
@@ -40,6 +48,14 @@ export function StreaksPage() {
         <Link to="/history">History</Link> to see doses logged, missed slots, and wellness
         notes.
       </p>
+
+      {previewStreakDays != null && (
+        <StreakCelebration
+          key={previewStreakDays}
+          streakDays={previewStreakDays}
+          onDismiss={() => setPreviewStreakDays(null)}
+        />
+      )}
     </main>
   )
 }

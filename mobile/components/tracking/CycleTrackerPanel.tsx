@@ -20,17 +20,18 @@ import {
   deleteCycleDayLog,
   deleteMostRecentPeriod,
   softClearCycleDayLog,
-  CYCLE_SYMPTOMS_POST,
   CYCLE_SYMPTOMS_PRE,
   endPeriod,
   fetchCycleDayLogs,
   fetchCyclePeriods,
   fetchCycleSettings,
   fetchOpenPeriod,
+  cycleDayInPeriod,
   cycleLengthSourceLabel,
   effectiveCycleLengthForPrediction,
   getCyclePrediction,
   markPeriodLate,
+  mergeSymptomOptions,
   recentCycleLengths,
   undoLastPeriodEnd,
   updatePeriodStart,
@@ -49,6 +50,7 @@ import { CycleDayStrip } from './CycleDayStrip';
 import { IsoDateInput } from '../IsoDateInput';
 import { tryNormalizeIsoDate } from '../../lib/isoDateInput';
 import { ChipMultiSelect } from './ChipMultiSelect';
+import { EditCustomSymptomsModal } from './EditCustomSymptomsModal';
 import { useTrackingStyles } from './trackingStyles';
 
 const FLOW_OPTIONS: { value: FlowLevel; label: string }[] = [
@@ -169,8 +171,7 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
           log.intercourse ||
           log.notes?.trim() ||
           log.symptoms.length > 0 ||
-          log.symptoms_pre.length > 0 ||
-          log.symptoms_post.length > 0,
+          log.symptoms_pre.length > 0,
       );
     },
     [dayLogs],
@@ -181,18 +182,42 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
   const [flow, setFlow] = useState<FlowLevel | ''>('');
   const [symptomsPre, setSymptomsPre] = useState<string[]>([]);
   const [symptomsDuring, setSymptomsDuring] = useState<string[]>([]);
-  const [symptomsPost, setSymptomsPost] = useState<string[]>([]);
   const [intercourse, setIntercourse] = useState(false);
   const [notes, setNotes] = useState('');
+  const [editSymptomsKind, setEditSymptomsKind] = useState<'pre' | 'during' | null>(
+    null,
+  );
+
+  const preOptions = useMemo(
+    () =>
+      mergeSymptomOptions(CYCLE_SYMPTOMS_PRE, [
+        ...(settings?.custom_symptoms_pre ?? []),
+        ...symptomsPre,
+      ]),
+    [settings?.custom_symptoms_pre, symptomsPre],
+  );
+  const duringOptions = useMemo(
+    () =>
+      mergeSymptomOptions(CYCLE_SYMPTOMS_DURING, [
+        ...(settings?.custom_symptoms_during ?? []),
+        ...symptomsDuring,
+      ]),
+    [settings?.custom_symptoms_during, symptomsDuring],
+  );
 
   useEffect(() => {
     setFlow(selectedLog?.flow_level ?? '');
     setSymptomsPre(selectedLog?.symptoms_pre ?? []);
     setSymptomsDuring(selectedLog?.symptoms ?? []);
-    setSymptomsPost(selectedLog?.symptoms_post ?? []);
     setIntercourse(selectedLog?.intercourse ?? false);
     setNotes(selectedLog?.notes ?? '');
   }, [selectedLog, selectedDate]);
+
+  const selectedInPeriod = useMemo(
+    () => cycleDayInPeriod(selectedDate, periods) != null,
+    [selectedDate, periods],
+  );
+  const flowEnabled = selectedInPeriod && !isFutureDay;
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
@@ -212,7 +237,6 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
     cycleDayHasOptionalData(selectedLog) ||
     symptomsPre.length > 0 ||
     symptomsDuring.length > 0 ||
-    symptomsPost.length > 0 ||
     intercourse ||
     Boolean(notes.trim());
   const selectedDayHasSaved = cycleDayHasAnyData(selectedLog);
@@ -279,10 +303,18 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
       ) : (
         <Pressable
           style={[trackingStyles.primaryBtn, busy && trackingStyles.disabled]}
-          disabled={busy}
-          onPress={() => user && void runAction(() => startPeriod(user.id))}
+          disabled={busy || isFutureDay}
+          onPress={() =>
+            user &&
+            void runAction(() =>
+              startPeriod(user.id, selectedDate <= today ? selectedDate : today),
+            )
+          }
         >
-          <Text style={trackingStyles.primaryBtnText}>Period started</Text>
+          <Text style={trackingStyles.primaryBtnText}>
+            Period started
+            {selectedDate < today ? ` (${selectedDate})` : ''}
+          </Text>
         </Pressable>
       )}
 
@@ -551,57 +583,91 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
       </View>
 
       <Text style={trackingStyles.label}>Flow (menstruation)</Text>
-      <View style={trackingStyles.chipWrap}>
-        {FLOW_OPTIONS.map((opt) => (
+      {flowEnabled ? (
+        <View style={trackingStyles.chipWrap}>
+          {FLOW_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.value}
+              disabled={isFutureDay}
+              onPress={() => setFlow(opt.value)}
+              style={[trackingStyles.chip, flow === opt.value && trackingStyles.chipActive]}
+            >
+              <Text
+                style={[
+                  trackingStyles.chipText,
+                  flow === opt.value && trackingStyles.chipTextActive,
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
           <Pressable
-            key={opt.value}
             disabled={isFutureDay}
-            onPress={() => setFlow(opt.value)}
-            style={[trackingStyles.chip, flow === opt.value && trackingStyles.chipActive]}
+            onPress={() => setFlow('')}
+            style={[trackingStyles.chip, flow === '' && trackingStyles.chipActive]}
           >
             <Text
-              style={[
-                trackingStyles.chipText,
-                flow === opt.value && trackingStyles.chipTextActive,
-              ]}
+              style={[trackingStyles.chipText, flow === '' && trackingStyles.chipTextActive]}
             >
-              {opt.label}
+              None
             </Text>
           </Pressable>
-        ))}
-        <Pressable
-          disabled={isFutureDay}
-          onPress={() => setFlow('')}
-          style={[trackingStyles.chip, flow === '' && trackingStyles.chipActive]}
-        >
-          <Text
-            style={[trackingStyles.chipText, flow === '' && trackingStyles.chipTextActive]}
-          >
-            None
-          </Text>
-        </Pressable>
-      </View>
+        </View>
+      ) : (
+        <Text style={trackingStyles.hint}>
+          {isFutureDay
+            ? 'Flow unlocks on that date.'
+            : 'Mark Period started first — flow is only logged during an active period.'}
+        </Text>
+      )}
 
       <ChipMultiSelect
         title="Pre-menstrual symptoms"
-        options={CYCLE_SYMPTOMS_PRE}
+        options={preOptions}
         selected={symptomsPre}
         onChange={setSymptomsPre}
         disabled={isFutureDay}
+        onAddPress={() => setEditSymptomsKind('pre')}
       />
       <ChipMultiSelect
         title="During period symptoms"
-        options={CYCLE_SYMPTOMS_DURING}
+        options={duringOptions}
         selected={symptomsDuring}
         onChange={setSymptomsDuring}
-        disabled={isFutureDay}
+        disabled={isFutureDay || !selectedInPeriod}
+        onAddPress={() => setEditSymptomsKind('during')}
       />
-      <ChipMultiSelect
-        title="Post-menstrual symptoms"
-        options={CYCLE_SYMPTOMS_POST}
-        selected={symptomsPost}
-        onChange={setSymptomsPost}
-        disabled={isFutureDay}
+      {!selectedInPeriod && !isFutureDay ? (
+        <Text style={trackingStyles.hint}>
+          During-period toggles unlock once this day is covered by a period.
+        </Text>
+      ) : null}
+
+      <EditCustomSymptomsModal
+        visible={editSymptomsKind != null}
+        defaults={
+          editSymptomsKind === 'during' ? CYCLE_SYMPTOMS_DURING : CYCLE_SYMPTOMS_PRE
+        }
+        custom={
+          editSymptomsKind === 'during'
+            ? (settings?.custom_symptoms_during ?? [])
+            : (settings?.custom_symptoms_pre ?? [])
+        }
+        onCancel={() => setEditSymptomsKind(null)}
+        onSave={(next) => {
+          if (!user || !editSymptomsKind) return;
+          const kind = editSymptomsKind;
+          setEditSymptomsKind(null);
+          void runAction(() =>
+            updateCycleSettings(
+              user.id,
+              kind === 'during'
+                ? { custom_symptoms_during: next }
+                : { custom_symptoms_pre: next },
+            ),
+          );
+        }}
       />
 
       <Text style={trackingStyles.label}>Notes</Text>
@@ -623,10 +689,10 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
               user &&
               void runAction(() =>
                 upsertCycleDayLog(user.id, selectedDate, {
-                  flow_level: flow || null,
-                  symptoms: symptomsDuring,
+                  flow_level: flowEnabled ? flow || null : null,
+                  symptoms: selectedInPeriod ? symptomsDuring : [],
                   symptoms_pre: symptomsPre,
-                  symptoms_post: symptomsPost,
+                  symptoms_post: [],
                   intercourse,
                   notes,
                 }),
@@ -643,14 +709,12 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
                 setFlow(selectedLog.flow_level ?? '');
                 setSymptomsPre(selectedLog.symptoms_pre ?? []);
                 setSymptomsDuring(selectedLog.symptoms ?? []);
-                setSymptomsPost(selectedLog.symptoms_post ?? []);
                 setIntercourse(selectedLog.intercourse ?? false);
                 setNotes(selectedLog.notes ?? '');
               } else {
                 setFlow('');
                 setSymptomsPre([]);
                 setSymptomsDuring([]);
-                setSymptomsPost([]);
                 setIntercourse(false);
                 setNotes('');
               }
@@ -672,14 +736,15 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
                       text: 'Soft clear',
                       onPress: () => {
                         if (!user) return;
-                        const keepFlow = flow || selectedLog?.flow_level || null;
+                        const keepFlow = flowEnabled
+                          ? flow || selectedLog?.flow_level || null
+                          : null;
                         void runAction(async () => {
                           if (selectedLog || keepFlow) {
                             await softClearCycleDayLog(user.id, selectedDate, keepFlow);
                           }
                           setSymptomsPre([]);
                           setSymptomsDuring([]);
-                          setSymptomsPost([]);
                           setIntercourse(false);
                           setNotes('');
                         });
@@ -712,7 +777,6 @@ export function CycleTrackerPanel({ selectedDate, onSelectDate, onDataMutated }:
                           setFlow('');
                           setSymptomsPre([]);
                           setSymptomsDuring([]);
-                          setSymptomsPost([]);
                           setIntercourse(false);
                           setNotes('');
                         }),

@@ -1,3 +1,4 @@
+import { openRows } from '../crypto/seal'
 import { supabase } from '../supabase'
 import { todayLocalDate, normalizeScheduleTimes } from '../dates'
 import type { DoseLog, Medication } from '../types'
@@ -160,8 +161,16 @@ export async function loadMedProgressCalendarData(
   if (medsResult.error) throw medsResult.error
   if (logsResult.error) throw logsResult.error
 
-  const medications = (medsResult.data ?? []) as Medication[]
-  const logsByDate = groupLogsByDate((logsResult.data ?? []) as DoseLog[])
+  const medications = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
+  const logsByDate = groupLogsByDate(
+    openRows(
+      'dose_logs',
+      (logsResult.data ?? []) as Record<string, unknown>[],
+    ) as DoseLog[],
+  )
 
   const cells = new Map<string, TrackingCalendarCell>()
   for (const date of datesInRange(start, end)) {

@@ -28,12 +28,26 @@ export function expectedDosesForActiveMedicationsOnDate(
   return countScheduledDosesTakenOnDate(medications, [], dateStr).expected
 }
 
+export type DoseCountOptions = {
+  /**
+   * Credit logs per medication by count instead of exact schedule_time. Past days
+   * must use this: editing dose times rewrites the schedule for every past day, so
+   * exact-slot matching would retroactively mark completed days as missed.
+   */
+  matchByCount?: boolean
+}
+
 /** Scheduled slots vs logs — only counts doses on today's active schedule. */
 export function countScheduledDosesTakenOnDate(
   medications: Medication[],
   logsForDay: DoseLog[],
   dateStr: string,
+  options: DoseCountOptions = {},
 ): { taken: number; expected: number; extraLogs: number } {
+  if (options.matchByCount) {
+    return countDosesByVolume(medications, logsForDay, dateStr)
+  }
+
   const expectedKeys = new Set<string>()
   for (const med of filterMedicationsActiveOn(medications, dateStr)) {
     if (isAsNeededMed(med)) continue
@@ -57,6 +71,37 @@ export function countScheduledDosesTakenOnDate(
   }
 
   return { taken, expected: expectedKeys.size, extraLogs }
+}
+
+function countDosesByVolume(
+  medications: Medication[],
+  logsForDay: DoseLog[],
+  dateStr: string,
+): { taken: number; expected: number; extraLogs: number } {
+  const slotsByMed = new Map<string, number>()
+  for (const med of filterMedicationsActiveOn(medications, dateStr)) {
+    if (isAsNeededMed(med)) continue
+    slotsByMed.set(med.id, normalizeScheduleTimes(med.schedule_times ?? []).length)
+  }
+
+  const logsByMed = new Map<string, number>()
+  for (const log of logsForDay) {
+    logsByMed.set(log.medication_id, (logsByMed.get(log.medication_id) ?? 0) + 1)
+  }
+
+  let taken = 0
+  let expected = 0
+  for (const [medId, slots] of slotsByMed) {
+    expected += slots
+    taken += Math.min(slots, logsByMed.get(medId) ?? 0)
+  }
+
+  let extraLogs = 0
+  for (const [medId, count] of logsByMed) {
+    extraLogs += Math.max(0, count - (slotsByMed.get(medId) ?? 0))
+  }
+
+  return { taken, expected, extraLogs }
 }
 
 export function filterMedicationsActiveOn<T extends DateRangeMed>(

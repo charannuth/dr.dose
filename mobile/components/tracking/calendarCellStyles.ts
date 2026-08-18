@@ -64,12 +64,8 @@ export function cellStylesFromClassNames(
   const t = calendarTints(isDark);
   const out: ViewStyle[] = [];
   if (classNames.includes('is-future')) out.push({ opacity: 0.55 });
-  if (classNames.includes('logged-period')) {
-    out.push({ backgroundColor: t.period.bg, borderColor: t.period.border });
-  }
-  if (classNames.includes('predicted-period')) {
-    out.push({ backgroundColor: t.periodPredicted.bg, borderStyle: 'dashed' });
-  }
+  // Phase / tracker fills first; logged/predicted period win afterward so history
+  // stays visible even when merged with weight/HRT/med tints.
   if (classNames.includes('phase-menstrual')) {
     out.push({ backgroundColor: isDark ? 'rgba(244, 63, 94, 0.35)' : 'rgba(253, 164, 175, 0.35)' });
   }
@@ -102,6 +98,22 @@ export function cellStylesFromClassNames(
   }
   if (classNames.includes('med-missed')) {
     out.push({ backgroundColor: colors.streakMissedBg, borderColor: colors.streakMissedBorder });
+  }
+  if (classNames.includes('predicted-period')) {
+    out.push({
+      backgroundColor: t.periodPredicted.bg,
+      borderColor: t.periodPredicted.border,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+    });
+  }
+  if (classNames.includes('logged-period')) {
+    out.push({
+      backgroundColor: t.period.bg,
+      borderColor: t.period.border,
+      borderWidth: 2,
+      borderStyle: 'solid',
+    });
   }
   return out;
 }

@@ -1,3 +1,4 @@
+import '../lib/cryptoPolyfill'
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,10 +18,13 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from '../context/AuthProvider';
+import { VaultProvider } from '../context/VaultProvider';
 import { ThemeProvider, useTheme } from '../context/ThemeProvider';
 import { DemoTourTargetsProvider } from '../context/DemoTourTargetsContext';
 import { ConfigGuard } from '../components/ConfigGuard';
 import { RootErrorBoundary } from '../components/RootErrorBoundary';
+import { ForceUpdateModal } from '../components/ForceUpdateModal';
+import { useForceAppUpdate } from '../hooks/useForceAppUpdate';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -39,6 +43,7 @@ function AppShell() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const { forceUpdate } = useForceAppUpdate();
 
   // Render once fonts resolve. If a font fails to load we still proceed so the
   // app is never blocked — React Native falls back to the system face.
@@ -62,6 +67,7 @@ function AppShell() {
     <>
       <ThemedStatusBar />
       <Stack screenOptions={{ headerShown: false }} />
+      <ForceUpdateModal info={forceUpdate} />
     </>
   );
 }
@@ -74,9 +80,11 @@ export default function RootLayout() {
           <ThemeProvider>
             <ConfigGuard>
               <AuthProvider>
-                <DemoTourTargetsProvider>
-                  <AppShell />
-                </DemoTourTargetsProvider>
+                <VaultProvider>
+                  <DemoTourTargetsProvider>
+                    <AppShell />
+                  </DemoTourTargetsProvider>
+                </VaultProvider>
               </AuthProvider>
             </ConfigGuard>
           </ThemeProvider>

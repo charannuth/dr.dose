@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useVault } from '../hooks/useVault'
+import {
+  PASSWORD_REQUIREMENTS_HINT,
+  validatePassword,
+  validatePasswordMatch,
+} from '../lib/passwordPolicy'
 import { getLastReminderCheck, runReminderCheck } from '../lib/reminders'
 import {
   canUseNotifications,
@@ -10,21 +16,30 @@ import {
 import { ProfilePictureEditor } from './ProfilePictureEditor'
 import {
   getReminders,
+  getSameTimeDoseMode,
   getTheme,
   getTimezone,
   setReminders,
+  setSameTimeDoseMode,
   setTheme,
   setTimezone,
+  SAME_TIME_DOSE_MODES,
   THEME_CHANGE_EVENT,
+  type SameTimeDoseMode,
   type Theme,
 } from '../lib/settings'
 
 export function AccountSettings() {
-  const { user, updateDisplayName } = useAuth()
+  const { user, updateDisplayName, updatePassword } = useAuth()
+  const vault = useVault()
   const [displayName, setDisplayName] = useState(
     () => (user?.user_metadata?.display_name as string) ?? '',
   )
   const [theme, setThemeState] = useState<Theme>(() => getTheme())
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [nextPassword, setNextPassword] = useState('')
+  const [confirmNextPassword, setConfirmNextPassword] = useState('')
+  const [passwordBusy, setPasswordBusy] = useState(false)
 
   useEffect(() => {
     function onThemeChange(e: Event) {
@@ -35,6 +50,9 @@ export function AccountSettings() {
   }, [])
   const [timezone, setTimezoneState] = useState(() => getTimezone())
   const [remindersOn, setRemindersOn] = useState(() => getReminders().enabled)
+  const [sameTimeDoseMode, setSameTimeDoseModeState] = useState<SameTimeDoseMode>(() =>
+    getSameTimeDoseMode(),
+  )
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -53,6 +71,38 @@ export function AccountSettings() {
       setError(err instanceof Error ? err.message : 'Could not update profile')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function savePassword() {
+    setError(null)
+    setMessage(null)
+    const policy = validatePassword(nextPassword)
+    if (!policy.ok) {
+      setError(policy.message)
+      return
+    }
+    const match = validatePasswordMatch(nextPassword, confirmNextPassword)
+    if (!match.ok) {
+      setError(match.message)
+      return
+    }
+    if (!currentPassword) {
+      setError('Enter your current password.')
+      return
+    }
+    setPasswordBusy(true)
+    try {
+      await vault.changePassphrase(currentPassword, nextPassword)
+      await updatePassword(nextPassword)
+      setCurrentPassword('')
+      setNextPassword('')
+      setConfirmNextPassword('')
+      setMessage('Password updated.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update password')
+    } finally {
+      setPasswordBusy(false)
     }
   }
 
@@ -148,6 +198,40 @@ export function AccountSettings() {
           Save name
         </button>
 
+        <fieldset className="account-field">
+          <legend>Change password</legend>
+          <p className="muted">{PASSWORD_REQUIREMENTS_HINT}</p>
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            autoComplete="current-password"
+          />
+          <input
+            type="password"
+            value={nextPassword}
+            onChange={(e) => setNextPassword(e.target.value)}
+            placeholder="New password"
+            autoComplete="new-password"
+          />
+          <input
+            type="password"
+            value={confirmNextPassword}
+            onChange={(e) => setConfirmNextPassword(e.target.value)}
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            disabled={passwordBusy}
+            onClick={() => void savePassword()}
+          >
+            {passwordBusy ? 'Updating…' : 'Update password'}
+          </button>
+        </fieldset>
+
         <label className="account-field">
           Theme
           <select
@@ -172,6 +256,32 @@ export function AccountSettings() {
             ))}
           </select>
         </label>
+
+        <fieldset className="account-field account-same-time-doses">
+          <legend>Same-time doses on Today</legend>
+          <p className="field-hint">
+            When several medications share a dose time, choose how batch marking works. Each
+            logged dose is identical to Mark taken on that medication.
+          </p>
+          {SAME_TIME_DOSE_MODES.map((opt) => (
+            <label key={opt.value} className="account-field-radio">
+              <input
+                type="radio"
+                name="same-time-dose-mode"
+                value={opt.value}
+                checked={sameTimeDoseMode === opt.value}
+                onChange={() => {
+                  setSameTimeDoseModeState(opt.value)
+                  setSameTimeDoseMode(opt.value)
+                }}
+              />
+              <span>
+                <strong>{opt.label}</strong>
+                <span className="field-hint"> — {opt.hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
 
         <label className="account-field account-field-checkbox">
           <input

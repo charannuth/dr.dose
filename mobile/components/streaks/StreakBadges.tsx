@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { ColorPalette } from '../../constants/theme';
 import { radii, spacing } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
@@ -75,10 +75,16 @@ function makeBadgeStyles(colors: ColorPalette) {
       paddingHorizontal: spacing.sm,
       maxWidth: '100%' as const,
     },
+    tilePreviewHint: {
+      fontWeight: '700' as const,
+      fontSize: 12,
+      color: colors.accent,
+      marginTop: 2,
+    },
     chip: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 4,
+      gap: 6,
       paddingVertical: 6,
       paddingHorizontal: 10,
       borderRadius: radii.md,
@@ -86,16 +92,8 @@ function makeBadgeStyles(colors: ColorPalette) {
       borderColor: colors.successBorder,
       backgroundColor: colors.successBg,
     },
-    chipDays: {
-      fontWeight: '900' as const,
-      fontSize: 13,
-      color: colors.text,
-    },
-    chipRow: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: spacing.sm,
-    },
+    chipRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: spacing.sm },
+    chipDays: { fontWeight: '800' as const, color: colors.text, fontSize: 13 },
   };
 }
 
@@ -103,10 +101,13 @@ export function StreakBadges({
   longestStreak,
   compact = false,
   catalog = true,
+  onPreviewBadge,
 }: {
   longestStreak: number;
   compact?: boolean;
   catalog?: boolean;
+  /** Tap a badge to preview its streak celebration animation. */
+  onPreviewBadge?: (badge: StreakBadge) => void;
 }) {
   const styles = useThemedStyles(makeBadgeStyles);
 
@@ -120,29 +121,49 @@ export function StreakBadges({
     catalog?: boolean;
   }) {
     const dayLabel = badge.minDays === 1 ? '1 day' : `${badge.minDays} days`;
+    const previewable = Boolean(onPreviewBadge);
 
-    if (catalogTile) {
-      return (
-        <View
-          style={[styles.tileCatalog, earned ? styles.tileEarned : styles.tileLocked]}
-        >
-          <TulipBadgeIcon earned={earned} minDays={badge.minDays} size={48} />
-          <Text style={styles.tileLabel}>{badge.label}</Text>
-          <Text style={[styles.tileReq, earned && styles.tileReqEarned]}>
-            {earned ? 'Unlocked' : `Unlock at ${dayLabel}`}
-          </Text>
-          <Text style={styles.tileDesc}>{badge.description}</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={[styles.tile, earned ? styles.tileEarned : styles.tileLocked]}>
+    const body = catalogTile ? (
+      <>
+        <TulipBadgeIcon earned={earned} minDays={badge.minDays} size={48} />
+        <Text style={styles.tileLabel}>{badge.label}</Text>
+        <Text style={[styles.tileReq, earned && styles.tileReqEarned]}>
+          {earned ? 'Unlocked' : `Unlock at ${dayLabel}`}
+        </Text>
+        <Text style={styles.tileDesc}>{badge.description}</Text>
+        {previewable ? (
+          <Text style={styles.tilePreviewHint}>Tap to preview celebration</Text>
+        ) : null}
+      </>
+    ) : (
+      <>
         <TulipBadgeIcon earned={earned} minDays={badge.minDays} size={44} />
         <Text style={styles.tileDays}>{badge.minDays}d</Text>
         <Text style={styles.tileLabel}>{badge.label}</Text>
-      </View>
+        {previewable ? <Text style={styles.tilePreviewHint}>Preview</Text> : null}
+      </>
     );
+
+    const style = [
+      catalogTile ? styles.tileCatalog : styles.tile,
+      earned ? styles.tileEarned : styles.tileLocked,
+    ];
+
+    if (previewable) {
+      return (
+        <Pressable
+          style={style}
+          onPress={() => onPreviewBadge?.(badge)}
+          accessibilityRole="button"
+          accessibilityLabel={`Preview ${badge.label} celebration`}
+          accessibilityHint={`Plays the ${badge.minDays}-day streak animation`}
+        >
+          {body}
+        </Pressable>
+      );
+    }
+
+    return <View style={style}>{body}</View>;
   }
 
   const earned = useMemo(() => getEarnedStreakBadges(longestStreak), [longestStreak]);
@@ -159,16 +180,29 @@ export function StreakBadges({
           </Text>
         ) : (
           <View style={styles.chipRow}>
-            {earned.map((badge) => (
-              <View
-                key={badge.id}
-                style={styles.chip}
-                accessibilityLabel={`${badge.label}, ${badge.minDays} days`}
-              >
-                <TulipBadgeIcon earned minDays={badge.minDays} size={32} />
-                <Text style={styles.chipDays}>{badge.minDays}d</Text>
-              </View>
-            ))}
+            {earned.map((badge) =>
+              onPreviewBadge ? (
+                <Pressable
+                  key={badge.id}
+                  style={styles.chip}
+                  onPress={() => onPreviewBadge(badge)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Preview ${badge.label} celebration`}
+                >
+                  <TulipBadgeIcon earned minDays={badge.minDays} size={32} />
+                  <Text style={styles.chipDays}>{badge.minDays}d</Text>
+                </Pressable>
+              ) : (
+                <View
+                  key={badge.id}
+                  style={styles.chip}
+                  accessibilityLabel={`${badge.label}, ${badge.minDays} days`}
+                >
+                  <TulipBadgeIcon earned minDays={badge.minDays} size={32} />
+                  <Text style={styles.chipDays}>{badge.minDays}d</Text>
+                </View>
+              ),
+            )}
           </View>
         )}
       </View>
@@ -180,8 +214,10 @@ export function StreakBadges({
       <View style={styles.section}>
         <Text style={styles.title}>Tulip badges</Text>
         <Text style={styles.hint}>
-          Each badge unlocks when your longest streak reaches consecutive perfect days.
+          Badges unlock from your longest streak. Your Today icon upgrades at 14,
+          then 30–59, 60–99, and 100+.
           {next ? ` Next: ${next.label} at ${next.minDays} days.` : ' You have every badge!'}
+          {onPreviewBadge ? ' Tap any badge to preview its celebration.' : ''}
         </Text>
         <View style={styles.gridCatalog}>
           {STREAK_BADGES.map((badge) => (
@@ -207,6 +243,7 @@ export function StreakBadges({
               longestStreak > 0 ? ` (${next.minDays - longestStreak} to go)` : ''
             }.`
           : ' You have every badge!'}
+        {onPreviewBadge ? ' Tap any badge to preview its celebration.' : ''}
       </Text>
       <View style={styles.grid}>
         {STREAK_BADGES.map((badge) => (

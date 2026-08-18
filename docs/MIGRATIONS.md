@@ -26,7 +26,15 @@ Dr. Dose uses **Supabase PostgreSQL** with migrations in `supabase/migrations/`.
 | 018 | `018_hrt_tracking.sql` | HRT day journaling (bodily + mood changes) | HRT tracker calendar |
 | 019 | `019_doctor_visits.sql` | `doctor_visits` scheduling + post-visit notes | Doctor visits page (web) |
 
-**Production:** If your Supabase project already has migrations **002–019** applied, it matches this repo.
+| 025 | `025_medication_tile_color.sql` | Tile accent color | Today tiles |
+| 026 | `026_user_crypto.sql` | Zero-access vault metadata (`user_crypto`) | E2EE unlock |
+| 027 | `027_e2ee_column_types.sql` | PHI array/numeric columns → text for ciphertext | Full E2EE column types |
+| 028 | `028_rollback_027_for_live_app.sql` | Restores text[] / numeric / date / jsonb after 027 | Keeps pre-E2EE App Store clients working |
+| 029 | `029_cycle_custom_symptoms.sql` | `custom_symptoms_pre` / `custom_symptoms_during` on `cycle_settings` | Persistent user-defined cycle symptom chips |
+
+**Production (current):** Apply **026** (`user_crypto`). **Do not leave 027 applied alone** while the App Store build is still pre-E2EE — that broke `text[]` consumers (`undefined is not a function` on As needed). Live production was rolled back with **028**. The shipping E2EE client stores encrypted arrays as single-element `text[]` (`[ciphertext]`) so it works on the post-028 schema. Re-apply **027** only when promoting a matching client to the App Store (and coordinating with force-update). Apply **029** for custom period symptom labels.
+
+**Existing projects:** Need **026**. Apply **027** only as part of a coordinated App Store cutover; use **028** if 027 must be undone for older binaries.
 
 ### `schema.sql` vs migrations
 

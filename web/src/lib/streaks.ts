@@ -1,11 +1,11 @@
+import { openRows } from './crypto/seal'
 import { supabase } from './supabase'
-import { lastNDays, normalizeScheduleTimes, todayLocalDate } from './dates'
+import { lastNDays, todayLocalDate } from './dates'
 import {
   countScheduledDosesTakenOnDate,
-  expectedDosesForActiveMedicationsOnDate,
   filterMedicationsActiveOn,
 } from './medicationDates'
-import { isAsNeededMed } from './medicationSchedule'
+import { isSupplement } from './medicationSchedule'
 import type { DoseLog, Medication } from './types'
 
 export type StreakDayStatus = 'perfect' | 'partial' | 'missed' | 'none'
@@ -46,22 +46,16 @@ function isPerfectDay(
   medications: Medication[],
   logsForDay: DoseLog[],
   date: string,
+  matchByCount = false,
 ): boolean {
-  const active = filterMedicationsActiveOn(medications, date)
-  const expected = expectedDosesForActiveMedicationsOnDate(medications, date)
-  if (expected === 0) return false
-
-  const logged = new Set(
-    logsForDay.map((l) => `${l.medication_id}|${l.schedule_time}`),
+  const { expected, taken } = countScheduledDosesTakenOnDate(
+    medications,
+    logsForDay,
+    date,
+    { matchByCount },
   )
-
-  for (const med of active) {
-    if (isAsNeededMed(med)) continue
-    for (const time of normalizeScheduleTimes(med.schedule_times ?? [])) {
-      if (!logged.has(`${med.id}|${time}`)) return false
-    }
-  }
-  return true
+  if (expected === 0) return false
+  return taken >= expected
 }
 
 function streakDayStatus(
@@ -70,13 +64,15 @@ function streakDayStatus(
   date: string,
   today: string,
 ): StreakDayStatus {
+  const matchByCount = date !== today
   const { expected, taken } = countScheduledDosesTakenOnDate(
     medications,
     logsForDay,
     date,
+    { matchByCount },
   )
   if (expected === 0) return 'none'
-  if (isPerfectDay(medications, logsForDay, date)) return 'perfect'
+  if (isPerfectDay(medications, logsForDay, date, matchByCount)) return 'perfect'
   if (date === today) return 'partial'
   return taken > 0 ? 'partial' : 'missed'
 }
@@ -159,8 +155,21 @@ export async function fetchStreakStats(userId: string): Promise<StreakStats> {
   if (medsResult.error) throw medsResult.error
   if (logsResult.error) throw logsResult.error
 
-  const medications = (medsResult.data ?? []) as Medication[]
-  const logsByDate = groupLogsByDate((logsResult.data ?? []) as DoseLog[])
+  const allMedications = openRows(
+    'medications',
+    (medsResult.data ?? []) as Record<string, unknown>[],
+  ) as Medication[]
+  // Supplements are tracked separately and must not gate the medication streak.
+  const medications = allMedications.filter((m) => !isSupplement(m))
+  const streakMedIds = new Set(medications.map((m) => m.id))
+  const logsByDate = groupLogsByDate(
+    (
+      openRows(
+        'dose_logs',
+        (logsResult.data ?? []) as Record<string, unknown>[],
+      ) as DoseLog[]
+    ).filter((l) => streakMedIds.has(l.medication_id)),
+  )
   const todayLogs = logsByDate.get(today) ?? []
   const {
     taken: todayTaken,
@@ -178,7 +187,7 @@ export async function fetchStreakStats(userId: string): Promise<StreakStats> {
   const perfectDays = new Set<string>()
   for (const date of daysOldestFirst) {
     const logs = logsByDate.get(date) ?? []
-    if (isPerfectDay(medications, logs, date)) {
+    if (isPerfectDay(medications, logs, date, date !== today)) {
       perfectDays.add(date)
     }
   }
