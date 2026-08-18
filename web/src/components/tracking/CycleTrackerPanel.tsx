@@ -244,6 +244,11 @@ export function CycleTrackerPanel({
   const [error, setError] = useState<string | null>(null)
   const [periodEndDraft, setPeriodEndDraft] = useState(today)
   const [editSymptomsKind, setEditSymptomsKind] = useState<'pre' | 'during' | null>(null)
+  const [flow, setFlow] = useState<FlowLevel | ''>('')
+  const [symptomsPre, setSymptomsPre] = useState<string[]>([])
+  const [symptomsDuring, setSymptomsDuring] = useState<string[]>([])
+  const [intercourse, setIntercourse] = useState(false)
+  const [notes, setNotes] = useState('')
 
   const preOptions = useMemo(
     () =>
@@ -339,11 +344,6 @@ export function CycleTrackerPanel({
   const isFutureDay = selectedDate > today
 
   const selectedLog = dayLogs.find((l) => l.log_date === selectedDate)
-  const [flow, setFlow] = useState<FlowLevel | ''>('')
-  const [symptomsPre, setSymptomsPre] = useState<string[]>([])
-  const [symptomsDuring, setSymptomsDuring] = useState<string[]>([])
-  const [intercourse, setIntercourse] = useState(false)
-  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     setFlow(selectedLog?.flow_level ?? '')

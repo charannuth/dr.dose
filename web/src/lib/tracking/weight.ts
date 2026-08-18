@@ -224,7 +224,8 @@ export async function updateWeightSettings(
     user_id: userId,
     ...updatePatch,
   })
-  const { user_id: _uid, ...payload } = sealed
+  const { user_id: _settingsUserId, ...payload } = sealed
+  void _settingsUserId
 
   const { error } = await supabase
     .from('weight_settings')

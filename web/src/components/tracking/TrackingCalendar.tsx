@@ -19,7 +19,6 @@ import type {
 import type { TrackerId } from '../../lib/tracking/catalog'
 
 const MAX_VISIBLE_EVENTS = 4
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 type TrackingCalendarProps = {

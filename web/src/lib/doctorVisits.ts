@@ -285,7 +285,8 @@ export async function updateDoctorVisit(
     follow_up_date: input.follow_up_date.trim() || null,
   })
 
-  const { id: _id, ...payload } = sealed
+  const { id: _visitId, ...payload } = sealed
+  void _visitId
 
   const { data, error } = await supabase
     .from('doctor_visits')

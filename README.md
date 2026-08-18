@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-08-18** (`d750a45`) — Fix web lint and TypeScript errors that failed GitHub CI and Vercel.
+
 - **2026-08-18** (`0735717`) — Sync local iOS build number after TestFlight Build 51.
 
 - **2026-08-18** (`7530a40`) — Enable silent vault encryption locked to the login password.

@@ -14,10 +14,6 @@ export type ScheduleTimeSection = SameTimeDoseGroup & {
   meds: MedicationWithStatus[]
 }
 
-function pendingKey(item: SameTimePendingItem): string {
-  return `${item.med.id}-${item.time}`
-}
-
 export function sameTimePendingKey(medId: string, scheduleTime: string): string {
   return `${medId}-${scheduleTime}`
 }

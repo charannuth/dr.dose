@@ -1,5 +1,5 @@
 import type { MedicationScheduleStatus } from './medicationDates'
-import type { MedicationScheduleType } from './medicationSchedule'
+import type { MedicationCategory, MedicationScheduleType } from './medicationSchedule'
 
 export type { MedicationScheduleType } from './medicationSchedule'
 
@@ -17,6 +17,7 @@ export type Medication = {
   prn_amount_hints: string[]
   prn_symptom_hints: string[]
   schedule_type: MedicationScheduleType
+  category?: MedicationCategory | null
   schedule_times: string[]
   tracking_sync: MedicationTrackingSync
   notes: string | null
@@ -50,6 +51,7 @@ export type MedicationInput = {
   prn_amount_hints: string[]
   prn_symptom_hints: string[]
   schedule_type: MedicationScheduleType
+  category?: MedicationCategory | null
   schedule_times: string[]
   tracking_sync: MedicationTrackingSync
   notes: string

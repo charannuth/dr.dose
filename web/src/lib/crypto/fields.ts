@@ -68,7 +68,7 @@ export const SENSITIVE_FIELDS = {
 
 export type EncryptedTable = keyof typeof SENSITIVE_FIELDS
 
-function aadFor(table: string, column: string, _rowId?: string | null): string {
+function aadFor(table: string, column: string): string {
   // Bind ciphertext to table+column only. Row ids differ between insert (client
   // UUID) and legacy rows, and some tables upsert without a stable client id.
   return `${table}|${column}`
@@ -78,13 +78,12 @@ function encryptScalar(
   dek: Uint8Array,
   table: string,
   column: string,
-  rowId: string | null | undefined,
   value: unknown,
 ): unknown {
   if (value == null) return value
   if (typeof value === 'string') {
     if (value === '' || isCiphertext(value)) return value
-    return encryptString(dek, value, aadFor(table, column, rowId))
+    return encryptString(dek, value, aadFor(table, column))
   }
   if (Array.isArray(value)) {
     // Encrypt array as one JSON ciphertext. Wrap in a single-element array so
@@ -93,12 +92,12 @@ function encryptScalar(
     if (value.length === 1 && typeof value[0] === 'string' && isCiphertext(value[0])) {
       return value
     }
-    const ct = encryptString(dek, json, aadFor(table, column, rowId))
+    const ct = encryptString(dek, json, aadFor(table, column))
     return [ct]
   }
   if (typeof value === 'object') {
     const json = JSON.stringify(value)
-    return encryptString(dek, json, aadFor(table, column, rowId))
+    return encryptString(dek, json, aadFor(table, column))
   }
   // numbers / booleans left plaintext (not ideal for weight — handled separately)
   return value
@@ -108,7 +107,6 @@ function decryptScalar(
   dek: Uint8Array,
   table: string,
   column: string,
-  rowId: string | null | undefined,
   value: unknown,
   asJsonArray = false,
   asJsonObject = false,
@@ -121,7 +119,7 @@ function decryptScalar(
       typeof value[0] === 'string' &&
       isCiphertext(value[0])
     ) {
-      const plain = decryptString(dek, value[0], aadFor(table, column, rowId))
+      const plain = decryptString(dek, value[0], aadFor(table, column))
       try {
         return JSON.parse(plain)
       } catch {
@@ -142,7 +140,7 @@ function decryptScalar(
     }
     return value
   }
-  const plain = decryptString(dek, value, aadFor(table, column, rowId))
+  const plain = decryptString(dek, value, aadFor(table, column))
   if (asJsonArray || asJsonObject || plain.startsWith('[') || plain.startsWith('{')) {
     try {
       return JSON.parse(plain)
@@ -209,7 +207,6 @@ export function encryptRow<T extends Record<string, unknown>>(
   row: T,
 ): T {
   const fields = SENSITIVE_FIELDS[table] as readonly string[]
-  const rowId = typeof row.id === 'string' ? row.id : null
   const out: Record<string, unknown> = { ...row }
   for (const field of fields) {
     if (!(field in out)) continue
@@ -221,7 +218,7 @@ export function encryptRow<T extends Record<string, unknown>>(
     if (OBJECT_FIELDS.has(field) && typeof value === 'string' && !isCiphertext(value)) {
       value = ensureObject(value)
     }
-    out[field] = encryptScalar(dek, table, field, rowId, value)
+    out[field] = encryptScalar(dek, table, field, value)
   }
   return out as T
 }
@@ -232,7 +229,6 @@ export function decryptRow<T extends Record<string, unknown>>(
   row: T,
 ): T {
   const fields = SENSITIVE_FIELDS[table] as readonly string[]
-  const rowId = typeof row.id === 'string' ? row.id : null
   const out: Record<string, unknown> = { ...row }
   for (const field of fields) {
     if (!(field in out)) continue
@@ -240,7 +236,6 @@ export function decryptRow<T extends Record<string, unknown>>(
       dek,
       table,
       field,
-      rowId,
       out[field],
       ARRAY_FIELDS.has(field),
       OBJECT_FIELDS.has(field),
