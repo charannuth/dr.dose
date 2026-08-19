@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
+import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
 
@@ -19,6 +20,7 @@ import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
  * One-time: save account backup. After password reset: restore with backup.
  */
 export function VaultGate({ children }: { children: React.ReactNode }) {
+  const { signOut } = useAuth()
   const vault = useVault()
   const [mnemonic, setMnemonic] = useState('')
   const [busy, setBusy] = useState(false)
@@ -108,6 +110,22 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
           health data. This only takes a moment.
         </Text>
         {vault.error ? <Text style={styles.error}>{vault.error}</Text> : null}
+        <Pressable
+          style={styles.secondary}
+          onPress={() => {
+            void signOut()
+          }}
+        >
+          <Text style={styles.secondaryText}>Sign out</Text>
+        </Pressable>
+        <Pressable
+          style={styles.secondary}
+          onPress={() => {
+            void vault.refresh()
+          }}
+        >
+          <Text style={styles.secondaryText}>Try again</Text>
+        </Pressable>
       </View>
     )
   }

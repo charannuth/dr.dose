@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
 
@@ -7,6 +8,7 @@ import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
  * Auth unlocks with login password; one-time account backup; restore after reset.
  */
 export function VaultGate({ children }: { children: ReactNode }) {
+  const { signOut } = useAuth()
   const vault = useVault()
   const [mnemonic, setMnemonic] = useState('')
   const [busy, setBusy] = useState(false)
@@ -85,6 +87,18 @@ export function VaultGate({ children }: { children: ReactNode }) {
           health data.
         </p>
         {vault.error ? <p className="error">{vault.error}</p> : null}
+        <div className="auth-existing-account-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => void signOut()}>
+            Sign out
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => void vault.refresh()}
+          >
+            Try again
+          </button>
+        </div>
       </div>
     )
   }
