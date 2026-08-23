@@ -208,6 +208,36 @@ export async function rewrapUnlockedVault(
   await unlockVaultSession(userId, dek)
 }
 
+/**
+ * Issue a fresh account-backup mnemonic while the vault is unlocked.
+ * Use when the user never saved the original words — old backup stops working.
+ */
+export async function rotateRecoveryMnemonic(userId: string): Promise<string> {
+  if (!supabase) throw new Error('Supabase is not configured')
+  if (!isVaultUnlocked()) {
+    throw new Error('Unlock your health data before creating a new account backup.')
+  }
+  const dek = getActiveDek()
+  const row = await fetchUserCrypto(userId)
+  if (!row) throw new Error('No encryption vault found.')
+  const params = (row.kdf_params as KdfParams) ?? DEFAULT_KDF
+  const recoveryMnemonic = generateRecoveryMnemonic()
+  const recoverySalt = generateSalt()
+  const recoverySecret = mnemonicToRecoverySecret(recoveryMnemonic)
+  const recoveryKek = await deriveKek(recoverySecret, recoverySalt, params)
+  const wrapped_dek_recovery = wrapKey(recoveryKek, dek)
+
+  const { error } = await supabase
+    .from('user_crypto')
+    .update({
+      recovery_salt: saltToStorage(recoverySalt),
+      wrapped_dek_recovery,
+    })
+    .eq('user_id', userId)
+  if (error) throw error
+  return recoveryMnemonic
+}
+
 export async function markVaultMigrated(userId: string): Promise<void> {
   if (!supabase) return
   await supabase

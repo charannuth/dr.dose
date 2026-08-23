@@ -11,6 +11,7 @@ export function VaultGate({ children }: { children: ReactNode }) {
   const { signOut } = useAuth()
   const vault = useVault()
   const [mnemonic, setMnemonic] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [backupSaved, setBackupSaved] = useState(false)
@@ -105,6 +106,20 @@ export function VaultGate({ children }: { children: ReactNode }) {
 
   const err = localError || vault.error
 
+  async function onUnlockWithPassword(e: FormEvent) {
+    e.preventDefault()
+    setLocalError(null)
+    setBusy(true)
+    try {
+      await vault.unlock(loginPassword)
+      setLoginPassword('')
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : 'Could not unlock')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onRestore(e: FormEvent) {
     e.preventDefault()
     setLocalError(null)
@@ -122,28 +137,45 @@ export function VaultGate({ children }: { children: ReactNode }) {
   return (
     <div className="vault-gate">
       <h1>Dr. Dose</h1>
-      <h2>Restore with account backup</h2>
+      <h2>Unlock health data</h2>
       <p>
-        Your login password was updated, so we need your account backup to reopen your
-        health history. Paste the words you saved when you first signed up.
+        Enter the same password you use to sign in. Only use account backup if you reset
+        your password and the login password no longer opens your data.
       </p>
+      <form onSubmit={onUnlockWithPassword} className="auth-form">
+        <label>
+          Login password
+          <input
+            type="password"
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </label>
+        <button type="submit" className="btn primary" disabled={busy}>
+          {busy ? 'Unlocking…' : 'Unlock with password'}
+        </button>
+      </form>
       <form onSubmit={onRestore} className="auth-form">
         <label>
-          Account backup
+          Or account backup
           <textarea
             value={mnemonic}
             onChange={(e) => setMnemonic(e.target.value)}
             rows={3}
             autoCapitalize="off"
             autoCorrect="off"
-            required
           />
         </label>
         {err ? <p className="error">{err}</p> : null}
-        <button type="submit" className="btn primary" disabled={busy}>
-          {busy ? 'Restoring…' : 'Restore health data'}
+        <button type="submit" className="btn secondary" disabled={busy || mnemonic.trim().length < 10}>
+          Restore with backup
         </button>
       </form>
+      <button type="button" className="btn btn-ghost" onClick={() => void signOut()}>
+        Sign out
+      </button>
     </div>
   )
 }

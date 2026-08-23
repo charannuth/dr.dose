@@ -15,6 +15,15 @@ export type EnsureVaultResult = {
   needsAccountBackup: boolean
 }
 
+/** Never fail unlock because encryption migration hit a row/table error. */
+async function migrateBestEffort(userId: string): Promise<void> {
+  try {
+    await migrateUserVaultData(userId)
+  } catch (e) {
+    console.warn('[vault] migrate failed after unlock', e)
+  }
+}
+
 /**
  * After auth: restore device session, or setup/unlock with login password.
  */
@@ -31,24 +40,24 @@ export async function ensureVaultWithLoginPassword(
     } catch {
       await rewrapUnlockedVault(userId, password)
     }
-    await migrateUserVaultData(userId)
+    await migrateBestEffort(userId)
     return { recoveryMnemonic: null, needsAccountBackup: false }
   }
 
   const row = await fetchUserCrypto(userId)
   if (!row) {
     const { recoveryMnemonic } = await setupVault(userId, password)
-    await migrateUserVaultData(userId)
+    await migrateBestEffort(userId)
     return { recoveryMnemonic, needsAccountBackup: false }
   }
 
   try {
     await unlockVaultWithPassphrase(userId, password)
-    await migrateUserVaultData(userId)
-    return { recoveryMnemonic: null, needsAccountBackup: false }
   } catch {
     return { recoveryMnemonic: null, needsAccountBackup: true }
   }
+  await migrateBestEffort(userId)
+  return { recoveryMnemonic: null, needsAccountBackup: false }
 }
 
 /** Resolve current session user id after sign-in / OTP. */

@@ -9,6 +9,8 @@ let activeDek: Uint8Array | null = null
 let activeUserId: string | null = null
 
 const dekStoreKey = (userId: string) => `vault_dek_${userId}`
+const pendingMnemonicKey = (userId: string) => `vault_backup_pending_${userId}`
+const backupAckKey = (userId: string) => `vault_backup_acked_${userId}`
 
 export function isVaultUnlocked(): boolean {
   return activeDek != null && activeUserId != null
@@ -49,6 +51,54 @@ export async function tryRestoreVaultSession(userId: string): Promise<boolean> {
     activeUserId = userId
     activeDek = hexToBytes(hex)
     return true
+  } catch {
+    return false
+  }
+}
+
+/** Keep account-backup words on-device until the user confirms they saved them. */
+export async function persistPendingRecoveryMnemonic(
+  userId: string,
+  mnemonic: string,
+): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(pendingMnemonicKey(userId), mnemonic, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    })
+  } catch {
+    // ignore
+  }
+}
+
+export async function loadPendingRecoveryMnemonic(userId: string): Promise<string | null> {
+  try {
+    return (await SecureStore.getItemAsync(pendingMnemonicKey(userId))) ?? null
+  } catch {
+    return null
+  }
+}
+
+export async function clearPendingRecoveryMnemonic(userId: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(pendingMnemonicKey(userId))
+  } catch {
+    // ignore
+  }
+}
+
+export async function markBackupAcknowledged(userId: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(backupAckKey(userId), '1', {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    })
+  } catch {
+    // ignore
+  }
+}
+
+export async function hasBackupAcknowledged(userId: string): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(backupAckKey(userId))) === '1'
   } catch {
     return false
   }

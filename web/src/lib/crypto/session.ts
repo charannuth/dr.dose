@@ -8,6 +8,8 @@ let activeDek: Uint8Array | null = null
 let activeUserId: string | null = null
 
 const dekStoreKey = (userId: string) => `drdose_vault_dek_${userId}`
+const pendingMnemonicKey = (userId: string) => `drdose_vault_backup_pending_${userId}`
+const backupAckKey = (userId: string) => `drdose_vault_backup_acked_${userId}`
 
 export function isVaultUnlocked(): boolean {
   return activeDek != null && activeUserId != null
@@ -46,6 +48,50 @@ export async function tryRestoreVaultSession(userId: string): Promise<boolean> {
     activeUserId = userId
     activeDek = hexToBytes(hex)
     return true
+  } catch {
+    return false
+  }
+}
+
+/** Keep account-backup words until the user confirms they saved them. */
+export async function persistPendingRecoveryMnemonic(
+  userId: string,
+  mnemonic: string,
+): Promise<void> {
+  try {
+    sessionStorage.setItem(pendingMnemonicKey(userId), mnemonic)
+  } catch {
+    // ignore
+  }
+}
+
+export async function loadPendingRecoveryMnemonic(userId: string): Promise<string | null> {
+  try {
+    return sessionStorage.getItem(pendingMnemonicKey(userId))
+  } catch {
+    return null
+  }
+}
+
+export async function clearPendingRecoveryMnemonic(userId: string): Promise<void> {
+  try {
+    sessionStorage.removeItem(pendingMnemonicKey(userId))
+  } catch {
+    // ignore
+  }
+}
+
+export async function markBackupAcknowledged(userId: string): Promise<void> {
+  try {
+    localStorage.setItem(backupAckKey(userId), '1')
+  } catch {
+    // ignore
+  }
+}
+
+export async function hasBackupAcknowledged(userId: string): Promise<boolean> {
+  try {
+    return localStorage.getItem(backupAckKey(userId)) === '1'
   } catch {
     return false
   }

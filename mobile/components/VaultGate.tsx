@@ -23,6 +23,7 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth()
   const vault = useVault()
   const [mnemonic, setMnemonic] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [backupSaved, setBackupSaved] = useState(false)
@@ -130,8 +131,21 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // needs_unlock: typically after password reset — restore with account backup
+  // needs_unlock: cold start without password stash, or forgot-password reset
   const err = localError || vault.error
+
+  async function onUnlockWithPassword() {
+    setLocalError(null)
+    setBusy(true)
+    try {
+      await vault.unlock(loginPassword)
+      setLoginPassword('')
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : 'Could not unlock')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function onRestore() {
     setLocalError(null)
@@ -149,12 +163,36 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
   return (
     <ScrollView contentContainerStyle={styles.centerPad}>
       <Text style={styles.brand}>Dr. Dose</Text>
-      <Text style={styles.title}>Restore with account backup</Text>
+      <Text style={styles.title}>Unlock health data</Text>
       <Text style={styles.body}>
-        Your login password was updated, so we need your account backup to reopen your
-        health history. Paste the words you saved when you first signed up.
+        Enter the same password you use to sign in. Only use account backup if you reset
+        your password and the login password no longer opens your data.
       </Text>
-      <Text style={styles.label}>Account backup</Text>
+
+      <Text style={styles.label}>Login password</Text>
+      <TextInput
+        style={styles.input}
+        value={loginPassword}
+        onChangeText={setLoginPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="Your password"
+        placeholderTextColor="#94a3b8"
+      />
+      <Pressable
+        style={[styles.primary, (busy || loginPassword.length < 1) && styles.primaryDisabled]}
+        disabled={busy || loginPassword.length < 1}
+        onPress={() => void onUnlockWithPassword()}
+      >
+        {busy ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.primaryText}>Unlock with password</Text>
+        )}
+      </Pressable>
+
+      <Text style={[styles.label, { marginTop: 20 }]}>Or account backup</Text>
       <TextInput
         style={[styles.input, styles.inputMulti]}
         value={mnemonic}
@@ -167,15 +205,19 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
       />
       {err ? <Text style={styles.error}>{err}</Text> : null}
       <Pressable
-        style={[styles.primary, busy && styles.primaryDisabled]}
+        style={[styles.secondary, (busy || mnemonic.trim().length < 10) && styles.primaryDisabled]}
         disabled={busy || mnemonic.trim().length < 10}
         onPress={() => void onRestore()}
       >
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryText}>Restore health data</Text>
-        )}
+        <Text style={styles.secondaryText}>Restore with backup</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.secondary, { marginTop: 12 }]}
+        onPress={() => {
+          void signOut()
+        }}
+      >
+        <Text style={styles.secondaryText}>Sign out</Text>
       </Pressable>
     </ScrollView>
   )

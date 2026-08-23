@@ -20,6 +20,8 @@ export type VaultContextValue = {
   changePassphrase: (current: string, next: string) => Promise<void>
   /** After backup unlock, lock DEK to a new login password. */
   rewrapWithLoginPassword: (newPassword: string) => Promise<void>
+  /** Create a fresh account backup while unlocked (invalidates the previous one). */
+  issueAccountBackup: () => Promise<void>
   /** Show the one-time account backup sheet. */
   showAccountBackup: (mnemonic: string) => void
   lock: () => Promise<void>
