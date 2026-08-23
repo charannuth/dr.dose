@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-08-23** (`d0752ac`) — Sync local iOS build number after TestFlight Build 53.
+
 - **2026-08-23** (`87dd008`) — Fix vault unlock recovery so login password works without backup words.
 
 - **2026-08-19** (`17d9b31`) — Sync local iOS build number after TestFlight Build 52.
