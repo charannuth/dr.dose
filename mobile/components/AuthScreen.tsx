@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLogo } from './BrandLogo';
 import { EmailOtpVerification } from './EmailOtpVerification';
+import { PasswordInput } from './PasswordInput';
 import { useAuth } from '../hooks/useAuth';
 import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors';
 import {
@@ -397,9 +398,8 @@ export function AuthScreen() {
                 {mode === 'signin' || mode === 'signup' ? (
                   <>
                     <Text style={styles.label}>Password</Text>
-                    <TextInput
+                    <PasswordInput
                       style={styles.input}
-                      secureTextEntry
                       autoComplete={mode === 'signin' ? 'password' : 'new-password'}
                       value={password}
                       onChangeText={setPassword}
@@ -407,18 +407,19 @@ export function AuthScreen() {
                         mode === 'signup' ? 'Create a strong password' : 'Your password'
                       }
                       placeholderTextColor={colors.textMuted}
+                      iconColor={colors.textMuted}
                     />
                     {mode === 'signup' ? (
                       <>
                         <Text style={styles.label}>Confirm password</Text>
-                        <TextInput
+                        <PasswordInput
                           style={styles.input}
-                          secureTextEntry
                           autoComplete="new-password"
                           value={confirmPassword}
                           onChangeText={setConfirmPassword}
                           placeholder="Repeat your password"
                           placeholderTextColor={colors.textMuted}
+                          iconColor={colors.textMuted}
                         />
                         <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
                       </>
@@ -429,24 +430,24 @@ export function AuthScreen() {
                 {mode === 'forgot-reset' ? (
                   <>
                     <Text style={styles.label}>New password</Text>
-                    <TextInput
+                    <PasswordInput
                       style={styles.input}
-                      secureTextEntry
                       autoComplete="new-password"
                       value={newPassword}
                       onChangeText={setNewPassword}
                       placeholder="Create a strong password"
                       placeholderTextColor={colors.textMuted}
+                      iconColor={colors.textMuted}
                     />
                     <Text style={styles.label}>Confirm password</Text>
-                    <TextInput
+                    <PasswordInput
                       style={styles.input}
-                      secureTextEntry
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       placeholder="Repeat your password"
                       placeholderTextColor={colors.textMuted}
+                      iconColor={colors.textMuted}
                     />
                     <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
                   </>

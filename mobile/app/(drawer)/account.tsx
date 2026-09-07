@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LegalLinks } from '../../components/LegalLinks';
+import { PasswordInput } from '../../components/PasswordInput';
 import { AccountMedicationsSection } from '../../components/account/AccountMedicationsSection';
 import { ProfilePictureEditor } from '../../components/account/ProfilePictureEditor';
 import { ProfileStreakSummary } from '../../components/account/ProfileStreakSummary';
@@ -411,31 +412,31 @@ export default function AccountScreen() {
 
           <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Change password</Text>
           <Text style={styles.hint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
-          <TextInput
+          <PasswordInput
             style={styles.input}
             value={currentPassword}
             onChangeText={setCurrentPassword}
             placeholder="Current password"
             placeholderTextColor={colors.textMuted}
-            secureTextEntry
+            iconColor={colors.textMuted}
             autoCapitalize="none"
           />
-          <TextInput
+          <PasswordInput
             style={styles.input}
             value={nextPassword}
             onChangeText={setNextPassword}
             placeholder="New password"
             placeholderTextColor={colors.textMuted}
-            secureTextEntry
+            iconColor={colors.textMuted}
             autoCapitalize="none"
           />
-          <TextInput
+          <PasswordInput
             style={styles.input}
             value={confirmNextPassword}
             onChangeText={setConfirmNextPassword}
             placeholder="Confirm new password"
             placeholderTextColor={colors.textMuted}
-            secureTextEntry
+            iconColor={colors.textMuted}
             autoCapitalize="none"
           />
           <Pressable

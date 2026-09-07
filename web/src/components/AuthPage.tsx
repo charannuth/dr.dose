@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { EmailOtpVerification } from './EmailOtpVerification'
+import { PasswordInput } from './PasswordInput'
 import { useAuth } from '../hooks/useAuth'
 import { authErrorMessage, isAuthRateLimited } from '../lib/authErrors'
 import {
@@ -234,8 +235,7 @@ export function AuthPage() {
                 <>
                   <label>
                     Password
-                    <input
-                      type="password"
+                    <PasswordInput
                       autoComplete={
                         mode === 'signin' ? 'current-password' : 'new-password'
                       }
@@ -249,8 +249,7 @@ export function AuthPage() {
                     <>
                       <label>
                         Confirm password
-                        <input
-                          type="password"
+                        <PasswordInput
                           autoComplete="new-password"
                           required
                           minLength={PASSWORD_MIN_LENGTH}
@@ -268,8 +267,7 @@ export function AuthPage() {
                 <>
                   <label>
                     New password
-                    <input
-                      type="password"
+                    <PasswordInput
                       autoComplete="new-password"
                       required
                       minLength={PASSWORD_MIN_LENGTH}
@@ -279,8 +277,7 @@ export function AuthPage() {
                   </label>
                   <label>
                     Confirm password
-                    <input
-                      type="password"
+                    <PasswordInput
                       autoComplete="new-password"
                       required
                       minLength={PASSWORD_MIN_LENGTH}

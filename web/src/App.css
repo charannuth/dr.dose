@@ -2094,7 +2094,8 @@ textarea:focus-visible {
   color: var(--text-muted);
 }
 
-.auth-form input {
+.auth-form input,
+.auth-form .password-input__field {
   font: inherit;
   padding: 0.55rem 0.75rem;
   border-radius: var(--radius-sm);
@@ -2110,12 +2111,55 @@ textarea:focus-visible {
     box-shadow 0.15s ease;
 }
 
-.auth-form input::placeholder {
+.password-input {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-input__field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2.5rem;
+}
+
+.password-input__toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.password-input__toggle:hover {
+  color: var(--text);
+}
+
+.password-input__toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.auth-form input::placeholder,
+.auth-form .password-input__field::placeholder {
   color: var(--text-muted);
   opacity: 0.85;
 }
 
-.auth-form input:hover {
+.auth-form input:hover,
+.auth-form .password-input__field:hover {
   border-color: var(--accent);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
@@ -2123,7 +2167,8 @@ textarea:focus-visible {
     inset 0 1px 2px rgba(255, 255, 255, 0.75);
 }
 
-.auth-form input:focus {
+.auth-form input:focus,
+.auth-form .password-input__field:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow:
@@ -2133,7 +2178,8 @@ textarea:focus-visible {
     inset 0 1px 2px rgba(255, 255, 255, 0.85);
 }
 
-[data-theme='dark'] .auth-form input {
+[data-theme='dark'] .auth-form input,
+[data-theme='dark'] .auth-form .password-input__field {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--auth-input-border) 45%, transparent),
     0 0 16px var(--auth-input-glow),
@@ -2141,7 +2187,9 @@ textarea:focus-visible {
 }
 
 [data-theme='dark'] .auth-form input:hover,
-[data-theme='dark'] .auth-form input:focus {
+[data-theme='dark'] .auth-form input:focus,
+[data-theme='dark'] .auth-form .password-input__field:hover,
+[data-theme='dark'] .auth-form .password-input__field:focus {
   box-shadow:
     0 0 0 2px color-mix(in srgb, #38bdf8 35%, transparent),
     0 0 0 4px color-mix(in srgb, #38bdf8 12%, transparent),

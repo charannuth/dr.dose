@@ -13,6 +13,7 @@ import {
   isNotificationSupported,
   requestNotificationPermission,
 } from '../lib/notifications'
+import { PasswordInput } from './PasswordInput'
 import { ProfilePictureEditor } from './ProfilePictureEditor'
 import {
   getReminders,
@@ -201,22 +202,19 @@ export function AccountSettings() {
         <fieldset className="account-field">
           <legend>Change password</legend>
           <p className="muted">{PASSWORD_REQUIREMENTS_HINT}</p>
-          <input
-            type="password"
+          <PasswordInput
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Current password"
             autoComplete="current-password"
           />
-          <input
-            type="password"
+          <PasswordInput
             value={nextPassword}
             onChange={(e) => setNextPassword(e.target.value)}
             placeholder="New password"
             autoComplete="new-password"
           />
-          <input
-            type="password"
+          <PasswordInput
             value={confirmNextPassword}
             onChange={(e) => setConfirmNextPassword(e.target.value)}
             placeholder="Confirm new password"

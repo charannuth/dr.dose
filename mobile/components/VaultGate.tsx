@@ -13,6 +13,7 @@ import * as Clipboard from 'expo-clipboard'
 import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
+import { PasswordInput } from './PasswordInput'
 
 /**
  * Blocks health UI until the silent vault is unlocked.
@@ -170,15 +171,15 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
       </Text>
 
       <Text style={styles.label}>Login password</Text>
-      <TextInput
+      <PasswordInput
         style={styles.input}
         value={loginPassword}
         onChangeText={setLoginPassword}
-        secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
         placeholder="Your password"
         placeholderTextColor="#94a3b8"
+        iconColor="#94a3b8"
       />
       <Pressable
         style={[styles.primary, (busy || loginPassword.length < 1) && styles.primaryDisabled]}

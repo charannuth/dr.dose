@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
+import { PasswordInput } from './PasswordInput'
 
 /**
  * Blocks health UI until the silent vault is unlocked.
@@ -145,8 +146,7 @@ export function VaultGate({ children }: { children: ReactNode }) {
       <form onSubmit={onUnlockWithPassword} className="auth-form">
         <label>
           Login password
-          <input
-            type="password"
+          <PasswordInput
             value={loginPassword}
             onChange={(e) => setLoginPassword(e.target.value)}
             autoComplete="current-password"
