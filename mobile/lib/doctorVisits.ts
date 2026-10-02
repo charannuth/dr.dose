@@ -204,6 +204,14 @@ export async function fetchDoctorVisitsOnDate(
   ) as unknown as DoctorVisit[];
 }
 
+export async function fetchDoctorVisit(userId: string, visitId: string): Promise<DoctorVisit> {
+  if (!supabase) throw new Error('Supabase is not configured');
+  const { data, error } = await supabase.from('doctor_visits').select('*')
+    .eq('user_id', userId).eq('id', visitId).single();
+  if (error) throw error;
+  return openRow('doctor_visits', data as Record<string, unknown>) as unknown as DoctorVisit;
+}
+
 export async function insertDoctorVisit(
   userId: string,
   input: DoctorVisitInput,

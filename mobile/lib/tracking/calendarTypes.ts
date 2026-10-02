@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 export type TrackingCalendarEventTone =
+  | 'wellness'
   | 'cycle-period'
   | 'cycle-phase'
   | 'cycle-symptom'

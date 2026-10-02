@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Pressable,
   Text,
@@ -11,6 +11,7 @@ import { buildSymptomChipOptions } from '../lib/wellness';
 import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
+import { CollapsibleSection } from './forms/CollapsibleSection';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
 function makeDailyFormStyles(colors: ColorPalette) {
@@ -23,8 +24,7 @@ function makeDailyFormStyles(colors: ColorPalette) {
     field: { flex: 1, gap: 6 },
     label: { fontSize: 12, fontWeight: '800' as const, color: colors.textMuted },
     input: {
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
       borderRadius: radii.md,
       paddingHorizontal: spacing.md,
       paddingVertical: 12,
@@ -39,7 +39,9 @@ function makeDailyFormStyles(colors: ColorPalette) {
       borderColor: colors.border,
       borderRadius: 999,
       paddingHorizontal: 10,
-      paddingVertical: 6,
+      minHeight: 44,
+      justifyContent: 'center' as const,
+      paddingVertical: 8,
       backgroundColor: colors.surface,
     },
     chipActive: { borderColor: colors.accent, backgroundColor: colors.typeCardActiveBg },
@@ -89,6 +91,7 @@ function Chip({
       onPress={onPress}
       style={[styles.chip, active && styles.chipActive]}
       accessibilityRole="button"
+      accessibilityState={{ selected: active }}
     >
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
@@ -103,6 +106,7 @@ type Props = {
   submitLabel?: string;
   compact?: boolean;
   trackedSymptoms?: string[];
+  hideSubmit?: boolean;
 };
 
 export function WellnessDailyForm({
@@ -113,6 +117,7 @@ export function WellnessDailyForm({
   submitLabel = 'Save check-in',
   compact = false,
   trackedSymptoms = [],
+  hideSubmit = false,
 }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeDailyFormStyles);
@@ -161,45 +166,15 @@ export function WellnessDailyForm({
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
-      <Text style={styles.legend}>Sleep (last night)</Text>
-      <View style={styles.row}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Hours</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="decimal-pad"
-            placeholder="e.g. 7"
-            placeholderTextColor={colors.textMuted}
-            editable={!busy}
-            value={value.sleep_hours == null ? '' : String(value.sleep_hours)}
-            onChangeText={(t) => setNullableNumber('sleep_hours', t)}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Quality (1–5)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="number-pad"
-            placeholder="1-5"
-            placeholderTextColor={colors.textMuted}
-            editable={!busy}
-            value={value.sleep_quality == null ? '' : String(value.sleep_quality)}
-            onChangeText={(t) => setNullableNumber('sleep_quality', t)}
-          />
-        </View>
-      </View>
+      <DailySection enabled={hideSubmit} title="Sleep & energy" summary="How rested are you feeling?" initiallyOpen>
+      <Text style={styles.legend}>Sleep last night</Text>
+      <Text style={styles.label}>Hours</Text>
+      <NumericEntry value={value.sleep_hours} onChange={(sleep_hours) => patch({ sleep_hours })} busy={busy} label="Sleep hours" />
+      <RatingScale label="Sleep quality" value={value.sleep_quality} onChange={(sleep_quality) => patch({ sleep_quality })} busy={busy} />
+      <RatingScale label="Energy" value={value.energy_level} onChange={(energy_level) => patch({ energy_level })} busy={busy} />
 
-      <Text style={styles.legend}>Energy today (1–5)</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="number-pad"
-        placeholder="1-5"
-        placeholderTextColor={colors.textMuted}
-        editable={!busy}
-        value={value.energy_level == null ? '' : String(value.energy_level)}
-        onChangeText={(t) => setNullableNumber('energy_level', t)}
-      />
-
+      </DailySection>
+      <DailySection enabled={hideSubmit} title="Food & movement" summary="Appetite and exercise">
       <Text style={styles.legend}>Appetite</Text>
       <View style={styles.chips}>
         {appetiteOptions.map((opt) => (
@@ -240,6 +215,8 @@ export function WellnessDailyForm({
         </>
       ) : null}
 
+      </DailySection>
+      <DailySection enabled={hideSubmit} title="Symptoms & changes" summary={value.symptoms.length ? `${value.symptoms.length} selected` : 'Choose or add symptoms'}>
       <Text style={styles.legend}>Symptoms or changes today</Text>
       <Text style={styles.hint}>
         Select any that apply today, including symptoms from your tracking list.
@@ -269,6 +246,8 @@ export function WellnessDailyForm({
         </Pressable>
       </View>
 
+      </DailySection>
+      <DailySection enabled={hideSubmit} title="Clinician notes" summary="Anything else to remember">
       <Text style={styles.legend}>Notes for your clinician</Text>
       <TextInput
         style={[styles.input, styles.notes]}
@@ -280,13 +259,32 @@ export function WellnessDailyForm({
         onChangeText={(t) => patch({ notes: t })}
       />
 
-      <Pressable
+      </DailySection>
+      {!hideSubmit ? <Pressable
         onPress={onSubmit}
         disabled={busy}
         style={[styles.saveBtn, busy && styles.disabled]}
       >
         <Text style={styles.saveBtnText}>{busy ? 'Saving…' : submitLabel}</Text>
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
+}
+
+function DailySection({ enabled, title, summary, initiallyOpen = false, children }: { enabled: boolean; title: string; summary: string; initiallyOpen?: boolean; children: ReactNode }) {
+  if (!enabled) return <>{children}</>;
+  return <CollapsibleSection title={title} summary={summary} initiallyOpen={initiallyOpen}><View style={{ gap: 12 }}>{children}</View></CollapsibleSection>;
+}
+
+function RatingScale({ label, value, onChange, busy }: { label: string; value: number | null; onChange: (value: number | null) => void; busy: boolean }) {
+  const s = useThemedStyles(makeDailyFormStyles);
+  return <View style={{ gap: 8 }}><Text style={s.legend}>{label} · 1 low, 5 high</Text><View style={s.chips}>
+    {[1, 2, 3, 4, 5].map((rating) => <Pressable key={rating} style={[s.chip, { minWidth: 44, alignItems: 'center' }, value === rating && s.chipActive]} disabled={busy} onPress={() => onChange(value === rating ? null : rating)} accessibilityRole="button" accessibilityLabel={`${label}: ${rating} of 5`} accessibilityState={{ selected: value === rating }}><Text style={[s.chipText, value === rating && s.chipTextActive]}>{rating}</Text></Pressable>)}
+  </View></View>;
+}
+function NumericEntry({ value, onChange, busy, label }: { value: number | null; onChange: (value: number | null) => void; busy: boolean; label: string }) {
+  const s = useThemedStyles(makeDailyFormStyles);
+  const [text, setText] = useState(value === null ? '' : String(value));
+  useEffect(() => { if (value === null) setText(''); else if (Number.isFinite(value)) setText(String(value)); }, [value]);
+  return <TextInput style={s.input} accessibilityLabel={label} value={text} keyboardType="decimal-pad" editable={!busy} placeholder="e.g. 7.5" placeholderTextColor={s.hint.color} onChangeText={(raw) => { setText(raw); onChange(raw.trim() ? Number(raw.replace(',', '.')) : null); }} />;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CalendarViewRange } from '../lib/tracking/calendarRange'
 import { getCalendarWindow } from '../lib/tracking/calendarRange'
 import {
@@ -32,7 +32,11 @@ export function useTrackingCalendarData(
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const requestId = useRef(0)
   const reload = useCallback(async () => {
+    const request = ++requestId.current
+    setLoading(false)
+    setError(null)
     if (!userId || !source) {
       setData(EMPTY)
       return
@@ -57,6 +61,7 @@ export function useTrackingCalendarData(
     setLoading(true)
     setError(null)
     try {
+      let next: TrackingCalendarData = EMPTY
       if (source === CALENDAR_SOURCE_ALL) {
         const allData = await loadAllTrackersCalendarData(
           userId,
@@ -64,28 +69,29 @@ export function useTrackingCalendarData(
           window.start,
           window.end,
         )
-        setData(allData)
+        next = allData
       } else if (source === 'cycle') {
-        setData(await loadCycleCalendarData(userId, window.start, window.end))
+        next = await loadCycleCalendarData(userId, window.start, window.end)
       } else if (source === 'weight') {
-        setData(await loadWeightCalendarData(userId, window.start, window.end))
+        next = await loadWeightCalendarData(userId, window.start, window.end)
       } else if (source === 'hrt') {
-        setData(await loadHrtCalendarData(userId, window.start, window.end))
+        next = await loadHrtCalendarData(userId, window.start, window.end)
       } else if (source === 'med_progress') {
-        setData(await loadMedProgressCalendarData(userId, window.start, window.end))
-      } else {
-        setData(EMPTY)
+        next = await loadMedProgressCalendarData(userId, window.start, window.end)
       }
+      if (request === requestId.current) setData(next)
     } catch (err) {
+      if (request !== requestId.current) return
       setError(err instanceof Error ? err.message : 'Could not load calendar')
       setData(EMPTY)
     } finally {
-      setLoading(false)
+      if (request === requestId.current) setLoading(false)
     }
   }, [userId, source, enabledTrackers, range, anchor])
 
   useEffect(() => {
     void reload()
+    return () => { requestId.current += 1 }
   }, [reload, refreshKey])
 
   return { data, loading, error, reload }

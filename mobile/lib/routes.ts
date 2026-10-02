@@ -6,7 +6,10 @@ export const routes = {
   account: '/(drawer)/account',
   streaks: '/(drawer)/streaks',
   wellness: '/(drawer)/wellness',
+  wellnessEntry: '/(modals)/wellness-entry',
+  wellnessBaseline: '/(modals)/wellness-baseline',
   doctorVisits: '/(drawer)/doctor-visits',
+  doctorAppointment: '/(modals)/doctor-appointment',
   medicalRecords: '/(drawer)/medical-records',
   interactions: '/(drawer)/interactions',
   help: '/(drawer)/help',
@@ -15,4 +18,5 @@ export const routes = {
   medicationEdit: (id: string) => `/(modals)/medications/${id}` as const,
   supplementNew: '/(modals)/supplements/new',
   supplementEdit: (id: string) => `/(modals)/supplements/${id}` as const,
+  reorder: '/(modals)/reorder',
 } as const;

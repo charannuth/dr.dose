@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -10,13 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  NestedReorderableList,
-  ScrollViewContainer,
-  reorderItems,
-  useReorderableDrag,
-  type ReorderableListReorderEvent,
-} from 'react-native-reorderable-list';
 import { MedicationCard } from '../../components/MedicationCard';
 import {
   SameTimeDoseChooseModal,
@@ -51,6 +44,19 @@ import {
   type MedicationScheduleType,
 } from '../../lib/medicationSchedule';
 import { SwipeTabView } from '../../components/SwipeTabView';
+import { PressableScale } from '../../components/PressableScale';
+import { SortSheet, type SortOption } from '../../components/SortSheet';
+import { TodayHero } from '../../components/TodayHero';
+import { TodayDashboard } from '../../components/TodayDashboard';
+import { AlertStack, type AlertItem } from '../../components/AlertStack';
+import { scheduleTimeToMinutes } from '../../lib/dates';
+import { errorFeedback, successFeedback, tapFeedback } from '../../lib/haptics';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { fetchStreakStats, type StreakStats } from '../../lib/streaks';
 import { fetchMissedDoses, type MissedDoseItem } from '../../lib/missedDoses';
 import { getRefillAlerts } from '../../lib/refills';
@@ -68,10 +74,8 @@ import {
   getMedSort,
   getReminders,
   getSameTimeDoseMode,
-  setCustomOrder,
   setMedSort,
   type CustomOrders,
-  type MedListTab,
   type MedSort,
   type SameTimeDoseMode,
 } from '../../lib/settings';
@@ -102,36 +106,41 @@ const TAB_LABELS: Record<TodayTab, string> = {
   supplement: 'Supplements',
 };
 
-const handleStyle = {
-  paddingVertical: 8,
-  paddingHorizontal: 4,
-  gap: 4,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
+/** Shown on the compact sort button; reordering itself lives on its own screen. */
+const SORT_LABELS: Record<MedSort, string> = {
+  time: 'By time',
+  name: 'A–Z',
+  custom: 'Custom order',
 };
-const handleBarStyle = { width: 20, height: 2.5, borderRadius: 2 };
 
 /**
- * The 3-line drag handle shown on each medication tile in Custom sort mode.
- * Must be rendered inside a NestedReorderableList item so useReorderableDrag
- * can wire the press to the list's drag gesture.
+ * Marks one scheduled slot taken in local state so the UI can respond before the
+ * write lands. doseLogId stays null until the refetch supplies the real row,
+ * which is why the caller keeps the slot busy until then — Undo needs that id.
  */
-function ReorderHandle({ color }: { color: string }) {
-  const drag = useReorderableDrag();
-  return (
-    <Pressable
-      onPressIn={drag}
-      hitSlop={12}
-      accessibilityRole="button"
-      accessibilityLabel="Drag to reorder"
-    >
-      <View style={handleStyle}>
-        <View style={[handleBarStyle, { backgroundColor: color }]} />
-        <View style={[handleBarStyle, { backgroundColor: color }]} />
-        <View style={[handleBarStyle, { backgroundColor: color }]} />
-      </View>
-    </Pressable>
-  );
+function applyDoseTaken(
+  medications: MedicationWithStatus[],
+  medicationId: string,
+  scheduleTime: string,
+): MedicationWithStatus[] {
+  return medications.map((med) => {
+    if (med.id !== medicationId) return med;
+    let changed = false;
+    const slots = med.slots.map((slot) => {
+      if (slot.time !== scheduleTime || slot.taken) return slot;
+      changed = true;
+      return { ...slot, taken: true };
+    });
+    if (!changed) return med;
+    const dosesTakenToday = med.dosesTakenToday + 1;
+    return {
+      ...med,
+      slots,
+      dosesTakenToday,
+      allDosesTakenToday:
+        med.dosesTotalToday > 0 && dosesTakenToday >= med.dosesTotalToday,
+    };
+  });
 }
 
 // Each tab gets its own accent so the row reads as a colorful, scannable control.
@@ -141,6 +150,10 @@ const TAB_ACCENTS: Record<TodayTab, TabAccent> = {
   as_needed: { fg: 'accentPurple', bg: 'accentPurpleBg' },
   supplement: { fg: 'accentGreen', bg: 'accentGreenBg' },
 };
+// Shared by the tab row styles and the sliding indicator's offset math, which
+// has to reproduce the flex layout numerically.
+const TABS_PADDING = 4;
+const TABS_GAP = 4;
 
 function makeTodayStyles(colors: ColorPalette) {
   return {
@@ -163,24 +176,19 @@ function makeTodayStyles(colors: ColorPalette) {
     loadingText: {
       color: colors.textMuted,
     },
-    summary: {
-      gap: 4,
-    },
-    summaryTitle: {
-      ...typography.display,
-      color: colors.text,
-    },
-    summaryText: {
-      ...typography.body,
-      fontSize: 16,
-      color: colors.textMuted,
-    },
     tabs: {
       flexDirection: 'row' as const,
       backgroundColor: colors.border,
       borderRadius: radii.lg,
-      padding: 4,
-      gap: 4,
+      padding: TABS_PADDING,
+      gap: TABS_GAP,
+    },
+    tabIndicator: {
+      position: 'absolute' as const,
+      top: TABS_PADDING,
+      bottom: TABS_PADDING,
+      left: TABS_PADDING,
+      borderRadius: radii.md,
     },
     tab: {
       flex: 1,
@@ -191,9 +199,6 @@ function makeTodayStyles(colors: ColorPalette) {
       paddingVertical: 9,
       paddingHorizontal: 4,
       borderRadius: radii.md,
-    },
-    tabActive: {
-      backgroundColor: colors.surface,
     },
     tabText: {
       fontFamily: fonts.bodySemibold,
@@ -264,50 +269,24 @@ function makeTodayStyles(colors: ColorPalette) {
     list: {
       gap: spacing.md,
     },
-    sortRow: {
+    sortBar: {
+      flexDirection: 'row' as const,
+      justifyContent: 'flex-end' as const,
+    },
+    sortButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      flexWrap: 'wrap' as const,
-      gap: spacing.sm,
-    },
-    sortLabel: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 14,
-      color: colors.textMuted,
-    },
-    sortOptions: {
-      flexDirection: 'row' as const,
-      gap: 6,
-      flexShrink: 1,
-    },
-    sortChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
       borderRadius: radii.md,
+      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.surface,
     },
-    sortChipActive: {
-      backgroundColor: colors.accent,
-      borderColor: colors.accent,
-    },
-    sortChipText: {
+    sortButtonText: {
       fontFamily: fonts.bodySemibold,
-      fontSize: 14,
+      fontSize: 13,
       color: colors.textMuted,
-    },
-    sortChipTextActive: {
-      color: colors.onAccent,
-    },
-    reorderHintText: {
-      width: '100%' as const,
-      fontFamily: fonts.bodyMedium,
-      fontSize: 12,
-      color: colors.textMuted,
-    },
-    reorderItem: {
-      marginBottom: spacing.md,
     },
     takeAllRow: {
       gap: spacing.sm,
@@ -360,16 +339,19 @@ export default function TodayScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
+  const tabsOffset = useRef(0);
   const tabsRef = useDemoTourTarget('today-tabs');
   const prnTabRef = useDemoTourTarget('today-tab-prn');
   const { registerScrollToTarget, unregisterScrollToTarget } = useDemoTourTargets();
   const [medications, setMedications] = useState<MedicationWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [todayTab, setTodayTab] = useState<TodayTab>('scheduled');
   const [medSort, setMedSortState] = useState<MedSort>('time');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [customOrders, setCustomOrders] = useState<CustomOrders>({
     scheduled: [],
     as_needed: [],
@@ -462,20 +444,12 @@ export default function TodayScreen() {
     }
   }
 
-  // Persist a drag reorder for the given tab and reflect it immediately.
-  function handleReorder(tab: MedListTab, { from, to }: ReorderableListReorderEvent) {
-    const ordered = reorderItems(medsByTab[tab], from, to);
-    const ids = ordered.map((m) => m.id);
-    setCustomOrders((prev) => ({ ...prev, [tab]: ids }));
-    if (user) void setCustomOrder(user.id, tab, ids);
-  }
-
   useEffect(() => {
     registerScrollToTarget('today-tabs', () => {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      scrollRef.current?.scrollTo({ y: tabsOffset.current, animated: true });
     });
     registerScrollToTarget('today-tab-prn', () => {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      scrollRef.current?.scrollTo({ y: tabsOffset.current, animated: true });
     });
     registerScrollToTarget('wellness-checkin', () => {
       scrollRef.current?.scrollToEnd({ animated: true });
@@ -498,6 +472,7 @@ export default function TodayScreen() {
     setMedications(meds);
     setStreakStats(streak);
     setMissedDoses(missed);
+    setDashboardRefreshKey((key) => key + 1);
   }, [user]);
 
   // Refetch whenever Today is shown (e.g. after closing add/edit medication modal).
@@ -617,6 +592,15 @@ export default function TodayScreen() {
   async function handleMarkTaken(med: MedicationWithStatus, scheduleTime: string) {
     if (!user) return;
     const key = `${med.id}-${scheduleTime}`;
+    // Snapshot for rollback: the write can still fail after we've already shown
+    // the dose as taken.
+    const previous = medications;
+
+    // Flip the slot locally first so the card reacts to the tap immediately
+    // rather than after two network round trips. loadAll() below reconciles
+    // this with the server and fills in the doseLogId that Undo needs.
+    setMedications((current) => applyDoseTaken(current, med.id, scheduleTime));
+    successFeedback();
     setBusySlot(key);
     setError(null);
     try {
@@ -625,6 +609,8 @@ export default function TodayScreen() {
       await loadAll();
       await syncRemindersAfterSupplyChange();
     } catch (err) {
+      setMedications(previous);
+      errorFeedback();
       setError(err instanceof Error ? err.message : 'Could not log dose');
     } finally {
       setBusySlot(null);
@@ -848,9 +834,56 @@ export default function TodayScreen() {
   };
   const visibleMeds = medsByTab[todayTab];
   const activeTabIndex = TAB_ORDER.indexOf(todayTab);
+
+  // The selected-tab pill is one shared element that slides between slots rather
+  // than a background that blinks on and off each tab. Width comes from measuring
+  // the row because the three slots are flex-sized.
+  const [tabsWidth, setTabsWidth] = useState(0);
+  const tabPosition = useSharedValue(activeTabIndex);
+  useEffect(() => {
+    tabPosition.value = withSpring(activeTabIndex, {
+      damping: 20,
+      stiffness: 220,
+      mass: 0.6,
+    });
+  }, [activeTabIndex, tabPosition]);
+
+  const tabSlotWidth =
+    tabsWidth > 0
+      ? (tabsWidth - TABS_PADDING * 2 - TABS_GAP * (TAB_ORDER.length - 1)) /
+        TAB_ORDER.length
+      : 0;
+
+  const tabIndicatorStyle = useAnimatedStyle(() => ({
+    width: tabSlotWidth,
+    transform: [{ translateX: tabPosition.value * (tabSlotWidth + TABS_GAP) }],
+    backgroundColor: interpolateColor(
+      tabPosition.value,
+      [0, 1, 2],
+      [
+        colors[TAB_ACCENTS.scheduled.bg],
+        colors[TAB_ACCENTS.as_needed.bg],
+        colors[TAB_ACCENTS.supplement.bg],
+      ],
+    ),
+  }));
   const prnLoggedToday = prnMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
   const supplementsLogged = supplementMeds.reduce((sum, m) => sum + m.dosesTakenToday, 0);
   const showSortRow = visibleMeds.length > 1;
+  // As-needed meds have no dose times, so sorting by time would be meaningless.
+  const sortOptions: SortOption[] = [
+    ...(todayTab !== 'as_needed'
+      ? [
+          {
+            value: 'time' as const,
+            label: 'By time',
+            hint: 'Earliest dose first, taken ones last',
+          },
+        ]
+      : []),
+    { value: 'name', label: 'A–Z', hint: 'Alphabetical by medication name' },
+    { value: 'custom', label: 'Custom order', hint: 'The order you arranged by hand' },
+  ];
   const refillAlerts = getRefillAlerts(medications);
 
   const takeAllGroups = useMemo(
@@ -879,6 +912,35 @@ export default function TodayScreen() {
     });
   }
 
+  // Ordered by urgency: a dose due right now outranks a refill you have days to
+  // handle. AlertStack shows the first and hides the rest behind a toggle.
+  const alertItems: AlertItem[] = [];
+  if (missedDoses.some((item) => item.periodLabel === 'Today')) {
+    alertItems.push({ key: 'due-now', node: <DueNowBanner items={missedDoses} /> });
+  }
+  if (!missedBannerDismissed && missedDoses.length > 0) {
+    alertItems.push({
+      key: 'missed',
+      node: (
+        <MissedDosesBanner
+          items={missedDoses}
+          onDismiss={() => {
+            void (async () => {
+              await dismissMissedDosesBanner();
+              setMissedBannerDismissed(true);
+            })();
+          }}
+        />
+      ),
+    });
+  }
+  if (refillAlerts.length > 0) {
+    alertItems.push({
+      key: 'refill',
+      node: <RefillBanner alerts={refillAlerts} onPress={() => router.push(routes.account)} />,
+    });
+  }
+
   let summaryText: string;
   if (todayTab === 'scheduled') {
     summaryText =
@@ -903,9 +965,39 @@ export default function TodayScreen() {
           : `${supplementsLogged} supplement dose${supplementsLogged === 1 ? '' : 's'} logged today`;
   }
 
+  // The hero answers "what do I do next", so the headline is the soonest dose
+  // still outstanding rather than a restatement of the count below it.
+  const nextDose = (() => {
+    let best: { name: string; label: string; minutes: number } | null = null;
+    for (const med of scheduledMeds) {
+      for (const slot of med.slots) {
+        if (slot.taken) continue;
+        const minutes = scheduleTimeToMinutes(slot.time);
+        if (!Number.isFinite(minutes)) continue;
+        if (!best || minutes < best.minutes) {
+          best = { name: med.name, label: slot.label, minutes };
+        }
+      }
+    }
+    return best;
+  })();
+
+  let heroHeadline: string;
+  if (todayTab === 'scheduled') {
+    heroHeadline =
+      dosesTotal > 0 && dosesTaken >= dosesTotal
+        ? 'All doses taken'
+        : nextDose
+          ? `Next: ${nextDose.name} at ${nextDose.label}`
+          : 'Today';
+  } else if (todayTab === 'as_needed') {
+    heroHeadline = 'As needed';
+  } else {
+    heroHeadline = 'Supplements';
+  }
+
   const renderMedCard = (
     med: MedicationWithStatus,
-    dragHandle?: ReactNode,
     visibleScheduleTime?: string,
   ) => (
     <MedicationCard
@@ -927,7 +1019,6 @@ export default function TodayScreen() {
       onMoveToAsNeeded={() => handleMoveToAsNeeded(med)}
       onMoveToDailySchedule={() => handleMoveToDailySchedule(med)}
       onDelete={() => handleDelete(med)}
-      dragHandle={dragHandle}
     />
   );
 
@@ -960,7 +1051,7 @@ export default function TodayScreen() {
               pending: section.pending,
             })}
           </View>
-          {section.meds.map((med) => renderMedCard(med, undefined, section.time))}
+          {section.meds.map((med) => renderMedCard(med, section.time))}
         </View>
       ));
     }
@@ -1001,51 +1092,65 @@ export default function TodayScreen() {
       {celebrationStreak != null ? (
         <StreakCelebration streakDays={celebrationStreak} onDismiss={dismissCelebration} />
       ) : null}
-      <ScrollViewContainer
+      <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
-        <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Today</Text>
-          <Text style={styles.summaryText}>{summaryText}</Text>
-          {todayTab === 'scheduled' ? (
-            <StreakSnippet stats={streakStats} onPreviewCelebration={previewCelebration} />
-          ) : null}
-        </View>
-
-        <RefillBanner
-          alerts={refillAlerts}
-          onPress={() => router.push(routes.account)}
+        <TodayHero
+          taken={todayTab === 'scheduled' ? dosesTaken : 0}
+          total={todayTab === 'scheduled' ? dosesTotal : 0}
+          headline={heroHeadline}
+          detail={summaryText}
+          accent={colors[TAB_ACCENTS[todayTab].fg]}
+          footer={
+            todayTab === 'scheduled' ? (
+              <StreakSnippet stats={streakStats} onPreviewCelebration={previewCelebration} />
+            ) : null
+          }
         />
-        <DueNowBanner items={missedDoses} />
-        {!missedBannerDismissed ? (
-          <MissedDosesBanner
-            items={missedDoses}
-            onDismiss={() => {
-              void (async () => {
-                await dismissMissedDosesBanner();
-                setMissedBannerDismissed(true);
-              })();
-            }}
-          />
-        ) : null}
+
+        <AlertStack items={alertItems} />
+        {/* Interaction warnings stay outside the collapse: they are safety
+            information the user should never have to tap to reveal. */}
         <InteractionAlert medicationNames={medications.map((m) => m.name)} />
 
-        <View ref={tabsRef} collapsable={false} style={styles.tabs}>
+        <TodayDashboard
+          key={user?.id}
+          stats={streakStats}
+          medications={medications}
+          refreshKey={dashboardRefreshKey}
+          onMedicationTab={(tab) => {
+            setTodayTab(tab);
+            scrollRef.current?.scrollTo({ y: tabsOffset.current, animated: true });
+          }}
+        />
+
+        <Text style={{ ...typography.heading, color: colors.text }}>Your medications</Text>
+        <View
+          ref={tabsRef}
+          collapsable={false}
+          style={styles.tabs}
+          onLayout={(e) => {
+            setTabsWidth(e.nativeEvent.layout.width);
+            tabsOffset.current = e.nativeEvent.layout.y;
+          }}
+        >
+          {tabSlotWidth > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.tabIndicator, tabIndicatorStyle]}
+            />
+          ) : null}
           {TAB_ORDER.map((tab) => {
             const active = todayTab === tab;
             const accent = TAB_ACCENTS[tab];
             const count = tabCounts[tab];
             const pressable = (
               <Pressable
-                style={[
-                  styles.tab,
-                  active && styles.tabActive,
-                  active && { backgroundColor: colors[accent.bg] },
-                ]}
+                style={styles.tab}
                 onPress={() => setTodayTab(tab)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
@@ -1083,51 +1188,19 @@ export default function TodayScreen() {
         </View>
 
         {showSortRow ? (
-          <View style={styles.sortRow}>
-            <Text style={styles.sortLabel}>Sort by</Text>
-            <View style={styles.sortOptions}>
-              {todayTab !== 'as_needed' ? (
-                <Pressable
-                  style={[styles.sortChip, medSort === 'time' && styles.sortChipActive]}
-                  onPress={() => void changeMedSort('time')}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: medSort === 'time' }}
-                >
-                  <Text
-                    style={[styles.sortChipText, medSort === 'time' && styles.sortChipTextActive]}
-                  >
-                    Time
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                style={[styles.sortChip, medSort === 'name' && styles.sortChipActive]}
-                onPress={() => void changeMedSort('name')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: medSort === 'name' }}
-              >
-                <Text
-                  style={[styles.sortChipText, medSort === 'name' && styles.sortChipTextActive]}
-                >
-                  A–Z
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.sortChip, medSort === 'custom' && styles.sortChipActive]}
-                onPress={() => void changeMedSort('custom')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: medSort === 'custom' }}
-              >
-                <Text
-                  style={[styles.sortChipText, medSort === 'custom' && styles.sortChipTextActive]}
-                >
-                  Custom
-                </Text>
-              </Pressable>
-            </View>
-            {medSort === 'custom' && visibleMeds.length > 1 ? (
-              <Text style={styles.reorderHintText}>Drag the ☰ handle to reorder</Text>
-            ) : null}
+          <View style={styles.sortBar}>
+            <PressableScale
+              style={styles.sortButton}
+              scaleTo={0.95}
+              onPress={() => {
+                tapFeedback();
+                setSortSheetOpen(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort medications, currently ${SORT_LABELS[medSort]}`}
+            >
+              <Text style={styles.sortButtonText}>⇅ {SORT_LABELS[medSort]}</Text>
+            </PressableScale>
           </View>
         ) : null}
 
@@ -1177,26 +1250,33 @@ export default function TodayScreen() {
                   </Text>
                 </Pressable>
               </View>
-            ) : medSort === 'custom' && visibleMeds.length > 1 ? (
-              <NestedReorderableList
-                data={visibleMeds}
-                scrollable={false}
-                keyExtractor={(m) => m.id}
-                onReorder={(e) => handleReorder(todayTab, e)}
-                renderItem={({ item }) => (
-                  <View style={styles.reorderItem}>
-                    {renderMedCard(item, <ReorderHandle color={colors.textMuted} />)}
-                  </View>
-                )}
-              />
             ) : (
               <View style={styles.list}>{renderDoseList()}</View>
             )}
           </SwipeTabView>
         )}
 
-        <TodayWellnessCheckIn />
-      </ScrollViewContainer>
+        <TodayWellnessCheckIn onSaved={() => setDashboardRefreshKey((key) => key + 1)} />
+      </ScrollView>
+
+      <SortSheet
+        visible={sortSheetOpen}
+        value={medSort}
+        options={sortOptions}
+        onSelect={(next) => {
+          setSortSheetOpen(false);
+          void changeMedSort(next);
+        }}
+        onReorder={
+          visibleMeds.length > 1
+            ? () => {
+                setSortSheetOpen(false);
+                router.push({ pathname: routes.reorder, params: { tab: todayTab } });
+              }
+            : undefined
+        }
+        onClose={() => setSortSheetOpen(false)}
+      />
 
       <SameTimeDoseChooseModal
         visible={chooseGroup != null}

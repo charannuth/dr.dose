@@ -27,7 +27,7 @@ const emptyPrnInsights = (days: number): PrnInsightsSummary => ({
   hasData: false,
 });
 
-export function useWellnessPageData(userId: string | undefined, selectedDate: string) {
+export function useWellnessPageData(userId: string | undefined, selectedDate: string, refreshKey = 0) {
   const today = todayLocalDate();
   const weekDates = useMemo(() => lastNDates(7, today), [today]);
   const trendDates = useMemo(() => lastNDates(14, today), [today]);
@@ -77,6 +77,7 @@ export function useWellnessPageData(userId: string | undefined, selectedDate: st
           .select('name, start_date, end_date')
           .eq('user_id', userId)
           .order('name');
+        if (!active) return;
         if (medError) throw medError;
         const activeMedRows = filterMedicationsActiveOn(
           openRows(
@@ -104,7 +105,7 @@ export function useWellnessPageData(userId: string | undefined, selectedDate: st
     return () => {
       active = false;
     };
-  }, [userId, today, weekDates, trendDates]);
+  }, [userId, today, weekDates, trendDates, refreshKey]);
 
   useEffect(() => {
     if (!userId || pageLoading) return;
@@ -129,7 +130,7 @@ export function useWellnessPageData(userId: string | undefined, selectedDate: st
     return () => {
       active = false;
     };
-  }, [userId, selectedDate, pageLoading]);
+  }, [userId, selectedDate, pageLoading, refreshKey]);
 
   async function refreshWeekLogs() {
     if (!userId) return;

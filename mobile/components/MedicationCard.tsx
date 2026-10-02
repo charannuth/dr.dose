@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { formatDoseDisplay } from '../lib/dose';
 import { formatInventoryRemaining } from '../lib/inventory';
 import { formatMedicationType } from '../lib/medicationForms';
@@ -13,6 +14,8 @@ import { fonts, radii, spacing, tileBgKey, tileFgKey } from '../constants/theme'
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
+import { PressableScale } from './PressableScale';
+import { ActionSheet, type SheetAction } from './ActionSheet';
 import { useRouter } from 'expo-router';
 import { routes } from '../lib/routes';
 
@@ -28,8 +31,6 @@ type MedicationCardProps = {
   onMoveToDailySchedule?: () => void;
   onDelete?: () => void;
   busySlot: string | null;
-  /** When set (Custom sort mode), renders a drag handle in the card header. */
-  dragHandle?: ReactNode;
   /** When set, only show the dose slot at this schedule time (HH:mm). */
   visibleScheduleTime?: string;
 };
@@ -37,7 +38,7 @@ type MedicationCardProps = {
 function makeMedicationCardStyles(colors: ColorPalette) {
   return {
     card: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.medicationSurface,
       borderRadius: radii.lg,
       borderWidth: 1,
       borderColor: colors.border,
@@ -59,11 +60,6 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     headerText: {
       flex: 1,
       gap: 2,
-    },
-    dragHandleSlot: {
-      justifyContent: 'center' as const,
-      marginLeft: spacing.xs,
-      marginRight: -spacing.xs,
     },
     name: {
       fontFamily: fonts.bodySemibold,
@@ -207,35 +203,23 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       borderRadius: radii.sm,
       paddingHorizontal: 14,
       paddingVertical: 8,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.medicationSurface,
     },
     secondaryButtonText: {
       color: colors.text,
       fontSize: 14,
       fontWeight: '600' as const,
     },
-    actions: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: 10,
-      marginTop: spacing.sm,
+    overflowBtn: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      alignSelf: 'flex-start' as const,
     },
-    ghostBtn: {
-      paddingVertical: 6,
-      paddingHorizontal: 2,
-    },
-    ghostText: {
+    overflowGlyph: {
+      fontSize: 20,
+      lineHeight: 22,
+      fontWeight: '900' as const,
       color: colors.textMuted,
-      fontWeight: '800' as const,
-    },
-    dangerText: {
-      color: colors.error,
-    },
-    buttonDisabled: {
-      opacity: 0.6,
-    },
-    buttonDisabledText: {
-      opacity: 0.6,
     },
   };
 }
@@ -257,12 +241,12 @@ export function MedicationCard({
   onMoveToDailySchedule,
   onDelete,
   busySlot,
-  dragHandle,
   visibleScheduleTime,
 }: MedicationCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const slotSource = visibleScheduleTime
     ? medication.slots.filter((s) => s.time === visibleScheduleTime)
@@ -312,10 +296,61 @@ export function MedicationCard({
     medication.medication_route,
     medication.medication_form,
   );
+  const cardLayout = LinearTransition.springify().damping(22).stiffness(200);
+
   const prnBusy = busySlot === `${medication.id}-prn`;
   const migrateToPrnBusy = busySlot === `${medication.id}-migrate-prn`;
   const migrateToDailyBusy = busySlot === `${medication.id}-migrate-daily`;
   const deleteBusy = busySlot === medication.id;
+
+  const menuActions: SheetAction[] = [
+    {
+      key: 'edit',
+      label: 'Edit',
+      onPress: () => {
+        setMenuOpen(false);
+        router.push(
+          medication.category === 'supplement'
+            ? routes.supplementEdit(medication.id)
+            : routes.medicationEdit(medication.id),
+        );
+      },
+    },
+  ];
+  if (!asNeeded && onMoveToAsNeeded) {
+    menuActions.push({
+      key: 'to-prn',
+      label: 'Move to as needed',
+      disabled: migrateToPrnBusy,
+      onPress: () => {
+        setMenuOpen(false);
+        onMoveToAsNeeded();
+      },
+    });
+  }
+  if (asNeeded && onMoveToDailySchedule) {
+    menuActions.push({
+      key: 'to-daily',
+      label: 'Move to daily schedule',
+      disabled: migrateToDailyBusy,
+      onPress: () => {
+        setMenuOpen(false);
+        onMoveToDailySchedule();
+      },
+    });
+  }
+  if (onDelete) {
+    menuActions.push({
+      key: 'delete',
+      label: 'Delete',
+      destructive: true,
+      disabled: deleteBusy,
+      onPress: () => {
+        setMenuOpen(false);
+        onDelete();
+      },
+    });
+  }
 
   let badge: { label: string; tone: 'success' | 'pending' | 'partial' } | null =
     null;
@@ -342,7 +377,8 @@ export function MedicationCard({
   }
 
   return (
-    <View
+    <Animated.View
+      layout={cardLayout}
       style={[
         styles.card,
         { backgroundColor: tileBackground, borderColor: accentColor },
@@ -366,7 +402,16 @@ export function MedicationCard({
           </Text>
         </View>
         {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
-        {dragHandle ? <View style={styles.dragHandleSlot}>{dragHandle}</View> : null}
+        <PressableScale
+          style={styles.overflowBtn}
+          scaleTo={0.85}
+          hitSlop={8}
+          onPress={() => setMenuOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`More options for ${medication.name}`}
+        >
+          <Text style={styles.overflowGlyph}>⋯</Text>
+        </PressableScale>
       </View>
 
       {medication.end_date ? (
@@ -409,7 +454,7 @@ export function MedicationCard({
             ) : (
               <Text style={styles.emptySlots}>No doses logged today yet.</Text>
             )}
-            <Pressable
+            <PressableScale
               style={styles.primaryButton}
               disabled={prnBusy}
               onPress={() =>
@@ -426,7 +471,7 @@ export function MedicationCard({
               ) : (
                 <Text style={styles.primaryButtonText}>Log</Text>
               )}
-            </Pressable>
+            </PressableScale>
           </>
         ) : (
           <>
@@ -463,7 +508,7 @@ export function MedicationCard({
         )
       ) : orderedSlots.length > 0 ? (
         <View style={styles.slots}>
-          {orderedSlots.map((slot, index) => {
+          {orderedSlots.map((slot) => {
             const slotKey = `${medication.id}-${slot.time}`;
             const busy = busySlot === slotKey;
             const slotMins = scheduleTimeToMinutes(slot.time);
@@ -472,7 +517,9 @@ export function MedicationCard({
             const canSnooze =
               !slot.taken && (due || snoozedUntil != null) && onSnooze != null;
             return (
-              <View key={`${slot.time}-${index}`} style={styles.slotWrap}>
+              // Keyed on time alone so the row keeps its identity when taken
+              // doses re-sort to the bottom, letting the layout animation track it.
+              <Animated.View key={slot.time} layout={cardLayout} style={styles.slotWrap}>
                 <View style={[styles.slot, slot.taken && styles.slotTakenRow]}>
                   <Text style={styles.slotTime}>{slot.label}</Text>
                   {slot.taken ? (
@@ -498,8 +545,9 @@ export function MedicationCard({
                           </Text>
                         </Pressable>
                       ) : null}
-                      <Pressable
+                      <PressableScale
                         style={styles.primaryButtonSmall}
+                        scaleTo={0.93}
                         disabled={busy}
                         onPress={() => onMarkTaken(slot.time)}
                       >
@@ -508,7 +556,7 @@ export function MedicationCard({
                         ) : (
                           <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
                         )}
-                      </Pressable>
+                      </PressableScale>
                     </View>
                   )}
                 </View>
@@ -519,7 +567,7 @@ export function MedicationCard({
                     </Text>
                   </View>
                 ) : null}
-              </View>
+              </Animated.View>
             );
           })}
         </View>
@@ -529,49 +577,12 @@ export function MedicationCard({
         </Text>
       )}
 
-      <View style={styles.actions}>
-        {!asNeeded && onMoveToAsNeeded ? (
-          <Pressable
-            onPress={onMoveToAsNeeded}
-            disabled={migrateToPrnBusy}
-            style={styles.ghostBtn}
-          >
-            <Text style={[styles.ghostText, migrateToPrnBusy && styles.buttonDisabledText]}>
-              {migrateToPrnBusy ? '…' : 'Move to as needed'}
-            </Text>
-          </Pressable>
-        ) : null}
-        {asNeeded && onMoveToDailySchedule ? (
-          <Pressable
-            onPress={onMoveToDailySchedule}
-            disabled={migrateToDailyBusy}
-            style={styles.ghostBtn}
-          >
-            <Text style={[styles.ghostText, migrateToDailyBusy && styles.buttonDisabledText]}>
-              {migrateToDailyBusy ? '…' : 'Move to daily schedule'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={() =>
-            router.push(
-              medication.category === 'supplement'
-                ? routes.supplementEdit(medication.id)
-                : routes.medicationEdit(medication.id),
-            )
-          }
-          style={styles.ghostBtn}
-        >
-          <Text style={styles.ghostText}>Edit</Text>
-        </Pressable>
-        {onDelete ? (
-          <Pressable onPress={onDelete} disabled={deleteBusy} style={styles.ghostBtn}>
-            <Text style={[styles.ghostText, styles.dangerText]}>
-              {deleteBusy ? '…' : 'Delete'}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
+      <ActionSheet
+        visible={menuOpen}
+        title={medication.name}
+        actions={menuActions}
+        onClose={() => setMenuOpen(false)}
+      />
+    </Animated.View>
   );
 }

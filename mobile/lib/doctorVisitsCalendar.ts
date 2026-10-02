@@ -81,8 +81,8 @@ function cellForDate(
       markers.push('dot');
     }
 
-    for (const visit of dayVisits.slice(0, 2)) {
-      const label = shortLabel(visitSummaryLabel(visit));
+    for (const visit of dayVisits) {
+      const label = visitSummaryLabel(visit);
       let tone: TrackingCalendarCell['events'][number]['tone'] = 'doctor-past';
       if (visit.visit_date > today) tone = 'doctor-upcoming';
       else if (visitNeedsNotes(visit, today)) tone = 'doctor-notes';
@@ -92,19 +92,13 @@ function cellForDate(
         tone,
       });
     }
-    if (dayVisits.length > 2) {
-      events.push({
-        id: `${date}-more`,
-        label: `+${dayVisits.length - 2} more`,
-        tone: 'doctor-past',
-      });
-    }
+
   }
 
-  if (followUpVisits.length > 0 && dayVisits.length === 0) {
+  if (followUpVisits.length > 0) {
     classNames.push('doctor-visit-followup');
     markers.push('dot');
-    for (const visit of followUpVisits.slice(0, 1)) {
+    for (const visit of followUpVisits) {
       events.push({
         id: `${visit.id}-followup`,
         label: `Follow-up · ${shortLabel(visitSummaryLabel(visit))}`,

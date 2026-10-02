@@ -93,6 +93,14 @@
             }
           ]
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "writeOnlyAccess": true,
+          "calendarPermission": "Dr. Dose adds appointments to your calendar only when you choose.",
+          "writeOnlyCalendarPermission": "Dr. Dose adds appointments to your calendar only when you choose."
+        }
       ]
     ],
     "extra": {

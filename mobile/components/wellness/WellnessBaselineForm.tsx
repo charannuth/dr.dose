@@ -1,168 +1,54 @@
+import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import type { SubstanceKey } from '../../lib/medicationSafetyReview';
-import {
-  SUBSTANCE_USE_LEVELS,
-  type SubstanceUseLevel,
-  type WellnessProfileInput,
-} from '../../lib/wellness';
-import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
-import { useTheme } from '../../context/ThemeProvider';
-import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { SUBSTANCE_USE_LEVELS, type SubstanceUseLevel, type WellnessProfileInput } from '../../lib/wellness';
+import { useGroupedFormStyles } from '../forms/groupedFormStyles';
+import { CollapsibleSection } from '../forms/CollapsibleSection';
+import { CalendarMenu } from '../tracking/CalendarMenu';
+import { TimeWheelModal } from '../TimeWheelModal';
+import { parseAppointmentTime } from '../../lib/appointmentCalendar';
 
-const SUBSTANCE_FIELDS: { key: SubstanceKey; label: string }[] = [
-  { key: 'alcohol', label: 'Alcohol' },
-  { key: 'cannabis', label: 'Cannabis' },
-  { key: 'tobacco', label: 'Tobacco / nicotine' },
-];
-
-function makeBaselineStyles(colors: ColorPalette) {
-  return {
-    form: { gap: spacing.sm },
-    hint: { color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
-    label: { fontWeight: '700' as const, color: colors.text, marginTop: spacing.sm },
-    input: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      padding: spacing.md,
-      fontSize: 16,
-      color: colors.text,
-      backgroundColor: colors.surface,
-    },
-    textarea: { minHeight: 70, textAlignVertical: 'top' as const },
-    substanceBlock: { gap: spacing.xs },
-    chipRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
-    chip: {
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: radii.sm,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-    chipText: { fontSize: 12, fontWeight: '700' as const, color: colors.text },
-    chipTextActive: { color: colors.onAccent },
-    btn: {
-      marginTop: spacing.md,
-      backgroundColor: colors.accent,
-      borderRadius: radii.md,
-      paddingVertical: 14,
-      alignItems: 'center' as const,
-    },
-    btnDisabled: { opacity: 0.6 },
-    btnText: { color: colors.onAccent, fontWeight: '900' as const },
-  };
-}
-
-type Props = {
-  value: WellnessProfileInput;
-  onChange: (next: WellnessProfileInput) => void;
-  onSubmit: () => void;
-  busy?: boolean;
-};
-
-export function WellnessBaselineForm({ value, onChange, onSubmit, busy = false }: Props) {
-  const { colors } = useTheme();
-  const styles = useThemedStyles(makeBaselineStyles);
-
-  function patch(partial: Partial<WellnessProfileInput>) {
-    onChange({ ...value, ...partial });
-  }
-
-  function setSubstance(key: SubstanceKey, level: SubstanceUseLevel | '') {
-    const next = { ...value.substance_use };
-    if (level === '') delete next[key];
-    else next[key] = level;
-    patch({ substance_use: next });
-  }
-
-  return (
-    <View style={styles.form}>
-      <Text style={styles.hint}>
-        Your usual patterns — used to highlight what to watch for with your medications.
-      </Text>
-      <Text style={styles.label}>Usual bedtime</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. 10:30 PM"
-        placeholderTextColor={colors.textMuted}
-        value={value.usual_bedtime}
-        onChangeText={(usual_bedtime) => patch({ usual_bedtime })}
-      />
-      <Text style={styles.label}>Usual wake time</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. 6:30 AM"
-        placeholderTextColor={colors.textMuted}
-        value={value.usual_wake_time}
-        onChangeText={(usual_wake_time) => patch({ usual_wake_time })}
-      />
-      <Text style={styles.label}>Eating habits (optional)</Text>
-      <TextInput
-        style={[styles.input, styles.textarea]}
-        multiline
-        placeholderTextColor={colors.textMuted}
-        value={value.eating_notes}
-        onChangeText={(eating_notes) => patch({ eating_notes })}
-      />
-      {SUBSTANCE_FIELDS.map(({ key, label }) => (
-        <View key={key} style={styles.substanceBlock}>
-          <Text style={styles.label}>{label}</Text>
-          <View style={styles.chipRow}>
-            <Pressable
-              style={[styles.chip, !value.substance_use[key] && styles.chipActive]}
-              onPress={() => setSubstance(key, '')}
-            >
-              <Text style={[styles.chipText, !value.substance_use[key] && styles.chipTextActive]}>
-                Prefer not to say
-              </Text>
-            </Pressable>
-            {SUBSTANCE_USE_LEVELS.map(({ value: v, label: l }) => {
-              const active = value.substance_use[key] === v;
-              return (
-                <Pressable
-                  key={v}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setSubstance(key, v)}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{l}</Text>
-                </Pressable>
-              );
-            })}
+export function WellnessBaselineForm({ value, onChange, onSubmit, busy = false, hideSubmit = false }: {
+  value: WellnessProfileInput; onChange: (next: WellnessProfileInput) => void; onSubmit: () => void; busy?: boolean; hideSubmit?: boolean;
+}) {
+  const s = useGroupedFormStyles();
+  const [timeField, setTimeField] = useState<'usual_bedtime' | 'usual_wake_time' | null>(null);
+  const [symptomText, setSymptomText] = useState(value.symptom_focus.join(', '));
+  const patch = (next: Partial<WellnessProfileInput>) => onChange({ ...value, ...next });
+  let timeValue = '22:00';
+  if (timeField) { try { const t = parseAppointmentTime(value[timeField]); if (t) timeValue = `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`; } catch {} }
+  const field = (key: 'eating_notes' | 'profile_notes', label: string, placeholder: string) => <View style={s.group}><View style={s.field}>
+    <Text style={s.label}>{label}</Text><TextInput style={[s.input, s.textarea]} accessibilityLabel={label} value={value[key]} onChangeText={(text) => patch({ [key]: text })} editable={!busy} multiline placeholder={placeholder} placeholderTextColor={s.label.color} />
+  </View></View>;
+  return <View>
+    <CollapsibleSection title="Sleep routine" summary={[value.usual_bedtime && `Bed ${value.usual_bedtime}`, value.usual_wake_time && `Wake ${value.usual_wake_time}`].filter(Boolean).join(' · ') || 'Your usual bedtime and wake time'} initiallyOpen>
+      <View style={s.group}>{(['usual_bedtime', 'usual_wake_time'] as const).map((key, i) => <View key={key}>
+        {i > 0 ? <View style={s.divider} /> : null}
+        <Pressable style={s.row} onPress={() => setTimeField(key)} disabled={busy} accessibilityRole="button"><Text style={s.rowLabel}>{i === 0 ? 'Bedtime' : 'Wake time'}</Text><Text style={s.rowValue}>{value[key] || 'Set time'}</Text><Text style={s.chevron}>›</Text></Pressable>
+        {value[key] ? <Pressable style={s.link} disabled={busy} onPress={() => patch({ [key]: '' })} accessibilityRole="button"><Text style={s.linkText}>Clear {i === 0 ? 'bedtime' : 'wake time'}</Text></Pressable> : null}
+      </View>)}</View>
+    </CollapsibleSection>
+    <CollapsibleSection title="Food & habits" summary="Eating patterns and substance use">
+      <View style={{ gap: 16 }}>{field('eating_notes', 'Eating habits · optional', 'Your usual meals and eating patterns')}
+        <View style={s.group}>{([{ key: 'alcohol', label: 'Alcohol' }, { key: 'cannabis', label: 'Cannabis' }, { key: 'tobacco', label: 'Tobacco / nicotine' }] as const).map(({ key, label }, i) => <View key={key}>
+          {i > 0 ? <View style={s.divider} /> : null}<View style={s.field}><Text style={s.label}>{label}</Text>
+            <CalendarMenu title={label} value={value.substance_use[key] ?? ''} options={[{ value: '', label: 'Prefer not to say' }, ...SUBSTANCE_USE_LEVELS]} onChange={(level) => {
+              const substance_use = { ...value.substance_use };
+              if (!level) delete substance_use[key]; else substance_use[key] = level as SubstanceUseLevel;
+              patch({ substance_use });
+            }} />
           </View>
-        </View>
-      ))}
-      <Text style={styles.label}>Symptoms to track (comma-separated)</Text>
-      <TextInput
-        style={styles.input}
-        value={value.symptom_focus.join(', ')}
-        onChangeText={(t) =>
-          patch({
-            symptom_focus: t
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean),
-          })
-        }
-        placeholder="e.g. Wheezing, joint pain"
-        placeholderTextColor={colors.textMuted}
-      />
-      <Text style={styles.label}>Notes for your clinician</Text>
-      <TextInput
-        style={[styles.input, styles.textarea]}
-        multiline
-        placeholderTextColor={colors.textMuted}
-        value={value.profile_notes}
-        onChangeText={(profile_notes) => patch({ profile_notes })}
-      />
-      <Pressable
-        style={[styles.btn, busy && styles.btnDisabled]}
-        disabled={busy}
-        onPress={onSubmit}
-      >
-        <Text style={styles.btnText}>{busy ? 'Saving…' : 'Save baseline'}</Text>
-      </Pressable>
-    </View>
-  );
+        </View>)}</View>
+      </View>
+    </CollapsibleSection>
+    <CollapsibleSection title="Symptoms to follow" summary={value.symptom_focus.length ? `${value.symptom_focus.length} in your tracking list` : 'Choose what matters to you'}>
+      <View style={s.group}><View style={s.field}><Text style={s.label}>Separate symptoms with commas</Text><TextInput accessibilityLabel="Symptoms to track" style={[s.input, s.textarea]} value={symptomText} editable={!busy} multiline placeholder="e.g. Wheezing, joint pain" placeholderTextColor={s.label.color} onChangeText={(text) => { setSymptomText(text); patch({ symptom_focus: [...new Set(text.split(',').map((v) => v.trim()).filter(Boolean))] }); }} /></View></View>
+    </CollapsibleSection>
+    <CollapsibleSection title="Clinician notes" summary="Anything else your care team should know">{field('profile_notes', 'Notes · optional', 'Add context for your clinician')}</CollapsibleSection>
+    {!hideSubmit ? <Pressable style={s.link} disabled={busy} onPress={onSubmit} accessibilityRole="button"><Text style={s.linkText}>{busy ? 'Saving…' : 'Save baseline'}</Text></Pressable> : null}
+    <TimeWheelModal visible={timeField !== null} title={timeField === 'usual_bedtime' ? 'Usual bedtime' : 'Usual wake time'} value={timeValue} onCancel={() => setTimeField(null)} onDone={(time) => {
+      const [hour, minute] = time.split(':').map(Number);
+      if (timeField) patch({ [timeField]: `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}` });
+      setTimeField(null);
+    }} />
+  </View>;
 }

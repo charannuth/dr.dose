@@ -125,6 +125,8 @@ export function eventToneStyle(
 ): { bg: string; text: string } {
   const t = calendarTints(isDark);
   switch (tone) {
+    case 'wellness':
+      return { bg: colors.accentPurpleBg, text: colors.accent };
     case 'cycle-period':
       return t.cyclePeriod;
     case 'cycle-phase':

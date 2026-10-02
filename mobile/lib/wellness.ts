@@ -1,6 +1,7 @@
 import { openRow, openRows, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
 import { localDateString, todayLocalDate } from './dates'
+import { validateWellnessLog } from './wellnessForm'
 type SubstanceKey = 'alcohol' | 'cannabis' | 'tobacco'
 
 export const WELLNESS_SYMPTOM_OPTIONS = [
@@ -320,6 +321,7 @@ export async function upsertWellnessLog(
   input: WellnessLogInput,
 ): Promise<WellnessLog> {
   if (!supabase) throw new Error('Supabase is not configured')
+  validateWellnessLog(input, todayLocalDate())
   const sealed = sealRow('wellness_logs', {
     user_id: userId,
     log_date: input.log_date,

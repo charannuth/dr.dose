@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInLeft,
+  FadeInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { PressableScale } from '../PressableScale';
+import { tapFeedback, warningFeedback } from '../../lib/haptics';
 import {
   formatScheduleTime,
   normalizeScheduleTimes,
@@ -163,6 +173,10 @@ export function MedicationFormWizard({
   const [tileColor, setTileColor] = useState<TileColorId>(defaults.tileColor);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Drives which side the incoming page slides in from, so moving backward reads
+  // as retreating rather than as another step forward.
+  const [pageDirection, setPageDirection] = useState<1 | -1>(1);
+  const scrollRef = useRef<ScrollView>(null);
 
   const isEditing = Boolean(initial);
   const wizardPages: WizardPage[] = skipBasicsAfterScan
@@ -177,6 +191,22 @@ export function MedicationFormWizard({
 
   const page = wizardPages[pageIndex] ?? wizardPages[0];
   const isLastPage = pageIndex === wizardPages.length - 1;
+
+  // Without this a page entered from a scrolled position starts mid-content.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [pageIndex]);
+
+  const progress = useSharedValue((pageIndex + 1) / wizardPages.length);
+  useEffect(() => {
+    progress.value = withSpring((pageIndex + 1) / wizardPages.length, {
+      damping: 20,
+      stiffness: 160,
+    });
+  }, [pageIndex, wizardPages.length, progress]);
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
   const isScheduled = scheduleType !== 'as_needed';
   const isOtherRoute = route === 'other';
   const formOptions = route && !isOtherRoute ? MEDICATION_FORMS_BY_ROUTE[route] : [];
@@ -301,20 +331,29 @@ export function MedicationFormWizard({
   function goNext() {
     const message = validatePage(page);
     if (message) {
+      // Buzz rather than only painting red text, which is easy to miss when the
+      // error renders below the fold.
+      warningFeedback();
       setError(message);
       return;
     }
     setError(null);
+    setPageDirection(1);
+    tapFeedback();
     setPageIndex((i) => Math.min(i + 1, wizardPages.length - 1));
   }
 
   function goBack() {
     setError(null);
+    setPageDirection(-1);
+    tapFeedback();
     setPageIndex((i) => Math.max(i - 1, 0));
   }
 
   function goToPage(target: number) {
     setError(null);
+    setPageDirection(target >= pageIndex ? 1 : -1);
+    tapFeedback();
     setPageIndex(target);
   }
 
@@ -365,8 +404,11 @@ export function MedicationFormWizard({
   async function handleSave() {
     const invalid = firstInvalidPage();
     if (invalid) {
+      const target = wizardPages.indexOf(invalid.page);
+      warningFeedback();
       setError(invalid.message);
-      setPageIndex(wizardPages.indexOf(invalid.page));
+      setPageDirection(target >= pageIndex ? 1 : -1);
+      setPageIndex(target);
       return;
     }
 
@@ -855,24 +897,38 @@ export function MedicationFormWizard({
           {wizardPages.map((p, i) => {
             const active = i === pageIndex;
             return (
-              <Pressable
+              <PressableScale
                 key={p}
+                scaleTo={0.94}
                 style={[styles.tab, active && styles.tabActive]}
                 onPress={() => goToPage(i)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
               >
                 <Text style={[styles.tabText, active && styles.tabTextActive]}>{PAGE_TABS[p]}</Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
+        <View style={styles.progressTrack}>
+          <Animated.View style={[styles.progressFill, progressStyle]} />
+        </View>
       </View>
 
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.panelTitle}>{PAGE_TITLES[page]}</Text>
-        {renderPage(page)}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Keyed on page so each step mounts fresh and plays its entrance. */}
+        <Animated.View
+          key={page}
+          entering={(pageDirection === 1 ? FadeInRight : FadeInLeft).duration(260)}
+        >
+          <Text style={styles.panelTitle}>{PAGE_TITLES[page]}</Text>
+          {renderPage(page)}
+        </Animated.View>
+        {error ? (
+          <Animated.Text entering={FadeIn.duration(180)} style={styles.error}>
+            {error}
+          </Animated.Text>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -881,18 +937,18 @@ export function MedicationFormWizard({
         </Pressable>
         <View style={styles.nav}>
           {pageIndex > 0 ? (
-            <Pressable style={styles.secondaryBtn} onPress={goBack}>
+            <PressableScale style={styles.secondaryBtn} onPress={goBack}>
               <Text style={styles.secondaryText}>Back</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
           {showSave ? (
             <>
               {!isLastPage ? (
-                <Pressable style={styles.secondaryBtn} onPress={goNext}>
+                <PressableScale style={styles.secondaryBtn} onPress={goNext}>
                   <Text style={styles.secondaryText}>Next</Text>
-                </Pressable>
+                </PressableScale>
               ) : null}
-              <Pressable
+              <PressableScale
                 style={[styles.primaryBtn, busy && styles.disabled]}
                 disabled={busy}
                 onPress={() => void handleSave()}
@@ -902,12 +958,12 @@ export function MedicationFormWizard({
                 ) : (
                   <Text style={styles.primaryText}>Save</Text>
                 )}
-              </Pressable>
+              </PressableScale>
             </>
           ) : (
-            <Pressable style={styles.primaryBtn} onPress={goNext}>
+            <PressableScale style={styles.primaryBtn} onPress={goNext}>
               <Text style={styles.primaryText}>Next</Text>
-            </Pressable>
+            </PressableScale>
           )}
         </View>
       </View>
@@ -942,6 +998,17 @@ function makeMedicationWizardStyles(colors: ColorPalette) {
     backgroundColor: colors.surface,
   },
   tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    overflow: 'hidden' as const,
+  },
+  progressFill: {
+    height: '100%' as const,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
   tabText: { fontWeight: '700' as const, color: colors.textMuted, fontSize: 13 },
   tabTextActive: { color: colors.onAccent },
   scroll: { flex: 1, padding: spacing.md },

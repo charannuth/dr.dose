@@ -1,12 +1,14 @@
-// Pastel brand system. The saturated "foreground" accents (accent, accentGreen,
+// Midnight/slate app surfaces with the existing pastel medication palette.
+// The saturated "foreground" accents (accent, accentGreen,
 // route colors, etc.) are IDENTICAL in light and dark mode so the app's color
 // identity stays consistent; only the canvas (bg/surface/text/border) and the
 // soft *Bg tints flip between modes. Source palette:
 //   #ab82c5 lavender · #eee6f3 · #E4FBEE · #FFE9EF · #FFC9D7
 //   accents #A6F0C6 mint · #A9EED8 teal · buttons #FAF9F6
 export const lightColors = {
-  bg: '#faf7fb',
-  surface: '#ffffff',
+  bg: '#e4e8f0',
+  surface: '#f5f7fc',
+  medicationSurface: '#ffffff',
   text: '#2e2a33',
   textMuted: '#7c7585',
   accent: '#ab82c5',
@@ -15,7 +17,7 @@ export const lightColors = {
   brandMaroon: '#ab82c5',
   brandCrimson: '#c79fda',
   brandDeep: '#8e63ab',
-  border: '#eae4ef',
+  border: '#cbd3e1',
   success: '#43a97c',
   successBg: '#e4fbee',
   successBorder: '#a6f0c6',
@@ -39,8 +41,8 @@ export const lightColors = {
   avatarFallbackBorder: '#cbb3dd',
   avatarInitials: '#7a4e96',
   typeCardActiveBg: '#eee6f3',
-  tabBar: '#ffffff',
-  tabBarBorder: '#eae4ef',
+  tabBar: '#f5f7fc',
+  tabBarBorder: '#cbd3e1',
   inputBg: '#ffffff',
   // Neutral off-white surface for secondary/ghost buttons (dark text sits on top).
   buttonSecondaryBg: '#faf9f6',
@@ -72,8 +74,9 @@ export const lightColors = {
 } as const;
 
 export const darkColors = {
-  bg: '#191520',
-  surface: '#241e2e',
+  bg: '#0c111b',
+  surface: '#202c40',
+  medicationSurface: '#241e2e',
   text: '#f2ecf5',
   textMuted: '#a79fb0',
   accent: '#ab82c5',
@@ -82,7 +85,7 @@ export const darkColors = {
   brandMaroon: '#c9a6de',
   brandCrimson: '#ab82c5',
   brandDeep: '#c9a6de',
-  border: '#3a3244',
+  border: '#35435b',
   success: '#43a97c',
   successBg: '#123726',
   successBorder: '#2e7d53',
@@ -106,10 +109,10 @@ export const darkColors = {
   avatarFallbackBorder: '#7a4e96',
   avatarInitials: '#e7d8f0',
   typeCardActiveBg: '#2a1e33',
-  tabBar: '#241e2e',
-  tabBarBorder: '#332b3e',
-  inputBg: '#191520',
-  buttonSecondaryBg: '#2b2436',
+  tabBar: '#202c40',
+  tabBarBorder: '#35435b',
+  inputBg: '#111a29',
+  buttonSecondaryBg: '#2a3850',
   badgeMajorBg: '#3a1622',
   badgeModerateBg: '#3a2a10',
   badgeMinorBg: '#123726',
@@ -137,6 +140,8 @@ export const darkColors = {
 export type ColorPalette = {
   readonly bg: string;
   readonly surface: string;
+  /** Neutral medication controls keep their original fill as app panels evolve. */
+  readonly medicationSurface: string;
   readonly text: string;
   readonly textMuted: string;
   readonly accent: string;

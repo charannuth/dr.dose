@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import type { TrackingCalendarLegendItem } from '../../lib/tracking/calendarTypes';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { legendDotStyle, legendHeartStyle, legendSwatchStyle } from './calendarLegendStyles';
@@ -55,18 +55,13 @@ function makeLegendWrapStyles(colors: ColorPalette) {
   return {
     wrap: {
       marginBottom: spacing.md,
-      padding: spacing.md,
-      backgroundColor: colors.bg,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.border,
+      paddingVertical: spacing.sm,
     },
     title: {
       fontSize: 13,
       fontWeight: '700' as const,
       color: colors.text,
       marginBottom: spacing.sm,
-      textTransform: 'uppercase' as const,
       letterSpacing: 0.4,
     },
     grid: {

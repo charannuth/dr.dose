@@ -77,14 +77,14 @@ function addMonths(year: number, month: number, delta: number): { year: number; 
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
-function monthBlocksEndingAt(
+function monthBlocksStartingAt(
   anchor: string,
   count: number,
 ): CalendarMonthBlock[] {
   const d = parseYmd(anchor)
   const blocks: CalendarMonthBlock[] = []
-  for (let i = count - 1; i >= 0; i--) {
-    const shifted = new Date(d.getFullYear(), d.getMonth() - i, 1)
+  for (let i = 0; i < count; i++) {
+    const shifted = new Date(d.getFullYear(), d.getMonth() + i, 1)
     const year = shifted.getFullYear()
     const month = shifted.getMonth() + 1
     blocks.push({ year, month, dates: datesForMonth(year, month) })
@@ -148,7 +148,7 @@ export function getCalendarWindow(
       start: dates[0],
       end: dates[3],
       dates,
-      months: monthBlocksEndingAt(anchor, 1),
+      months: monthBlocksStartingAt(anchor, 1),
       title: formatTitle(dates[0], dates[3], range),
       isStripLayout: true,
     }
@@ -163,7 +163,7 @@ export function getCalendarWindow(
       start,
       end: dates[6],
       dates,
-      months: monthBlocksEndingAt(anchor, 1),
+      months: monthBlocksStartingAt(anchor, 1),
       title: formatTitle(start, dates[6], range),
       isStripLayout: true,
     }
@@ -186,7 +186,7 @@ export function getCalendarWindow(
 
   const monthCount =
     range === '3month' ? 3 : range === '6month' ? 6 : 12
-  const months = monthBlocksEndingAt(anchor, monthCount)
+  const months = monthBlocksStartingAt(anchor, monthCount)
   const start = months[0] ? monthBounds(months[0].year, months[0].month).start : anchor
   const last = months[months.length - 1]
   const end = last ? monthBounds(last.year, last.month).end : anchor

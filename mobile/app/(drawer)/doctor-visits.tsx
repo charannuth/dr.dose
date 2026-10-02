@@ -1,177 +1,61 @@
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
-import { useTheme } from '../../context/ThemeProvider';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Drawer } from 'expo-router/drawer';
+import { fonts, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
-import { rescheduleAllReminders } from '../../lib/reminders';
 import { useAuth } from '../../hooks/useAuth';
 import { useDoctorVisitsCalendarData } from '../../hooks/useDoctorVisitsCalendarData';
 import { DoctorVisitsPanel } from '../../components/doctorVisits/DoctorVisitsPanel';
-import { TrackingCalendar } from '../../components/tracking/TrackingCalendar';
+import { DoctorMonthCalendar, type DoctorCalendarRange } from '../../components/doctorVisits/DoctorMonthCalendar';
+import { getCalendarWindow } from '../../lib/tracking/calendarRange';
 import { todayLocalDate } from '../../lib/dates';
 import { routes } from '../../lib/routes';
-import { CALENDAR_SOURCE_ALL } from '../../lib/tracking/calendarSources';
-import type { CalendarSourceMeta } from '../../lib/tracking/calendarSources';
-import type { CalendarViewRange } from '../../lib/tracking/calendarRange';
-
-const DOCTOR_VISITS_SOURCE_OPTIONS: CalendarSourceMeta[] = [
-  {
-    id: CALENDAR_SOURCE_ALL,
-    label: 'Doctor visits',
-    support: 'full',
-  },
-];
 
 export default function DoctorVisitsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { colors } = useTheme();
-  const styles = useThemedStyles(makeScreenStyles);
+  const s = useThemedStyles(makeStyles);
   const today = todayLocalDate();
   const [selectedDate, setSelectedDate] = useState(today);
   const [calendarAnchor, setCalendarAnchor] = useState(today);
-  const [calendarRange, setCalendarRange] = useState<CalendarViewRange>('month');
-  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [calendarRange, setCalendarRange] = useState<DoctorCalendarRange>('month');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-
-  const {
-    data: calendarData,
-    loading: calendarLoading,
-    error: calendarError,
-    reload: reloadCalendar,
-  } = useDoctorVisitsCalendarData(user?.id, calendarRange, calendarAnchor, calendarRefreshKey);
-
-  function handleSelectDate(date: string) {
+  useFocusEffect(useCallback(() => { setRefreshKey((key) => key + 1); }, []));
+  const { data, loading, error, reload } = useDoctorVisitsCalendarData(user?.id, calendarRange, calendarAnchor, refreshKey);
+  function selectDate(date: string) {
     setSelectedDate(date);
-    setCalendarAnchor(date);
+    const visible = getCalendarWindow(calendarAnchor, calendarRange);
+    if (date < visible.start || date > visible.end) setCalendarAnchor(date);
   }
-
-  const bumpCalendarRefresh = useCallback(() => {
-    setCalendarRefreshKey((k) => k + 1);
-  }, []);
-
-  const handleDataMutated = useCallback(() => {
-    bumpCalendarRefresh();
-    if (user?.id) {
-      void rescheduleAllReminders(user.id).catch(() => {
-        /* ignore — visit saved; reminders resync on next app open */
-      });
-    }
-  }, [bumpCalendarRefresh, user?.id]);
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await reloadCalendar();
-    setRefreshing(false);
+  function openAppointment(id?: string) {
+    router.push({ pathname: routes.doctorAppointment, params: { date: selectedDate, ...(id ? { id } : {}) } });
   }
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
-      >
-        <View style={styles.headerCard}>
-          <Text style={styles.h1}>Doctor visits</Text>
-          <Text style={styles.sub}>
-            Schedule upcoming appointments and save notes after your visit — for your own records,
-            not a clinical chart.
-          </Text>
-          <Pressable style={styles.linkBtn} onPress={() => router.push(routes.wellness)}>
-            <Text style={styles.linkBtnText}>Prepare wellness report</Text>
-          </Pressable>
-        </View>
-
-        {calendarError ? <Text style={styles.errorText}>{calendarError}</Text> : null}
-
-        <View style={styles.calendarCard}>
-          <TrackingCalendar
-            today={today}
-            anchor={calendarAnchor}
-            range={calendarRange}
-            source={CALENDAR_SOURCE_ALL}
-            selectedDate={selectedDate}
-            enabledTrackers={[]}
-            data={calendarData}
-            loading={calendarLoading}
-            sourceOptions={DOCTOR_VISITS_SOURCE_OPTIONS}
-            hideOverviewHint
-            onAnchorChange={setCalendarAnchor}
-            onRangeChange={setCalendarRange}
-            onSourceChange={() => {}}
-            onSelectDate={handleSelectDate}
-          />
-        </View>
-
-        <View style={styles.panelCard}>
-          <Text style={styles.sectionTitle}>Visit details</Text>
-          <DoctorVisitsPanel
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            onDataMutated={handleDataMutated}
-          />
-        </View>
-
-        <Text style={styles.footerHint}>
-          For symptoms and daily check-ins, use Wellness from the menu — you can share a doctor
-          report from there.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  async function refresh() { setRefreshing(true); try { await reload(); } finally { setRefreshing(false); } }
+  return <SafeAreaView style={s.safe} edges={['bottom']}>
+    <Drawer.Screen options={{ headerRight: () => <Pressable style={s.add} onPress={() => openAppointment()} accessibilityRole="button" accessibilityLabel={`Add appointment on ${selectedDate}`}><Text style={s.plus}>+</Text></Pressable> }} />
+    <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
+      {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
+      <DoctorMonthCalendar today={today} anchor={calendarAnchor} selectedDate={selectedDate} data={data} loading={loading}
+        range={calendarRange} onRangeChange={setCalendarRange}
+        onAnchorChange={(date) => { setCalendarAnchor(date); setSelectedDate(date); }} onSelectDate={selectDate} />
+      <View style={s.agenda}>
+        <DoctorVisitsPanel selectedDate={selectedDate} events={data.cells.get(selectedDate)?.events ?? []} loading={loading} onOpen={openAppointment} />
+      </View>
+      <Pressable style={s.report} onPress={() => router.push(routes.wellness)} accessibilityRole="button"><Text style={s.link}>Prepare wellness report ›</Text></Pressable>
+    </ScrollView>
+  </SafeAreaView>;
 }
-
-function makeScreenStyles(colors: ColorPalette) {
+function makeStyles(c: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
-    headerCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    calendarCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-    },
-    panelCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-    },
-    h1: { fontSize: 22, fontWeight: '900' as const, color: colors.text },
-    sub: { color: colors.textMuted, lineHeight: 20 },
-    sectionTitle: { fontSize: 16, fontWeight: '900' as const, color: colors.text, marginBottom: spacing.xs },
-    linkBtn: {
-      alignSelf: 'flex-start' as const,
-      marginTop: spacing.xs,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.bg,
-    },
-    linkBtnText: { color: colors.accent, fontWeight: '700' as const, fontSize: 14 },
-    errorText: {
-      color: colors.error,
-      backgroundColor: colors.errorBg,
-      padding: spacing.md,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.errorBorder,
-    },
-    footerHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+    safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 16, paddingBottom: 32, gap: 24 },
+    add: { minHeight: 44, minWidth: 44, marginRight: 12, alignItems: 'center' as const, justifyContent: 'center' as const },
+    plus: { color: c.accent, fontSize: 32, fontWeight: '300' as const },
+    agenda: { borderTopWidth: 1, borderColor: c.border, paddingTop: 20 },
+    error: { color: c.error, fontSize: 14, lineHeight: 20 },
+    report: { minHeight: 44, justifyContent: 'center' as const },
+    link: { color: c.accent, fontFamily: fonts.bodyMedium, fontSize: 14 },
   };
 }

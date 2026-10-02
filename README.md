@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-10-02** (`9f0306e`) — Redesign mobile dashboard, calendars, and wellness workflows
+
 - **2026-09-07** (`f301650`) — Sync local iOS build number after TestFlight Build 54.
 
 - **2026-09-07** (`9338224`) — Add show/hide password toggle to every password field.

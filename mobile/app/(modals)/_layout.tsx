@@ -14,6 +14,9 @@ export default function ModalLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
+        <Stack.Screen name="wellness-entry" options={{ title: 'Daily wellness' }} />
+        <Stack.Screen name="wellness-baseline" options={{ title: 'Your baseline' }} />
+        <Stack.Screen name="doctor-appointment" options={{ title: 'Appointment', animation: 'slide_from_right', headerShadowVisible: false }} />
         <Stack.Screen
           name="medications/new"
           options={{ title: 'Add medication', presentation: 'modal' }}
@@ -29,6 +32,10 @@ export default function ModalLayout() {
         <Stack.Screen
           name="supplements/[id]"
           options={{ title: 'Edit supplement', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="reorder"
+          options={{ title: 'Reorder', presentation: 'modal' }}
         />
       </Stack>
     </VaultGate>

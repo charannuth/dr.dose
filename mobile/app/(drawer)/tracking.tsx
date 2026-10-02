@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { spacing } from '../../constants/theme';
 import type { ColorPalette } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
@@ -30,7 +31,7 @@ import {
   defaultCalendarSource,
   type CalendarSourceId,
 } from '../../lib/tracking/calendarSources';
-import type { CalendarViewRange } from '../../lib/tracking/calendarRange';
+import { getCalendarWindow, type CalendarViewRange } from '../../lib/tracking/calendarRange';
 import { normalizeBodyMetricUnit, type BodyMetricUnit } from '../../lib/bodyMetrics';
 import { todayLocalDate } from '../../lib/dates';
 import { updateBodyMetricUnits } from '../../lib/medicalRecords';
@@ -56,6 +57,7 @@ import {
 import type { MedicalRecord } from '../../lib/medicalRecords';
 
 export default function TrackingScreen() {
+  const { widgetTracker } = useLocalSearchParams<{ widgetTracker?: string }>();
   const { colors } = useTheme();
   const trackingStyles = useTrackingStyles();
   const styles = useMemo(() => makeTrackingScreenStyles(colors), [colors]);
@@ -82,6 +84,18 @@ export default function TrackingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const profileDirtyRef = useRef(false);
   const userId = user?.id;
+
+  useFocusEffect(useCallback(() => {
+    if (loading || !widgetTracker) return;
+    const requested = TRACKER_CATALOG.find((tracker) => tracker.id === widgetTracker && tracker.available);
+    if (!requested) return;
+    if (enabled.includes(requested.id)) {
+      setActiveTracker(requested.id);
+    } else {
+      setAddTrackerId(requested.id);
+      setMessage(`Enable ${requested.label} below to start using this tracker.`);
+    }
+  }, [widgetTracker, loading, enabled]));
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -158,7 +172,8 @@ export default function TrackingScreen() {
 
   function handleSelectDate(date: string) {
     setSelectedDate(date);
-    setCalendarAnchor(date);
+    const visible = getCalendarWindow(calendarAnchor, calendarRange);
+    if (date < visible.start || date > visible.end) setCalendarAnchor(date);
   }
 
   function bumpCalendarRefresh() {

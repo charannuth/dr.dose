@@ -101,7 +101,7 @@ function makeTodayWellnessStyles(colors: ColorPalette) {
   };
 }
 
-export function TodayWellnessCheckIn() {
+export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {}) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeTodayWellnessStyles);
   const { user } = useAuth();
@@ -135,6 +135,7 @@ export function TodayWellnessCheckIn() {
     try {
       await upsertWellnessLog(user.id, draft);
       setSaved({ ...draft });
+      onSaved?.();
       setExpanded(false);
       setMessage('Check-in saved. Share these notes with your doctor when you visit.');
     } catch (err) {

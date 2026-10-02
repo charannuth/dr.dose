@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import {
   CALENDAR_SOURCE_ALL,
@@ -19,16 +19,15 @@ import type {
 } from '../../lib/tracking/calendarTypes';
 import type { TrackerId } from '../../lib/tracking/catalog';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
-import { SelectField } from './SelectField';
+import { CalendarMenu } from './CalendarMenu';
 import { cellStylesFromClassNames, eventToneStyle } from './calendarCellStyles';
 import { TrackingCalendarLegend } from './TrackingCalendarLegend';
 import { useTrackingStyles } from './trackingStyles';
 
-const MAX_VISIBLE_EVENTS = 4;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MAX_VISIBLE_EVENTS = 3;
 const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 type CalendarUiStyles = ReturnType<typeof makeTrackingCalendarStyles>;
@@ -44,6 +43,7 @@ type Props = {
   loading?: boolean;
   sourceOptions?: CalendarSourceMeta[];
   hideOverviewHint?: boolean;
+  hideDaySummary?: boolean;
   onAnchorChange: (date: string) => void;
   onRangeChange: (range: CalendarViewRange) => void;
   onSourceChange: (source: CalendarSourceId) => void;
@@ -89,6 +89,10 @@ function DayMarkers({
   const overflow = events.length - visible.length;
   return (
     <View style={styles.eventList}>
+      {markers.includes('heart') || markers.includes('dot') ? <View style={styles.markers}>
+        {markers.includes('heart') ? <Text style={styles.heart}>♥</Text> : null}
+        {markers.includes('dot') ? <View style={styles.symptomDot} /> : null}
+      </View> : null}
       {visible.map((event) => (
         <EventPill key={event.id} event={event} pillBase={styles.eventPill} />
       ))}
@@ -124,16 +128,15 @@ function DayCell({
   isDark: boolean;
   weekdayLabel?: string;
 }) {
-  const extra = cell ? cellStylesFromClassNames(cell.classNames, colors, isDark) : [];
+  const extra = cell ? cellStylesFromClassNames(cell.classNames.filter((name) => name !== 'is-future' && name !== 'weight-off-schedule'), colors, isDark) : [];
   const showDetailed = detailed || variant === 'day' || variant === 'week';
-  const isLoggedPeriod = cell?.classNames.includes('logged-period') ?? false;
-  const isPredictedPeriod = cell?.classNames.includes('predicted-period') ?? false;
-  const useBadge = variant === 'month' || variant === 'compact' || variant === 'week';
-  const badgeActive = selected || isToday;
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${date}${isToday ? ', today' : ''}. ${cell?.events.map((event) => event.label).join('. ') || 'No entries'}`}
       style={[
         styles.dayBase,
         variant === 'month' && styles.dayMonth,
@@ -141,23 +144,14 @@ function DayCell({
         variant === 'week' && styles.dayWeek,
         variant === 'day' && styles.dayFocus,
         variant === 'compact' && styles.dayCompact,
-        ...extra,
-        // Keep period/phase fills; don't replace with a flat "today" wash.
-        isToday &&
-          !selected &&
-          !isLoggedPeriod &&
-          !isPredictedPeriod &&
-          !useBadge &&
-          styles.dayToday,
       ]}
     >
       {weekdayLabel ? <Text style={styles.weekdayOverCell}>{weekdayLabel}</Text> : null}
-      {useBadge ? (
         <View
           style={[
             styles.dayNumBadge,
             variant === 'compact' && styles.dayNumBadgeCompact,
-            isToday && !selected && styles.dayNumBadgeToday,
+            isToday && styles.dayNumBadgeToday,
             selected && styles.dayNumBadgeSelected,
           ]}
         >
@@ -165,27 +159,18 @@ function DayCell({
             style={[
               styles.dayNum,
               variant === 'compact' && styles.dayNumCompact,
-              (selected || isToday) && styles.dayNumOnBadge,
+              isToday && styles.dayNumOnBadge,
             ]}
           >
             {label}
           </Text>
         </View>
-      ) : (
-        <Text
-          style={[
-            styles.dayNum,
-            selected && styles.dayNumSelected,
-            badgeActive && styles.dayNumOnBadge,
-          ]}
-        >
-          {label}
-        </Text>
-      )}
+      {extra.length ? <View style={[styles.statusBand, ...extra]} /> : null}
       {variant !== 'compact' ? (
         <DayMarkers cell={cell} detailed={showDetailed} styles={styles} />
       ) : (
         <View style={styles.markers}>
+          {cell?.events.length && !cell.markers.length && !extra.length ? cell.events.slice(0, 3).map((event) => <View key={event.id} style={[styles.symptomDot, { backgroundColor: eventToneStyle(event.tone, colors, isDark).text }]} />) : null}
           {(cell?.markers ?? []).includes('dot') ? (
             <View style={styles.symptomDot} />
           ) : null}
@@ -261,7 +246,7 @@ function MonthGrid({
       </View>
       <View style={styles.monthWeeks}>
         {weeks.map((week, wi) => (
-          <View key={`week-${wi}`} style={styles.weekRow}>
+          <View key={`week-${wi}`} style={[styles.weekRow, !compact && styles.weekDivider]}>
             {week.map((cell, i) =>
               cell?.date ? (
                 <DayCell
@@ -389,6 +374,7 @@ export function TrackingCalendar({
   loading = false,
   sourceOptions: sourceOptionsOverride,
   hideOverviewHint = false,
+  hideDaySummary = false,
   onAnchorChange,
   onRangeChange,
   onSourceChange,
@@ -397,13 +383,15 @@ export function TrackingCalendar({
   const { colors, isDark } = useTheme();
   const track = useTrackingStyles();
   const styles = useThemedStyles(makeTrackingCalendarStyles);
+  const [showLegend, setShowLegend] = useState(false);
   const window = useMemo(() => getCalendarWindow(anchor, range), [anchor, range]);
   const sourceOptions = useMemo(
     () => sourceOptionsOverride ?? calendarSourceOptions(enabledTrackers),
     [sourceOptionsOverride, enabledTrackers],
   );
   const activeSource = sourceOptions.find((o) => o.id === source);
-  const showGrid = !loading && activeSource?.support === 'full';
+  const showGrid = activeSource?.support === 'full';
+  const visibleCells = loading ? new Map<string, TrackingCalendarCell>() : data.cells;
   const showPlannedHint = !loading && activeSource?.support === 'planned';
   const isOverview = source === CALENDAR_SOURCE_ALL;
   const detailedMonth =
@@ -425,54 +413,25 @@ export function TrackingCalendar({
   return (
     <View style={styles.hub}>
       <View style={styles.toolbar}>
-        <Pressable
-          onPress={() => onAnchorChange(shiftCalendarAnchor(anchor, range, -1))}
-          hitSlop={8}
-        >
-          <Text style={styles.navArrow}>←</Text>
-        </Pressable>
-        <View style={styles.toolbarCenter}>
-          <SelectField
-            label="View"
-            value={range}
-            options={rangeOptions}
-            onChange={(v) => onRangeChange(v as CalendarViewRange)}
-          />
-          {sourceOptions.length > 1 && source ? (
-            <SelectField
-              label="Show"
-              value={source}
-              options={sourceSelectOptions}
-              onChange={(v) => onSourceChange(v as CalendarSourceId)}
-            />
-          ) : null}
-          <Text style={styles.windowTitle}>{window.title}</Text>
-          {anchor !== today ? (
-            <Pressable onPress={() => onAnchorChange(today)} style={styles.todayJump}>
-              <Text style={styles.todayJumpText}>Today</Text>
-            </Pressable>
-          ) : null}
+        <View style={styles.navigation}>
+          <Pressable style={styles.navButton} onPress={() => onAnchorChange(shiftCalendarAnchor(anchor, range, -1))} accessibilityRole="button" accessibilityLabel="Previous calendar range"><Text style={styles.navArrow}>‹</Text></Pressable>
+          <Text style={styles.year}>{anchor.slice(0, 4)}</Text>
+          <Pressable style={styles.navButton} onPress={() => onAnchorChange(shiftCalendarAnchor(anchor, range, 1))} accessibilityRole="button" accessibilityLabel="Next calendar range"><Text style={styles.navArrow}>›</Text></Pressable>
         </View>
-        <Pressable
-          onPress={() => onAnchorChange(shiftCalendarAnchor(anchor, range, 1))}
-          hitSlop={8}
-        >
-          <Text style={styles.navArrow}>→</Text>
-        </Pressable>
+        <CalendarMenu title="Calendar view" value={range} options={rangeOptions} onChange={(v) => onRangeChange(v as CalendarViewRange)} />
+      </View>
+      {sourceOptions.length > 1 && source ? <View style={styles.sourceRow}>
+        <CalendarMenu title="Show tracker" value={source} options={sourceSelectOptions} onChange={(v) => onSourceChange(v as CalendarSourceId)} />
+      </View> : null}
+      <View style={styles.headingRow}>
+        <Text style={styles.windowTitle} accessibilityRole="header">{range === 'month' ? new Date(`${anchor}T12:00:00`).toLocaleDateString(undefined, { month: 'long' }) : window.title}</Text>
+        {loading ? <ActivityIndicator color={colors.accent} accessibilityLabel="Loading calendar" /> : null}
       </View>
 
       {isOverview && !loading && !hideOverviewHint ? (
         <Text style={track.hint}>
           Birds-eye view — every enabled tracker on one calendar. Tap a day for details below.
         </Text>
-      ) : null}
-
-      {loading ? (
-        <ActivityIndicator style={{ marginVertical: spacing.md }} color={colors.accent} />
-      ) : null}
-
-      {!loading && data.legend.length > 0 ? (
-        <TrackingCalendarLegend items={data.legend} />
       ) : null}
 
       {showPlannedHint && data.emptyMessage ? (
@@ -483,7 +442,7 @@ export function TrackingCalendar({
         window.isStripLayout ? (
           <StripLayout
             dates={window.dates}
-            cells={data.cells}
+            cells={visibleCells}
             selectedDate={selectedDate}
             today={today}
             range={range}
@@ -497,7 +456,7 @@ export function TrackingCalendar({
             year={window.months[0].year}
             month={window.months[0].month}
             dates={window.months[0].dates}
-            cells={data.cells}
+            cells={visibleCells}
             selectedDate={selectedDate}
             today={today}
             detailed={detailedMonth}
@@ -524,7 +483,7 @@ export function TrackingCalendar({
                   year={block.year}
                   month={block.month}
                   dates={block.dates}
-                  cells={data.cells}
+                  cells={visibleCells}
                   selectedDate={selectedDate}
                   today={today}
                   detailed={false}
@@ -541,222 +500,71 @@ export function TrackingCalendar({
         )
       ) : null}
 
-      {data.footer ? <View style={{ marginTop: spacing.sm }}>{data.footer}</View> : null}
+      <View style={styles.footerRow}>
+        <Pressable onPress={() => { onAnchorChange(today); onSelectDate(today); }} style={styles.todayJump} accessibilityRole="button"><Text style={styles.todayJumpText}>Today</Text></Pressable>
+        {!loading && data.legend.length ? <Pressable onPress={() => setShowLegend((value) => !value)} style={styles.keyButton} accessibilityRole="button" accessibilityState={{ expanded: showLegend }}><Text style={styles.todayJumpText}>Calendar key {showLegend ? '−' : '+'}</Text></Pressable> : null}
+      </View>
+      {showLegend && !loading ? <TrackingCalendarLegend items={data.legend} /> : null}
+      {!hideDaySummary && showGrid && !loading && window.dates.includes(selectedDate) ? <View style={styles.selectedDay}>
+        <Text style={styles.selectedTitle}>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+        {data.cells.get(selectedDate)?.events.length ? data.cells.get(selectedDate)!.events.map((event) => {
+          const tone = eventToneStyle(event.tone, colors, isDark);
+          return <View key={event.id} style={styles.detailRow}><View style={[styles.detailMarker, { backgroundColor: tone.text }]} /><Text style={styles.detailText}>{event.label}</Text></View>;
+        }) : <Text style={track.hint}>No entries for this day.</Text>}
+      </View> : null}
+
+      {!loading && data.footer ? <View style={{ marginTop: spacing.sm }}>{data.footer}</View> : null}
     </View>
   );
 }
 
 function makeTrackingCalendarStyles(colors: ColorPalette) {
   return {
-    hub: {
-      marginVertical: spacing.md,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.lg,
-      backgroundColor: colors.surface,
-    },
-    toolbar: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      gap: spacing.sm,
-    },
-    toolbarCenter: { flex: 1 },
-    navArrow: { fontSize: 22, paddingVertical: 8, paddingHorizontal: 4, color: colors.text },
-    windowTitle: {
-      fontSize: 16,
-      fontWeight: '700' as const,
-      color: colors.text,
-      textAlign: 'center' as const,
-      marginTop: spacing.sm,
-    },
-    todayJump: {
-      alignSelf: 'center' as const,
-      marginTop: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: radii.md,
-      backgroundColor: colors.bg,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    todayJumpText: {
-      fontSize: 13,
-      fontWeight: '600' as const,
-      color: colors.accent,
-    },
-    focusWrap: { marginTop: spacing.sm },
-    stripRow: {
-      flexDirection: 'row' as const,
-      gap: 8,
-    },
-    multiMonth: { gap: spacing.md, marginTop: spacing.sm },
-    multiMonthGrid: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: spacing.sm,
-      justifyContent: 'space-between' as const,
-    },
-    miniMonthSlot: {
-      width: '48%' as const,
-    },
-    month: { marginBottom: spacing.sm },
-    monthSpacious: { marginTop: spacing.xs },
-    monthCompact: { marginBottom: 0 },
-    monthTitle: {
-      fontSize: 14,
-      fontWeight: '700' as const,
-      color: colors.text,
-      marginBottom: 6,
-    },
-    monthTitleLarge: {
-      fontSize: 18,
-      fontWeight: '700' as const,
-      letterSpacing: -0.2,
-      marginBottom: 6,
-    },
-    weekdayRow: { flexDirection: 'row' as const, marginBottom: 4, gap: 4 },
-    weekday: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      textAlign: 'center' as const,
-      fontSize: 12,
-      fontWeight: '600' as const,
-      color: colors.textMuted,
-    },
-    weekdayCompact: { fontSize: 9 },
-    weekdayOverCell: {
-      fontSize: 12,
-      fontWeight: '600' as const,
-      color: colors.textMuted,
-      marginBottom: 4,
-    },
-    monthWeeks: { gap: 3, width: '100%' as const },
-    weekRow: {
-      flexDirection: 'row' as const,
-      flexWrap: 'nowrap' as const,
-      alignItems: 'stretch' as const,
-      width: '100%' as const,
-      gap: 3,
-    },
-    dayBase: {
-      borderWidth: 0,
-      borderColor: 'transparent',
-      padding: 3,
-      alignItems: 'center' as const,
-      justifyContent: 'flex-start' as const,
-      backgroundColor: colors.bg,
-      borderRadius: 8,
-    },
-    dayMonth: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      minHeight: 44,
-    },
-    dayMonthDetailed: {
-      minHeight: 72,
-      alignItems: 'stretch' as const,
-      paddingTop: 5,
-      paddingHorizontal: 3,
-      paddingBottom: 4,
-    },
-    dayWeek: {
-      flex: 1,
-      minHeight: 100,
-      borderRadius: 12,
-    },
-    dayFocus: {
-      width: '100%' as const,
-      minHeight: 160,
-      padding: spacing.md,
-      alignItems: 'flex-start' as const,
-      borderRadius: 12,
-    },
-    dayCompact: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      aspectRatio: 1,
-      padding: 2,
-      borderRadius: 8,
-      minHeight: 0,
-    },
-    dayEmpty: {
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      minHeight: 44,
-    },
-    dayEmptyDetailed: {
-      minHeight: 72,
-    },
-    dayEmptyCompact: {
-      aspectRatio: 1,
-      minHeight: 0,
-    },
-    dayToday: { backgroundColor: colors.surface },
-    dayNumBadge: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      alignSelf: 'center' as const,
-      marginBottom: 4,
-    },
-    dayNumBadgeCompact: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      marginBottom: 0,
-    },
-    dayNumBadgeToday: {
-      backgroundColor: '#e11d48',
-    },
-    dayNumBadgeSelected: {
-      backgroundColor: colors.accent,
-    },
-    // When both today + selected, selected wins via style order in DayCell.
-    dayNum: {
-      fontSize: 15,
-      fontWeight: '600' as const,
-      color: colors.text,
-    },
-    dayNumCompact: { fontSize: 10 },
-    dayNumSelected: { color: colors.accent },
-    dayNumOnBadge: {
-      color: '#ffffff',
-      fontWeight: '700' as const,
-    },
-    markers: {
-      flexDirection: 'row' as const,
-      gap: 2,
-      marginTop: 2,
-      flexWrap: 'wrap' as const,
-      justifyContent: 'center' as const,
-    },
-    heart: { fontSize: 10, color: colors.brandCrimson },
-    heartCompact: { fontSize: 7, color: colors.brandCrimson },
-    symptomDot: {
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: colors.partial,
-    },
+    hub: { marginVertical: spacing.md, gap: 14 },
+    toolbar: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: 8 },
+    navigation: { flexDirection: 'row' as const, alignItems: 'center' as const, borderRadius: 24, backgroundColor: colors.surface },
+    navButton: { minWidth: 44, minHeight: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
+    navArrow: { fontSize: 28, color: colors.text }, year: { fontFamily: fonts.bodyMedium, fontSize: 16, color: colors.text },
+    sourceRow: { alignItems: 'flex-start' as const }, headingRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },
+    windowTitle: { flex: 1, fontFamily: fonts.heading, fontSize: 30, letterSpacing: -0.8, color: colors.text, paddingVertical: 4 },
+    footerRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, gap: 8 },
+    todayJump: { minHeight: 44, paddingHorizontal: 20, justifyContent: 'center' as const, borderRadius: 24, backgroundColor: colors.surface },
+    keyButton: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center' as const },
+    todayJumpText: { fontFamily: fonts.bodySemibold, fontSize: 13, color: colors.accent },
+    focusWrap: { marginTop: spacing.sm }, stripRow: { flexDirection: 'row' as const, borderTopWidth: 1, borderColor: colors.border },
+    multiMonth: { gap: 24 }, multiMonthGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 12, justifyContent: 'space-between' as const },
+    miniMonthSlot: { width: '100%' as const },
+    month: { gap: 8 }, monthSpacious: {}, monthCompact: {},
+    monthTitle: { fontFamily: fonts.heading, fontSize: 18, color: colors.text }, monthTitleLarge: { fontSize: 24 },
+    weekdayRow: { flexDirection: 'row' as const, marginBottom: 8 },
+    weekday: { flex: 1, minWidth: 0, textAlign: 'center' as const, fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMuted },
+    weekdayCompact: { fontSize: 11 }, weekdayOverCell: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
+    monthWeeks: { width: '100%' as const },
+    weekRow: { flexDirection: 'row' as const, alignItems: 'stretch' as const, width: '100%' as const },
+    weekDivider: { borderTopWidth: 1, borderColor: colors.border },
+    dayBase: { padding: 2, paddingTop: 8, paddingBottom: 8, alignItems: 'center' as const },
+    dayMonth: { flex: 1, minWidth: 0, minHeight: 84 },
+    dayMonthDetailed: { alignItems: 'stretch' as const },
+    dayWeek: { flex: 1, minWidth: 0, minHeight: 120, alignItems: 'stretch' as const },
+    dayFocus: { width: '100%' as const, minHeight: 120, alignItems: 'stretch' as const },
+    dayCompact: { flex: 1, minWidth: 0, minHeight: 52 },
+    dayEmpty: { flex: 1, minWidth: 0, minHeight: 84 }, dayEmptyDetailed: {}, dayEmptyCompact: { minHeight: 52 },
+    dayNumBadge: { minWidth: 32, minHeight: 32, borderRadius: 20, borderWidth: 1, borderColor: 'transparent', alignItems: 'center' as const, justifyContent: 'center' as const, alignSelf: 'center' as const, marginBottom: 4 },
+    dayNumBadgeCompact: { minWidth: 28, minHeight: 28, marginBottom: 0 },
+    dayNumBadgeToday: { backgroundColor: colors.accentRed }, dayNumBadgeSelected: { borderColor: colors.text },
+    dayNum: { fontFamily: fonts.bodySemibold, fontSize: 18, color: colors.text }, dayNumCompact: { fontSize: 13 },
+    dayNumOnBadge: { color: colors.onAccent },
+    statusBand: { height: 6, width: '80%' as const, alignSelf: 'center' as const, borderRadius: 3 },
+    markers: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 3, marginTop: 2, flexWrap: 'wrap' as const, justifyContent: 'center' as const },
+    heart: { fontSize: 10, color: colors.brandCrimson }, heartCompact: { fontSize: 9, color: colors.brandCrimson },
+    symptomDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.partial },
     eventList: { width: '100%' as const, marginTop: 4, gap: 3 },
-    eventPill: {
-      fontSize: 10,
-      paddingHorizontal: 5,
-      paddingVertical: 2,
-      borderRadius: 4,
-      overflow: 'hidden' as const,
-    },
+    eventPill: { fontFamily: fonts.bodyMedium, fontSize: 10, paddingHorizontal: 3, paddingVertical: 2, borderRadius: 5, overflow: 'hidden' as const },
     eventMore: { fontSize: 10, color: colors.textMuted },
+    selectedDay: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 16 },
+    selectedTitle: { fontFamily: fonts.bodySemibold, fontSize: 16, color: colors.text },
+    detailRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingVertical: 4 },
+    detailMarker: { width: 3, minHeight: 20, alignSelf: 'stretch' as const, borderRadius: 2 },
+    detailText: { flex: 1, fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 21, color: colors.text },
   };
 }
