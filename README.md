@@ -9,6 +9,8 @@ A personal web app to manage medications, log daily doses, track adherence strea
 Newest first. Each line is added from the commit subject when you commit (with hooks enabled).
 
 <!-- DEVLOG:START -->
+- **2026-10-03** (`a6ef5be`) — Reorganize account, history, and streaks, and keep safety checks limited to saved medications.
+
 - **2026-10-03** (`c461ca2`) — Let the refill widget edit supply, and move dose reminders when the phone timezone changes.
 
 - **2026-10-02** (`9f0306e`) — Redesign mobile dashboard, calendars, and wellness workflows

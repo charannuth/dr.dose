@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeProvider';
 import { listTimezones } from '../../lib/settings';
 import { radii, spacing } from '../../constants/theme';
@@ -31,23 +34,31 @@ export function TimezonePickerField({ value, onChange }: Props) {
     return zones.filter((z) => z.toLowerCase().includes(q));
   }, [zones, query]);
 
+  function closePicker() {
+    Keyboard.dismiss();
+    setOpen(false);
+    setQuery('');
+  }
+
   return (
     <View>
       <Text style={styles.label}>Timezone</Text>
-      <Pressable style={styles.selectBtn} onPress={() => setOpen(true)}>
+      <Pressable style={styles.selectBtn} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={`Change timezone, currently ${value}`}>
         <Text style={styles.selectText} numberOfLines={2}>
           {value}
         </Text>
       </Pressable>
 
-      <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <SafeAreaView style={styles.modalSafe} edges={['top', 'left', 'right']}>
+      <Modal visible={open} animationType="slide" presentationStyle="fullScreen" onRequestClose={closePicker}>
+        <SafeAreaProvider>
+        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom', 'left', 'right']}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Choose timezone</Text>
-            <Pressable onPress={() => setOpen(false)}>
+            <Text style={styles.modalTitle} accessibilityRole="header">Choose timezone</Text>
+            <Pressable style={styles.doneButton} onPress={closePicker} accessibilityRole="button" accessibilityLabel="Done choosing timezone">
               <Text style={styles.done}>Done</Text>
             </Pressable>
           </View>
+          <KeyboardAvoidingView style={styles.listArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TextInput
             style={styles.search}
             value={query}
@@ -56,18 +67,22 @@ export function TimezonePickerField({ value, onChange }: Props) {
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
+            accessibilityLabel="Search timezones"
           />
           <FlatList
             data={filtered}
             keyExtractor={(item) => item}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListEmptyComponent={<Text style={styles.empty}>No matching timezones.</Text>}
             renderItem={({ item }) => (
               <Pressable
                 style={[styles.zoneRow, item === value && styles.zoneRowActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: item === value }}
                 onPress={() => {
                   onChange(item);
-                  setOpen(false);
-                  setQuery('');
+                  closePicker();
                 }}
               >
                 <Text style={[styles.zoneText, item === value && styles.zoneTextActive]}>
@@ -76,7 +91,9 @@ export function TimezonePickerField({ value, onChange }: Props) {
               </Pressable>
             )}
           />
+          </KeyboardAvoidingView>
         </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </View>
   );
@@ -95,17 +112,22 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     },
     selectText: { color: colors.text, fontSize: 15 },
     modalSafe: { flex: 1, backgroundColor: colors.bg },
+    listArea: { flex: 1 },
     modalHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      gap: spacing.sm,
+      flexShrink: 0,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
+    modalTitle: { flex: 1, minWidth: 0, fontSize: 18, fontWeight: '900', color: colors.text },
+    doneButton: { minWidth: 64, minHeight: 48, flexShrink: 0, paddingHorizontal: 12, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
     done: { color: colors.accent, fontWeight: '800', fontSize: 16 },
+    empty: { color: colors.textMuted, padding: spacing.md },
     search: {
       margin: spacing.md,
       borderWidth: 1,

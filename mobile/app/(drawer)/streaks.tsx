@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
 import { useStreakStats } from '../../hooks/useStreakStats';
@@ -38,27 +38,13 @@ function emptyStats(): StreakStats {
 function makeStreakScreenStyles(colors: ColorPalette) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
-    headerCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    h1: { fontSize: 22, fontWeight: '900', color: colors.text },
-    sub: { color: colors.textMuted, lineHeight: 20 },
-    sectionTitle: { fontSize: 16, fontWeight: '900', color: colors.text },
-    errorCard: { backgroundColor: colors.errorBg, borderColor: colors.errorBorder },
+    scroll: { padding: 20, paddingBottom: 40, gap: 28 },
+    headerCard: { gap: 8, paddingTop: 4 },
+    card: { paddingVertical: 20, borderTopWidth: 1, borderColor: colors.border, gap: 8 },
+    h1: { fontFamily: fonts.heading, fontSize: 26, color: colors.text },
+    sub: { fontFamily: fonts.bodyRegular, fontSize: 13, color: colors.textMuted, lineHeight: 21 },
+    sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 16, color: colors.text },
+    errorCard: { borderColor: colors.border },
     errorText: { color: colors.error, fontWeight: '800' },
     loadingRow: { alignItems: 'center', padding: spacing.md },
     primaryBtn: {
@@ -98,7 +84,7 @@ export default function StreaksScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       {previewStreakDays != null ? (
         <StreakCelebration
           key={previewStreakDays}
@@ -117,10 +103,9 @@ export default function StreaksScreen() {
         }
       >
         <View style={styles.headerCard}>
-          <Text style={styles.h1}>Streaks</Text>
+          <Text style={styles.h1}>Small steps, steady growth</Text>
           <Text style={styles.sub}>
-            Current streak, tulip badges, and what it takes to earn each one. Tap a badge
-            to preview its celebration.
+            Your daily rhythm, one bloom at a time.
           </Text>
         </View>
 

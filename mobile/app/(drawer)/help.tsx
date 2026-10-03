@@ -1,181 +1,53 @@
-import { useMemo } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { routes } from '../../lib/routes';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { LegalLinks } from '../../components/LegalLinks';
 import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
-import { radii, spacing } from '../../constants/theme';
+import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
+import { NavigationRow } from '../../components/forms/NavigationRow';
+import { fonts, type ColorPalette } from '../../constants/theme';
 
-const RXNORM_URL = 'https://www.nlm.nih.gov/research/umls/rxnorm/index.html';
-
-function Bullet({ children, styles }: { children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
-  return (
-    <View style={styles.bulletRow}>
-      <Text style={styles.bulletDot}>•</Text>
-      <Text style={styles.bulletText}>{children}</Text>
-    </View>
-  );
-}
-
-function Strong({ children, styles }: { children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
-  return <Text style={styles.strong}>{children}</Text>;
-}
+const TOPICS = [
+  { title: 'Customize Quick view', summary: 'Choose, resize and arrange your widgets', body: 'On Today, open Edit Quick view. Choose the information you want to see, select Compact or Detailed, and move widgets into your preferred order. Save to keep the layout.', action: 'Open Today', route: routes.today },
+  { title: 'Log a dose or correct a mistake', summary: 'Scheduled doses, as-needed medications and undo', body: 'Mark each scheduled dose separately. Use Undo on a dose logged by mistake. History lets you select a day to review doses and wellness notes, and offers late logging where available. Logging is a record of what you took; it is not an instruction to take an additional dose.', action: 'Review dose history', route: routes.history },
+  { title: 'Update a refill', summary: 'Remaining supply and medication details', body: 'Open Refills to choose a medication, update the remaining count, add refill quantity, or edit its details. You can also open it from the refill tile on Today.', action: 'Open Refills', route: routes.refills },
+  { title: 'Reminders or timezone not right?', summary: 'Permissions, sounds and the app clock', body: 'In My account, open Reminders to enable alerts, choose a sound, or check scheduled reminders. If permission is denied, use Open iPhone Settings. Appearance & time contains the timezone selector. After traveling, open the app so reminders can update.', action: 'Open My account', route: routes.account },
+  { title: 'Appointments and connected calendars', summary: 'Save a visit and optionally add a calendar copy', body: 'Select a date in Doctor visits, then tap + to create an appointment. When offered, choose Apple/device, Google, or Microsoft to add a calendar copy. Copies do not provide automatic two-way synchronization; check both calendars when changing an appointment.', action: 'Open Doctor visits', route: routes.doctorVisits },
+  { title: 'Tracking and wellness logs', summary: 'Use the same date-first workflow', body: 'Choose a date in Tracking or Wellness and open the entry editor to add or update a log. Wellness keeps daily check-ins separate from your baseline. Tracking includes cycle, HRT, and medication progress; enable HRT dose syncing on the relevant medication when needed.', action: 'Open Wellness', route: routes.wellness },
+  { title: 'Understand streaks and gardens', summary: 'Complete days and earned milestones', body: `A complete day means every scheduled dose was logged. History shows the last ${STREAK_CALENDAR_DAYS} days using status symbols. Badges are earned from your longest streak. Tap a milestone in Streaks to preview its celebration; the 30-, 60-, and 100-day badges grow into tulip gardens.`, action: 'View Streaks', route: routes.streaks },
+  { title: 'What can the safety check tell me?', summary: 'Warnings, unmatched names and limitations', body: 'The check uses a limited reference set and medication name matching. Unmatched names mean some checks are incomplete. A result with no warnings does not guarantee safety. Confirm medication decisions with your doctor or pharmacist. Keep self-reported allergies and conditions up to date in Medical records.', action: 'Open Drug safety check', route: routes.interactions },
+  { title: 'Manage your account and data', summary: 'Profile, password and account deletion', body: 'My account groups profile, appearance, reminders, and security settings. Medical records stores your self-reported health information. Account deletion permanently removes your account and associated data and asks you to confirm before proceeding.', action: 'Open My account', route: routes.account },
+];
 
 export default function HelpScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={styles.h1}>Help & safety</Text>
-          <Text style={styles.sub}>How to use Dr. Dose</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Using the app</Text>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>Today</Strong> — mark each scheduled dose separately (e.g.
-            morning and evening are two doses). Use <Strong styles={styles}>Move to as needed</Strong>{' '}
-            or <Strong styles={styles}>Move to daily schedule</Strong> on a medication to switch types
-            without re-adding it. Refill and missed-dose banners appear when relevant.
-          </Bullet>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>History</Strong> — {STREAK_CALENDAR_DAYS}-day calendar, weekly
-            summary, and dose list. Tap a day to filter.
-          </Bullet>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>Tracking</Strong> — optional modules (cycle, HRT, medication
-            progress). Set your physical profile (editable anytime). HRT doses logged on Today sync here
-            when you enable <Strong styles={styles}>Sync doses to Tracking → HRT</Strong> on a
-            medication.
-          </Bullet>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>Account → Medications</Strong> — add, edit, or remove medications.
-            When you type a name, suggestions come from a built-in list plus{' '}
-            <Text style={styles.link} onPress={() => void Linking.openURL(RXNORM_URL)}>
-              RxNorm (NIH)
-            </Text>{' '}
-            (brands and generics such as Lipitor, Tylenol, lisinopril). Set a{' '}
-            <Strong styles={styles}>start date</Strong> and optional{' '}
-            <Strong styles={styles}>end date</Strong> for each schedule (e.g. a short antibiotic course).
-          </Bullet>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>Medical records</Strong> — self-reported allergies, blood type, and
-            conditions (not certified clinical records).{' '}
-            <Strong styles={styles}>Drug safety check</Strong> — cross-reference medications and your
-            allergy list (always ask a pharmacist).
-          </Bullet>
-          <Bullet styles={styles}>
-            <Strong styles={styles}>Streaks</Strong> — current streak and tulip badge milestones.{' '}
-            <Strong styles={styles}>Account</Strong> — profile photo, display name, theme, timezone,
-            dose reminders, and sign out.
-          </Bullet>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Streaks & History</Text>
-          <Text style={styles.body}>
-            A <Text style={styles.strong}>perfect day</Text> means you logged every scheduled dose that
-            day. Your current streak counts consecutive perfect days. Today still counts as in progress
-            until the day ends — missing doses after that breaks the streak. On{' '}
-            <Text style={styles.strong}>History</Text>, the color calendar shows perfect, partial, and
-            missed days; tap one to see each dose and your wellness check-in. On{' '}
-            <Text style={styles.strong}>Streaks</Text>, see tulip badges and how many consecutive perfect
-            days each one requires.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Reminders & missed doses</Text>
-          <Text style={styles.body}>
-            Enable <Text style={styles.strong}>dose reminders</Text> in{' '}
-            <Text style={styles.link} onPress={() => router.push(routes.account)}>
-              Account
-            </Text>
-            . On iPhone, you get lock-screen alerts at each scheduled dose time, even when the app is
-            closed. The missed-doses banner on Today shows yesterday&apos;s gaps and today&apos;s
-            past-due slots.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Preventing double doses</Text>
-          <Text style={styles.body}>
-            Each dose <Text style={styles.em}>time</Text> can only be marked once per day. Add one row
-            per daily dose in the medication wizard. Use <Text style={styles.strong}>Undo</Text> on a slot
-            if you logged it by mistake. Pill counts drop by one each time you mark a dose taken.
-          </Text>
-        </View>
-
-        <View style={[styles.card, styles.warningCard]}>
-          <Text style={styles.sectionTitle}>Medical disclaimer</Text>
-          <Text style={styles.body}>
-            Dr. Dose is for personal organization only. It does not provide medical advice. Always
-            follow instructions from your doctor or pharmacist. Call emergency services for urgent
-            medical problems.
-          </Text>
-        </View>
-
-        <MedicalSourcesCard />
-
-        <LegalLinks
-          colors={colors}
-          styles={{
-            legalRow: styles.legalRow,
-            legalLink: styles.link,
-            legalMuted: styles.legalMuted,
-          }}
-        />
-
-        <Pressable onPress={() => router.push(routes.today)}>
-          <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  const s = useThemedStyles(makeStyles);
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const topics = TOPICS.filter((topic) => `${topic.title} ${topic.summary} ${topic.body}`.toLowerCase().includes(needle));
+  return <SafeAreaView style={s.safe} edges={['left', 'right', 'bottom']}>
+    <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <View style={s.header}><Text style={s.title}>How can we help?</Text><Text style={s.hint}>Quick answers and a direct path to what you need.</Text></View>
+      <TextInput style={s.search} accessibilityLabel="Search help topics" placeholder="Search reminders, refills, calendars…" placeholderTextColor={colors.textMuted} value={query} onChangeText={setQuery} autoCorrect={false} clearButtonMode="while-editing" />
+      <View><Text style={s.sectionTitle}>Help topics</Text>
+        {topics.map((topic) => <CollapsibleSection key={`${needle}-${topic.title}`} title={topic.title} summary={topic.summary} initiallyOpen={Boolean(needle)}>
+          <Text style={s.body}>{topic.body}</Text>
+          <NavigationRow title={topic.action} onPress={() => router.push(topic.route)} />
+        </CollapsibleSection>)}
+        {!topics.length ? <Text style={s.hint}>No matching topics. Try “reminders”, “refills”, or “calendar”.</Text> : null}
+      </View>
+      <View style={s.safety}><Text style={s.sectionTitle}>Safety first</Text><Text style={s.body}>Dr. Dose is for personal organization and does not provide medical advice. Follow your doctor or pharmacist’s instructions. For an urgent medical problem, contact local emergency services.</Text></View>
+      <CollapsibleSection title="Sources & citations" summary="Read the references behind the app"><MedicalSourcesCard /></CollapsibleSection>
+      <LegalLinks colors={colors} styles={{ legalRow: s.legalRow, legalLink: s.link, legalMuted: s.hint }} />
+    </ScrollView>
+  </SafeAreaView>;
 }
-
-function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
-  return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
-    header: { gap: spacing.xs },
-    h1: { fontSize: 24, fontWeight: '900', color: colors.text },
-    sub: { color: colors.textMuted, lineHeight: 20 },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    warningCard: {
-      backgroundColor: colors.partialBg,
-      borderColor: colors.partialBorder,
-    },
-    sectionTitle: { fontSize: 17, fontWeight: '900', color: colors.text, marginBottom: spacing.xs },
-    body: { color: colors.text, lineHeight: 22, fontSize: 15 },
-    bulletRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-    bulletDot: { color: colors.text, fontSize: 15, lineHeight: 22 },
-    bulletText: { flex: 1, color: colors.text, lineHeight: 22, fontSize: 15 },
-    strong: { fontWeight: '800', color: colors.text },
-    em: { fontStyle: 'italic' },
-    link: { color: colors.accent, fontWeight: '700' },
-    footerLink: { textAlign: 'center', marginTop: spacing.sm },
-    legalRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    legalMuted: { color: colors.textMuted, fontSize: 14 },
-  });
+function makeStyles(c: ColorPalette) {
+  return { safe: { flex: 1, backgroundColor: c.bg }, scroll: { padding: 20, paddingBottom: 40, gap: 24 }, header: { gap: 8 }, title: { fontFamily: fonts.heading, fontSize: 26, color: c.text }, hint: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 21, color: c.textMuted }, body: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 23, color: c.text }, sectionTitle: { fontFamily: fonts.bodySemibold, fontSize: 17, color: c.text }, search: { minHeight: 48, padding: 14, borderRadius: 14, backgroundColor: c.surface, color: c.text, fontFamily: fonts.bodyRegular, fontSize: 15 }, safety: { borderLeftWidth: 2, borderColor: c.accent, paddingLeft: 16, gap: 10 }, legalRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 }, link: { color: c.accent, fontFamily: fonts.bodyMedium } };
 }

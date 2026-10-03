@@ -9,9 +9,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { routes } from '../../lib/routes';
+import { NavigationRow } from '../../components/forms/NavigationRow';
+import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
 import { MedicalRecordsForm } from '../../components/medicalRecords/MedicalRecordsForm';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuth } from '../../hooks/useAuth';
@@ -34,9 +36,9 @@ import {
 function makeMedicalRecordsStyles(colors: ColorPalette) {
   return {
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
-    h1: { fontSize: 24, fontWeight: '900' as const, color: colors.text },
+    h1: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },
     sub: { color: colors.textMuted, lineHeight: 20 },
     emptyHint: { color: colors.textMuted, lineHeight: 20 },
     link: { color: colors.accent, fontWeight: '700' as const },
@@ -46,26 +48,20 @@ function makeMedicalRecordsStyles(colors: ColorPalette) {
     bannerErrorText: { color: colors.error, fontWeight: '700' as const },
     bannerSuccess: { backgroundColor: colors.successBg, borderColor: colors.successBorder },
     bannerSuccessText: { color: colors.successText, fontWeight: '700' as const },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-    },
+    card: { paddingVertical: 8, gap: 16 },
     cardHeader: {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
       marginBottom: spacing.sm,
     },
-    cardTitle: { fontSize: 18, fontWeight: '900' as const, color: colors.text },
+    cardTitle: { fontSize: 18, fontFamily: fonts.heading, color: colors.text },
     editLink: { color: colors.accent, fontWeight: '800' as const, fontSize: 15 },
     summary: { gap: spacing.md },
     summaryRow: { gap: spacing.xs },
     summaryItem: { color: colors.text, lineHeight: 22 },
     strong: { fontWeight: '800' as const },
-    detailRow: { gap: 4 },
+    detailRow: { gap: 6, paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border },
     detailLabel: { fontSize: 13, fontWeight: '800' as const, color: colors.textMuted },
     detailValue: { color: colors.text, lineHeight: 20 },
     savedHint: {
@@ -87,23 +83,31 @@ export default function MedicalRecordsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const draftDirtyRef = useRef(false);
+  const savedInputRef = useRef<MedicalRecordInput>(emptyMedicalRecordInput());
   const userId = user?.id;
 
   useEffect(() => {
     if (!userId) return;
     let active = true;
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
 
     fetchMedicalRecord(userId)
       .then((record) => {
         if (!active || draftDirtyRef.current) return;
         const next = recordToInput(record);
+        savedInputRef.current = next;
         setDraft(next);
         setExpanded(!isMedicalRecordFilled(next));
       })
       .catch((err: unknown) => {
         if (active) {
+          setLoadFailed(true);
           setError(err instanceof Error ? err.message : 'Failed to load medical record');
         }
       })
@@ -114,7 +118,7 @@ export default function MedicalRecordsScreen() {
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [userId, reloadKey]);
 
   function handleDraftChange(next: MedicalRecordInput) {
     draftDirtyRef.current = true;
@@ -158,7 +162,8 @@ export default function MedicalRecordsScreen() {
     setMessage(null);
     try {
       const saved = await upsertMedicalRecord(userId, draft);
-      setDraft(recordToInput(saved));
+      savedInputRef.current = recordToInput(saved);
+      setDraft(savedInputRef.current);
       draftDirtyRef.current = false;
       setMessage('Medical record saved.');
       setExpanded(false);
@@ -180,7 +185,7 @@ export default function MedicalRecordsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.h1}>Medical records</Text>
@@ -205,6 +210,8 @@ export default function MedicalRecordsScreen() {
             <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.sub}>Loading medical record…</Text>
           </View>
+        ) : loadFailed ? (
+          <NavigationRow title="Try loading again" subtitle="Your saved record has not been changed." onPress={() => setReloadKey((key) => key + 1)} />
         ) : (
           <>
             {!filled ? (
@@ -224,8 +231,14 @@ export default function MedicalRecordsScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>Medical record</Text>
+                {expanded && isMedicalRecordFilled(savedInputRef.current) ? <Pressable accessibilityRole="button" disabled={busy} style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => {
+                  setDraft({ ...savedInputRef.current, height_unit: draft.height_unit, weight_unit: draft.weight_unit });
+                  draftDirtyRef.current = false;
+                  setExpanded(false);
+                  setError(null);
+                }}><Text style={styles.editLink}>Cancel</Text></Pressable> : null}
                 {!expanded && filled ? (
-                  <Pressable onPress={() => setExpanded(true)}>
+                  <Pressable accessibilityRole="button" style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }} onPress={() => setExpanded(true)}>
                     <Text style={styles.editLink}>Edit</Text>
                   </Pressable>
                 ) : null}
@@ -233,7 +246,7 @@ export default function MedicalRecordsScreen() {
 
               {!expanded && filled ? (
                 <View style={styles.summary}>
-                  <View style={styles.summaryRow}>
+                  <CollapsibleSection title="Personal details" summary="Birth date, measurements and blood type"><View style={styles.summaryRow}>
                     {draft.date_of_birth ? (
                       <Text style={styles.summaryItem}>
                         DOB: <Text style={styles.strong}>{draft.date_of_birth}</Text>
@@ -261,6 +274,9 @@ export default function MedicalRecordsScreen() {
                     ) : null}
                   </View>
 
+                  </CollapsibleSection>
+                  {draft.known_allergies.length === 0 ? <Text style={styles.sub}>Allergies: not recorded</Text> : null}
+                  {draft.known_conditions.length === 0 ? <Text style={styles.sub}>Conditions: not recorded</Text> : null}
                   {draft.known_allergies.length > 0 ? (
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Allergies</Text>
@@ -313,6 +329,7 @@ export default function MedicalRecordsScreen() {
                 />
               )}
             </View>
+            <NavigationRow title="Drug safety check" subtitle="Review medications against your saved history" onPress={() => router.push(routes.interactions)} />
           </>
         )}
       </ScrollView>

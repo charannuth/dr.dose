@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { routes } from '../../lib/routes';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,83 +24,30 @@ import type { DayDoseSlot } from '../../lib/dayDetail';
 import { fetchDoseHistory, historyStats, type HistoryDay } from '../../lib/history';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { fetchWeeklySummary, type WeeklySummary } from '../../lib/weeklySummary';
-import { StreakConsistencyCalendar } from '../../components/streaks/StreakConsistencyCalendar';
+import { HistoryCalendar } from '../../components/history/HistoryCalendar';
 import { DayAdherenceDetail } from '../../components/history/DayAdherenceDetail';
 
 function makeHistoryStyles(colors: ColorPalette) {
   return {
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: {
-      paddingHorizontal: spacing.sm,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.xl,
-      gap: spacing.sm,
-    },
-    weeklyCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      gap: 4,
-    },
-    weeklyTitle: { fontSize: 14, fontWeight: '800' as const, color: colors.text },
-    weeklyBody: { color: colors.textMuted, lineHeight: 22, fontSize: 15 },
-    headerCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    h1: { fontSize: 22, fontWeight: '900' as const, color: colors.text },
-    sub: { color: colors.textMuted, lineHeight: 20 },
-    bold: { fontWeight: '800' as const, color: colors.text },
-    statsRow: { flexDirection: 'row' as const, gap: spacing.md },
-    statCard: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-      alignItems: 'center' as const,
-      gap: 4,
-    },
-    statValue: { fontSize: 28, fontWeight: '900' as const, color: colors.accent },
-    statLabel: { fontSize: 12, color: colors.textMuted, textAlign: 'center' as const },
-    errorCard: { backgroundColor: colors.errorBg, borderColor: colors.errorBorder },
-    errorText: { color: colors.error, fontWeight: '800' as const },
-    loadingRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: spacing.sm,
-    },
-    primaryBtn: {
-      backgroundColor: colors.accent,
-      borderRadius: radii.md,
-      paddingVertical: 12,
-      alignItems: 'center' as const,
-      marginTop: spacing.sm,
-    },
-    primaryBtnText: { color: colors.onAccent, fontWeight: '900' as const },
-    footer: {
-      color: colors.textMuted,
-      textAlign: 'center' as const,
-      lineHeight: 20,
-      marginTop: spacing.sm,
-    },
-    footerLink: { color: colors.accent, fontWeight: '800' as const },
+    scroll: { padding: 20, paddingBottom: 40, gap: 24 },
+    headerCard: { gap: 8, paddingTop: 4 },
+    h1: { fontFamily: fonts.heading, fontSize: 26, color: colors.text },
+    sub: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 20, color: colors.textMuted },
+    weeklyCard: { gap: 8, paddingBottom: 20, borderBottomWidth: 1, borderColor: colors.border },
+    weeklyTitle: { fontFamily: fonts.bodySemibold, fontSize: 14, color: colors.text },
+    weeklyBody: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 23, color: colors.textMuted },
+    bold: { fontFamily: fonts.bodySemibold, color: colors.text },
+    card: { paddingVertical: 16, gap: 12 },
+    statsRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 20, borderTopWidth: 1, borderColor: colors.border, paddingTop: 20 },
+    statCard: { flex: 1, minWidth: 120, gap: 6 },
+    statValue: { fontFamily: fonts.heading, fontSize: 28, color: colors.text },
+    statLabel: { fontFamily: fonts.bodyRegular, fontSize: 12, lineHeight: 18, color: colors.textMuted },
+    errorCard: { borderTopWidth: 1, borderColor: colors.border }, errorText: { color: colors.error, fontSize: 14, lineHeight: 21 },
+    loadingRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.sm },
+    primaryBtn: { minHeight: 48, backgroundColor: colors.accent, borderRadius: radii.md, justifyContent: 'center' as const, alignItems: 'center' as const },
+    primaryBtnText: { fontFamily: fonts.bodySemibold, color: colors.onAccent },
+    footer: { color: colors.textMuted, fontSize: 12, lineHeight: 20 }, footerLink: { color: colors.accent, fontFamily: fonts.bodySemibold },
   };
 }
 
@@ -238,7 +185,7 @@ export default function HistoryScreen() {
     (weekly.scheduledExpected > 0 || weekly.prnTaken > 0);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -246,7 +193,7 @@ export default function HistoryScreen() {
         }
       >
         <View style={styles.headerCard}>
-          <Text style={styles.h1}>History</Text>
+          <Text style={styles.h1}>Your recent record</Text>
           <Text style={styles.sub}>
             {selectedDate
               ? formatDisplayDate(selectedDate)
@@ -278,7 +225,7 @@ export default function HistoryScreen() {
         ) : null}
 
         {showCalendar ? (
-          <StreakConsistencyCalendar
+          <HistoryCalendar
             days={streakStats!.consistencyCalendar}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
@@ -287,6 +234,7 @@ export default function HistoryScreen() {
 
         {showCalendar && selectedDate ? (
           <DayAdherenceDetail
+            minimal
             detail={dayDetail}
             loading={dayLoading}
             error={dayError ?? redeemError}

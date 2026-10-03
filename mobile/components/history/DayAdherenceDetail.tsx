@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { formatDisplayDate, formatTakenTime, todayLocalDate } from '../../lib/dates';
@@ -151,7 +151,26 @@ function makeDayDetailStyles(colors: ColorPalette) {
   };
 }
 
+function makeMinimalDetailStyles(c: ColorPalette) {
+  return {
+    panel: { paddingTop: 24, borderTopWidth: 1, borderColor: c.border, gap: 20 },
+    dateTitle: { fontFamily: fonts.heading, fontSize: 20, color: c.text },
+    status: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 20 },
+    medList: { gap: 24 }, medBlock: { gap: 8 },
+    medName: { fontFamily: fonts.bodySemibold, fontSize: 16, color: c.text },
+    slotRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderColor: c.border },
+    slotTaken: { backgroundColor: 'transparent' }, slotMissed: { backgroundColor: 'transparent' }, slotLate: { backgroundColor: 'transparent' },
+    badgeTaken: { color: c.successText }, badgeLate: { color: c.partialText },
+    closeBtn: { color: c.accent, fontFamily: fonts.bodyMedium, minHeight: 44, padding: 10 },
+    redeemBtn: { minHeight: 44, justifyContent: 'center' as const, paddingHorizontal: 4 },
+    redeemBtnText: { color: c.accent, fontFamily: fonts.bodySemibold, fontSize: 13 },
+    undoText: { color: c.accent, fontFamily: fonts.bodyMedium, fontSize: 13, paddingVertical: 12 },
+    link: { color: c.accent, fontFamily: fonts.bodyMedium, paddingVertical: 12 },
+  };
+}
+
 type Props = {
+  minimal?: boolean;
   detail: DayDetail | null;
   loading: boolean;
   error: string | null;
@@ -167,6 +186,7 @@ type Props = {
 };
 
 export function DayAdherenceDetail({
+  minimal = false,
   detail,
   loading,
   error,
@@ -180,7 +200,9 @@ export function DayAdherenceDetail({
 }: Props) {
   const router = useRouter();
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeDayDetailStyles);
+  const baseStyles = useThemedStyles(makeDayDetailStyles);
+  const minimalStyles = useThemedStyles(makeMinimalDetailStyles);
+  const styles = minimal ? { ...baseStyles, ...minimalStyles } : baseStyles;
   const panelRef = useRef<View>(null);
   const isToday = detail?.date === todayLocalDate();
   const dayRedeemed = detail?.slots.some((s) => s.loggedLate) ?? false;
@@ -215,7 +237,7 @@ export function DayAdherenceDetail({
             <View style={styles.headerText}>
               <Text style={styles.dateTitle}>{formatDisplayDate(detail.date)}</Text>
               {streakStatus ? (
-                <Text style={[styles.status, { color: statusAccentColor(colors, streakStatus) }]}>
+                <Text style={[styles.status, { color: minimal ? colors.textMuted : statusAccentColor(colors, streakStatus) }]}>
                   {STATUS_LABEL[streakStatus]}
                   {detail.hasScheduledMeds
                     ? ` · ${takenCount} of ${totalCount} dose${totalCount === 1 ? '' : 's'} logged`

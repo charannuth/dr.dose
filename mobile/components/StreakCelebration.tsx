@@ -1,18 +1,19 @@
 import { useEffect, useRef } from 'react';
 import {
   Animated,
+  Easing,
+  ScrollView,
   Modal,
   Pressable,
   Text,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useReducedMotion } from 'react-native-reanimated';
 import type { ColorPalette } from '../constants/theme';
-import { radii, spacing } from '../constants/theme';
+import { fonts, radii, spacing } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { getActiveStreakBadge, bouquetTulipCount } from '../lib/streakBadges';
 import { StreakCelebrationScene } from './streaks/StreakCelebrationScene';
-import { TulipBadgeIcon } from './streaks/TulipBadgeIcon';
 
 type Props = {
   streakDays: number;
@@ -31,13 +32,15 @@ function makeCelebrationStyles(colors: ColorPalette) {
     cardWrap: {
       width: '100%' as const,
       maxWidth: 360,
+      maxHeight: '90%' as const,
     },
     card: {
       borderRadius: radii.xl,
       padding: spacing.lg,
       alignItems: 'center' as const,
-      borderWidth: 2,
-      borderColor: colors.partialBorder,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     illustration: {
       marginBottom: spacing.md,
@@ -48,12 +51,13 @@ function makeCelebrationStyles(colors: ColorPalette) {
     },
     title: {
       fontSize: 22,
-      fontWeight: '900' as const,
+      fontFamily: fonts.heading,
       color: colors.text,
       textAlign: 'center' as const,
       marginBottom: spacing.sm,
     },
     body: {
+      fontFamily: fonts.bodyRegular,
       fontSize: 15,
       color: colors.textMuted,
       textAlign: 'center' as const,
@@ -69,7 +73,7 @@ function makeCelebrationStyles(colors: ColorPalette) {
     },
     buttonText: {
       color: colors.onAccent,
-      fontWeight: '900' as const,
+      fontFamily: fonts.heading,
       fontSize: 16,
       textAlign: 'center' as const,
     },
@@ -80,62 +84,54 @@ export function StreakCelebration({ streakDays, onDismiss }: Props) {
   const badge = getActiveStreakBadge(streakDays);
   const tulipCount = bouquetTulipCount(badge?.minDays ?? 1);
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.88)).current;
+  const scale = useRef(new Animated.Value(0.98)).current;
+  const reducedMotion = useReducedMotion();
   const styles = useThemedStyles(makeCelebrationStyles);
 
   useEffect(() => {
-    Animated.parallel([
+    if (reducedMotion) {
+      opacity.setValue(1);
+      scale.setValue(1);
+      return;
+    }
+    const entrance = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 400,
+        duration: 250,
         useNativeDriver: true,
       }),
-      Animated.spring(scale, {
+      Animated.timing(scale, {
         toValue: 1,
-        friction: 6,
-        tension: 80,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [opacity, scale]);
+    ]);
+    entrance.start();
+    return () => entrance.stop();
+  }, [opacity, scale, reducedMotion]);
 
-  const label = badge
-    ? `Streak × ${streakDays} — ${badge.label}!`
-    : `Streak × ${streakDays}!`;
+  const label = `${streakDays} ${streakDays === 1 ? 'day' : 'days'} in bloom`;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
+    <Modal visible transparent animationType={reducedMotion ? "none" : "fade"} onRequestClose={onDismiss}>
       <Pressable style={styles.backdrop} onPress={onDismiss}>
         <Animated.View
           style={[styles.cardWrap, { opacity, transform: [{ scale }] }]}
           onStartShouldSetResponder={() => true}
         >
-          <LinearGradient
-            colors={['#fef3c7', '#fde68a', '#fbcfe8', '#f9a8d4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.card}
-          >
+          <ScrollView bounces={false} contentContainerStyle={styles.card}>
             <View style={styles.illustration}>
-              {tulipCount <= 2 ? (
-                <StreakCelebrationScene dual={tulipCount >= 2} />
-              ) : (
-                <TulipBadgeIcon
-                  earned
-                  minDays={badge?.minDays ?? streakDays}
-                  size={112}
-                />
-              )}
+              <StreakCelebrationScene dual={tulipCount >= 2} minDays={badge?.minDays ?? 1} />
             </View>
             <Text style={styles.title}>{label}</Text>
             <Text style={styles.body}>
-              {badge?.description ??
-                'Every scheduled dose logged today. Keep it growing tomorrow.'}
+              {badge ? `${badge.label}. ` : ''}One day at a time, your consistency grows.
             </Text>
-            <Pressable style={styles.button} onPress={onDismiss}>
+            <Pressable style={styles.button} onPress={onDismiss} accessibilityRole="button">
               <Text style={styles.buttonText}>Continue</Text>
             </Pressable>
-          </LinearGradient>
+          </ScrollView>
         </Animated.View>
       </Pressable>
     </Modal>

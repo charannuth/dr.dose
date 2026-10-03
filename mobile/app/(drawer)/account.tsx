@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
+import { NavigationRow } from '../../components/forms/NavigationRow';
 import { LegalLinks } from '../../components/LegalLinks';
 import { PasswordInput } from '../../components/PasswordInput';
 import { AccountMedicationsSection } from '../../components/account/AccountMedicationsSection';
@@ -59,7 +61,7 @@ import {
 } from '../../lib/settings';
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { routes } from '../../lib/routes';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -341,11 +343,11 @@ export default function AccountScreen() {
   const simNote = simulatorReminderNote();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>My account</Text>
-          <Text style={styles.subtitle}>Profile, badges, and sign-in</Text>
+          <Text style={styles.subtitle}>Your profile, preferences and care shortcuts</Text>
         </View>
 
         {streakError ? (
@@ -362,9 +364,9 @@ export default function AccountScreen() {
               email={user?.email}
               stats={streakStats}
             />
-            <View style={styles.card}>
+            <CollapsibleSection title="Your milestone collection" summary="Tulips, gardens and earned badges">
               <StreakBadges longestStreak={streakStats.longestStreak} compact />
-            </View>
+            </CollapsibleSection>
             <View style={styles.teaserRow}>
               <Pressable style={styles.teaser} onPress={() => router.push(routes.streaks)}>
                 <Text style={styles.teaserLabel}>Streaks</Text>
@@ -389,11 +391,18 @@ export default function AccountScreen() {
           <Text style={styles.hint}>Loading streak stats…</Text>
         ) : null}
 
-        <AccountMedicationsSection />
+        <View>
+          <Text style={styles.sectionTitle}>Your care</Text>
+          <NavigationRow title="Refills" subtitle="Update supply and refill quantities" onPress={() => router.push(routes.refills)} />
+          <NavigationRow title="Medical records" subtitle="Allergies, conditions and personal history" onPress={() => router.push(routes.medicalRecords)} />
+          <NavigationRow title="Drug safety check" subtitle="Review warnings for your medications" onPress={() => router.push(routes.interactions)} />
+          <NavigationRow title="Wellness" subtitle="Daily check-ins and baseline" onPress={() => router.push(routes.wellness)} />
+        </View>
+        <CollapsibleSection title="Manage medications" summary="Add, edit or remove medications"><AccountMedicationsSection /></CollapsibleSection>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-
+        <View>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <CollapsibleSection title="Profile" summary="Photo and display name"><View style={{ gap: 12 }}>
           <ProfilePictureEditor />
 
           <Text style={styles.fieldLabel}>Display name</Text>
@@ -412,7 +421,8 @@ export default function AccountScreen() {
             <Text style={styles.secondaryBtnText}>{profileBusy ? 'Saving…' : 'Save name'}</Text>
           </Pressable>
 
-          <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Change password</Text>
+          </View></CollapsibleSection>
+          <CollapsibleSection title="Change password" summary="Keep your sign-in secure"><View style={{ gap: 12 }}>
           <Text style={styles.hint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
           <PasswordInput
             style={styles.input}
@@ -451,7 +461,9 @@ export default function AccountScreen() {
             </Text>
           </Pressable>
 
-          <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Appearance</Text>
+          </View></CollapsibleSection>
+          <CollapsibleSection title="Appearance & time" summary={`${themeMode === 'system' ? 'System theme' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'} · ${timezone}`}><View style={{ gap: 12 }}>
+          <Text style={styles.fieldLabel}>Appearance</Text>
           <View style={styles.themeRow}>
             {THEME_OPTIONS.map((opt) => {
               const active = themeMode === opt.value;
@@ -475,9 +487,8 @@ export default function AccountScreen() {
             so reminders move off the old timezone.
           </Text>
 
-          <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>
-            Same-time doses on Today
-          </Text>
+          </View></CollapsibleSection>
+          <CollapsibleSection title="Dose logging" summary="How same-time doses are marked"><View style={{ gap: 12 }}>
           <Text style={styles.hint}>
             When several medications share a dose time, choose how batch marking works. Each
             logged dose is identical to tapping Mark taken on that medication.
@@ -504,8 +515,9 @@ export default function AccountScreen() {
             {SAME_TIME_DOSE_MODES.find((o) => o.value === sameTimeDoseMode)?.hint}
           </Text>
 
+          </View></CollapsibleSection>
+          <CollapsibleSection title="Reminders" summary={remindersOn ? 'Enabled · sounds and scheduling' : 'Off · enable dose, visit and refill alerts'}>
           <View style={styles.reminderSection}>
-            <Text style={styles.fieldLabel}>Reminders</Text>
             <Text style={styles.hint}>
               Lock-screen alerts for scheduled dose times, low supply refills (10:00 AM daily while
             at or below 7 remaining), and upcoming doctor visits (9:00 AM on visit and follow-up
@@ -657,12 +669,13 @@ export default function AccountScreen() {
             ) : null}
           </View>
 
+          </CollapsibleSection>
           {settingsError ? <Text style={styles.inlineError}>{settingsError}</Text> : null}
           {message ? <Text style={styles.inlineSuccess}>{message}</Text> : null}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Legal</Text>
+        <NavigationRow title="Help & safety" subtitle="Answers, troubleshooting and app guidance" onPress={() => router.push(routes.help)} />
+        <CollapsibleSection title="Legal" summary="Privacy and terms">
           <LegalLinks
             colors={colors}
             styles={{
@@ -671,7 +684,7 @@ export default function AccountScreen() {
               legalMuted: styles.legalMuted,
             }}
           />
-        </View>
+        </CollapsibleSection>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Sign-in</Text>
@@ -690,8 +703,7 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Delete account</Text>
+        <CollapsibleSection title="Delete account" summary="Permanently remove your account and data">
           <Text style={styles.hint}>
             Permanently delete your account and all associated data. This action cannot be
             undone.
@@ -705,7 +717,7 @@ export default function AccountScreen() {
               {deleting ? 'Deleting…' : 'Delete account'}
             </Text>
           </Pressable>
-        </View>
+        </CollapsibleSection>
 
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Go to Today</Text>
@@ -718,18 +730,11 @@ export default function AccountScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
-    title: { fontSize: 24, fontWeight: '900', color: colors.text },
+    title: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },
     subtitle: { color: colors.textMuted, fontSize: 15 },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
+    card: { paddingVertical: 16, borderBottomWidth: 1, borderColor: colors.border, gap: 12 },
     sectionTitle: { fontSize: 17, fontWeight: '900', color: colors.text },
     hint: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
     fieldLabel: { fontSize: 15, fontWeight: '800', color: colors.text },
@@ -759,12 +764,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
       borderColor: colors.border,
       borderRadius: 999,
       paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingVertical: 12,
       backgroundColor: colors.bg,
     },
     themeChipActive: {
       borderColor: colors.accent,
-      backgroundColor: colors.pendingBg,
+      backgroundColor: colors.surface,
     },
     themeChipText: { fontWeight: '700', color: colors.textMuted },
     themeChipTextActive: { color: colors.accent },
@@ -798,7 +803,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     },
     devButtonText: { fontSize: 14, fontWeight: '700', color: colors.accent },
     inlineError: { color: colors.error, fontWeight: '600' },
-    inlineSuccess: { color: colors.success, fontWeight: '600' },
+    inlineSuccess: { color: colors.successText, fontWeight: '600' },
     detailRow: { gap: 4, marginTop: spacing.sm },
     detailLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted },
     detailValue: { fontSize: 15, color: colors.text },
@@ -822,14 +827,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     },
     deleteText: { fontWeight: '800', color: colors.error, fontSize: 16 },
     teaserRow: { gap: spacing.sm },
-    teaser: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-      gap: 4,
-    },
+    teaser: { paddingVertical: 14, borderBottomWidth: 1, borderColor: colors.border, gap: 6 },
     teaserLabel: { fontWeight: '900', color: colors.text, fontSize: 15 },
     teaserText: { color: colors.textMuted, lineHeight: 20 },
     strong: { fontWeight: '900', color: colors.text },

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import {
   getEarnedStreakBadges,
@@ -13,6 +13,13 @@ import { TulipBadgeIcon } from './TulipBadgeIcon';
 
 function makeBadgeStyles(colors: ColorPalette) {
   return {
+    collection: { gap: 16, borderTopWidth: 1, borderColor: colors.border, paddingTop: 24 },
+    milestone: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 16, paddingVertical: 16, borderBottomWidth: 1, borderColor: colors.border },
+    milestoneBody: { flex: 1, gap: 5 },
+    milestoneTitle: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.text },
+    milestoneMeta: { fontFamily: fonts.bodyRegular, fontSize: 12, lineHeight: 19, color: colors.textMuted },
+    progress: { height: 4, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' as const },
+    progressFill: { height: 4, backgroundColor: colors.accent },
     section: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
@@ -51,7 +58,7 @@ function makeBadgeStyles(colors: ColorPalette) {
       gap: 6,
       width: '100%' as const,
     },
-    tileEarned: { backgroundColor: colors.successBg, borderColor: colors.successBorder },
+    tileEarned: { backgroundColor: colors.surface, borderColor: colors.successBorder },
     tileLocked: { backgroundColor: colors.surface },
     tileDays: { fontWeight: '900' as const, color: colors.accent, fontSize: 13 },
     tileLabel: {
@@ -89,8 +96,8 @@ function makeBadgeStyles(colors: ColorPalette) {
       paddingHorizontal: 10,
       borderRadius: radii.md,
       borderWidth: 1,
-      borderColor: colors.successBorder,
-      backgroundColor: colors.successBg,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
     },
     chipRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: spacing.sm },
     chipDays: { fontWeight: '800' as const, color: colors.text, fontSize: 13 },
@@ -211,23 +218,31 @@ export function StreakBadges({
 
   if (catalog) {
     return (
-      <View style={styles.section}>
-        <Text style={styles.title}>Tulip badges</Text>
+      <View style={styles.collection}>
+        <Text style={styles.title}>Your milestones</Text>
         <Text style={styles.hint}>
-          Badges unlock from your longest streak. Your Today icon upgrades at 14,
-          then 30–59, 60–99, and 100+.
-          {next ? ` Next: ${next.label} at ${next.minDays} days.` : ' You have every badge!'}
-          {onPreviewBadge ? ' Tap any badge to preview its celebration.' : ''}
+          {earned.length} of {STREAK_BADGES.length} earned · Based on your longest streak.
+          {next ? ` Next bloom at ${next.minDays} days.` : ' Your garden is complete.'}
         </Text>
-        <View style={styles.gridCatalog}>
-          {STREAK_BADGES.map((badge) => (
-            <BadgeTile
-              key={badge.id}
-              badge={badge}
-              earned={earnedIds.has(badge.id)}
-              catalog
-            />
-          ))}
+        {next ? <View style={styles.progress} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: next.minDays, now: Math.min(longestStreak, next.minDays) }} accessibilityLabel="Longest streak toward next milestone">
+          <View style={[styles.progressFill, { width: `${Math.min(100, Math.max(0, longestStreak / next.minDays * 100))}%` }]} />
+        </View> : null}
+        {onPreviewBadge ? <Text style={styles.milestoneMeta}>Tap a milestone to preview its celebration.</Text> : null}
+        <View>
+          {STREAK_BADGES.map((badge) => {
+            const unlocked = earnedIds.has(badge.id);
+            const content = <>
+              <TulipBadgeIcon earned={unlocked} minDays={badge.minDays} size={badge.minDays >= 30 ? 72 : 48} />
+              <View style={styles.milestoneBody}>
+                <Text style={styles.milestoneTitle}>{badge.label}</Text>
+                <Text style={styles.milestoneMeta}>{badge.minDays} {badge.minDays === 1 ? 'day' : 'days'} in a row · {unlocked ? 'Earned' : 'Not yet earned'}</Text>
+              </View>
+              {onPreviewBadge ? <Text style={styles.tilePreviewHint}>›</Text> : null}
+            </>;
+            return onPreviewBadge ? <Pressable key={badge.id} style={({ pressed }) => [styles.milestone, { opacity: pressed ? 0.65 : 1 }]} onPress={() => onPreviewBadge(badge)} accessibilityRole="button" accessibilityLabel={`${badge.label}, ${badge.minDays} days, ${unlocked ? 'earned' : 'not yet earned'}. Preview celebration`}>
+              {content}
+            </Pressable> : <View key={badge.id} style={styles.milestone}>{content}</View>;
+          })}
         </View>
       </View>
     );

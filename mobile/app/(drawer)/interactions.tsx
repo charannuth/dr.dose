@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,18 +8,20 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
 import { MedicationNameInput } from '../../components/medication/MedicationNameInput';
 import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { routes } from '../../lib/routes';
 import { useAuth } from '../../hooks/useAuth';
-import { useMedicalRecordAllergies } from '../../hooks/useMedicalRecordAllergies';
+import { fetchMedicalRecord } from '../../lib/medicalRecords';
 import { checkDrugAllergies, type AllergyWarning } from '../../lib/allergyCheck';
 import { checkDrugConditions, type ConditionWarning } from '../../lib/conditionCheck';
+import { safetyCheckNames, checkRecordWarnings } from '../../lib/safetyCheckWorkflow';
 import { todayLocalDate } from '../../lib/dates';
 import {
   checkMedicationInteractions,
@@ -36,29 +38,16 @@ import type { Medication } from '../../lib/types';
 function makeInteractionStyles(colors: ColorPalette) {
   return {
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
-    h1: { fontSize: 24, fontWeight: '900' as const, color: colors.text },
+    h1: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },
     sub: { color: colors.textMuted, lineHeight: 20 },
-    disclaimer: {
-      backgroundColor: colors.partialBg,
-      borderWidth: 1,
-      borderColor: colors.partialBorder,
-      borderRadius: radii.md,
-      padding: spacing.md,
-    },
+    disclaimer: { paddingVertical: 16, borderBottomWidth: 1, borderColor: colors.border, gap: 12 },
     disclaimerText: { color: colors.text, lineHeight: 20, fontSize: 14 },
     strong: { fontWeight: '800' as const, color: colors.text },
     link: { color: colors.accent, fontWeight: '700' as const },
     footerLink: { textAlign: 'center' as const, marginTop: spacing.sm },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
+    card: { paddingVertical: 16, borderBottomWidth: 1, borderColor: colors.border, gap: 12 },
     sectionTitle: { fontSize: 16, fontWeight: '900' as const, color: colors.text },
     body: { color: colors.text, lineHeight: 20 },
     hint: { color: colors.textMuted, lineHeight: 20, fontSize: 14 },
@@ -84,8 +73,8 @@ function makeInteractionStyles(colors: ColorPalette) {
       borderWidth: 1,
       borderColor: colors.partialBorder,
     },
-    successCard: { backgroundColor: colors.successBg, borderColor: colors.successBorder },
-    successTitle: { fontWeight: '900' as const, color: colors.successText, fontSize: 16 },
+    successCard: { borderColor: colors.border },
+    successTitle: { fontFamily: fonts.bodySemibold, color: colors.text, fontSize: 16 },
     loadingWrap: {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
@@ -210,7 +199,10 @@ export default function InteractionsScreen() {
   const styles = useThemedStyles(makeInteractionStyles);
   const { user } = useAuth();
   const router = useRouter();
-  const { allergies, conditions } = useMedicalRecordAllergies(user?.id);
+  const [allergies, setAllergies] = useState<string[]>([]);
+  const [conditions, setConditions] = useState<string[]>([]);
+  const requestVersion = useRef(0);
+  const userId = user?.id;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -222,83 +214,58 @@ export default function InteractionsScreen() {
   const [rechecking, setRechecking] = useState(false);
   const [lastCheckedDrug, setLastCheckedDrug] = useState<string | null>(null);
 
-  const runMedicalRecordCheck = useCallback(
-    async (names: string[]) => {
-      const allergyHits: AllergyWarning[] = [];
-      const conditionHits: ConditionWarning[] = [];
-      for (const name of names) {
-        if (allergies.length > 0) {
-          allergyHits.push(...(await checkDrugAllergies(name, allergies)));
-        }
-        if (conditions.length > 0) {
-          conditionHits.push(...(await checkDrugConditions(name, conditions)));
-        }
-      }
-      setAllergyWarnings(allergyHits);
-      setConditionWarnings(conditionHits);
-    },
-    [allergies, conditions],
-  );
-
-  const runCheck = useCallback(
-    async (names?: string[]) => {
-      if (!user) return;
-      setError(null);
-      if (!supabase) {
-        setError('Supabase is not configured');
-        setResult(null);
-        return;
-      }
-
-      let namesToCheck = names;
-      if (!namesToCheck) {
-        const { data, error: fetchError } = await supabase
-          .from('medications')
-          .select('name, start_date, end_date')
-          .eq('user_id', user.id)
-          .order('name');
-
-        if (fetchError) throw fetchError;
-
-        const today = todayLocalDate();
-        const activeMeds = filterMedicationsActiveOn(
-          openRows(
-            'medications',
-            (data ?? []) as Record<string, unknown>[],
-          ) as Medication[],
-          today,
-        );
-        namesToCheck = activeMeds
-          .map((m) => m.name)
-          .sort((a, b) => a.localeCompare(b));
-      }
-
-      const data = await checkMedicationInteractions(namesToCheck);
+  const runCheck = useCallback(async (candidate?: string) => {
+    if (!userId) return;
+    const version = ++requestVersion.current;
+    setError(null);
+    try {
+      if (!supabase) throw new Error('Could not connect. Please try again.');
+      const [medicationResponse, record] = await Promise.all([
+        supabase.from('medications').select('name, start_date, end_date').eq('user_id', userId).order('name'),
+        fetchMedicalRecord(userId),
+      ]);
+      if (medicationResponse.error) throw medicationResponse.error;
+      const active = filterMedicationsActiveOn(openRows('medications', (medicationResponse.data ?? []) as Record<string, unknown>[]) as Medication[], todayLocalDate());
+      const currentNames = active.map((med) => med.name).sort((a, b) => a.localeCompare(b));
+      const names = safetyCheckNames(currentNames, candidate);
+      const savedAllergies = record?.known_allergies ?? [];
+      const savedConditions = record?.known_conditions ?? [];
+      const [data, hits] = await Promise.all([
+        checkMedicationInteractions(names),
+        checkRecordWarnings(names,
+          (name) => savedAllergies.length ? checkDrugAllergies(name, savedAllergies) : Promise.resolve([]),
+          (name) => savedConditions.length ? checkDrugConditions(name, savedConditions) : Promise.resolve([]),
+        ),
+      ]);
+      if (version !== requestVersion.current) return;
+      setAllergies(savedAllergies);
+      setConditions(savedConditions);
       setResult(data);
-      await runMedicalRecordCheck(namesToCheck);
-    },
-    [user, runMedicalRecordCheck],
-  );
+      setAllergyWarnings(hits.allergyHits);
+      setConditionWarnings(hits.conditionHits);
+      setLastCheckedDrug(candidate ?? null);
+    } catch (err) {
+      if (version !== requestVersion.current) return;
+      setResult(null);
+      setAllergyWarnings([]);
+      setConditionWarnings([]);
+      throw err;
+    }
+  }, [userId]);
 
-  useEffect(() => {
-    if (!user) return;
+  useFocusEffect(useCallback(() => {
     let active = true;
     setLoading(true);
-    runCheck()
-      .catch((err: unknown) => {
-        if (active) {
-          setError(err instanceof Error ? err.message : 'Could not check interactions');
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user, runCheck]);
+    setResult(null);
+    setLastCheckedDrug(null);
+    runCheck().catch((err: unknown) => {
+      if (active) setError(err instanceof Error ? err.message : 'Could not check interactions');
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; requestVersion.current += 1; };
+  }, [runCheck]));
 
   async function onRefresh() {
+    if (rechecking || refreshing) return;
     setRefreshing(true);
     setLastCheckedDrug(null);
     try {
@@ -311,17 +278,12 @@ export default function InteractionsScreen() {
   }
 
   async function handleAddExtraDrug() {
-    if (!result || !extraDrug.trim()) return;
+    if (!result || !extraDrug.trim() || rechecking || refreshing) return;
 
     const candidate = extraDrug.trim();
     setRechecking(true);
     try {
-      const existing = new Set(result.inputNames.map((n) => n.toLowerCase()));
-      const names = existing.has(candidate.toLowerCase())
-        ? result.inputNames
-        : [...result.inputNames, candidate];
-      setLastCheckedDrug(candidate);
-      await runCheck(names);
+      await runCheck(candidate);
       setExtraDrug('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not check interactions');
@@ -358,10 +320,10 @@ export default function InteractionsScreen() {
     result?.interactions.filter((i) => i.severity === 'major').length ?? 0;
 
   const showMedicalRecordBanner =
-    allergies.length === 0 && conditions.length === 0 && !loading;
+    allergies.length === 0 && conditions.length === 0 && !loading && !refreshing && !rechecking && !error && Boolean(result);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -370,7 +332,7 @@ export default function InteractionsScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.h1}>Drug interaction check</Text>
+          <Text style={styles.h1}>Drug safety check</Text>
           <Text style={styles.sub}>
             Cross-reference your active medications for known interaction warnings
           </Text>
@@ -394,6 +356,7 @@ export default function InteractionsScreen() {
         {error ? (
           <View style={[styles.card, styles.errorCard]}>
             <Text style={styles.errorText}>{error}</Text>
+            <Pressable accessibilityRole="button" disabled={refreshing} style={styles.secondaryBtn} onPress={() => void onRefresh()}><Text style={styles.secondaryBtnText}>{refreshing ? 'Checking…' : 'Try again'}</Text></Pressable>
           </View>
         ) : null}
 
@@ -412,7 +375,7 @@ export default function InteractionsScreen() {
           </View>
         ) : null}
 
-        {loading ? (
+        {loading || rechecking || refreshing ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.loadingText}>Checking your medications…</Text>
@@ -420,7 +383,38 @@ export default function InteractionsScreen() {
         ) : result ? (
           <>
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Your active medications</Text>
+              <Text style={styles.sectionTitle}>Check another drug</Text>
+              <Text style={styles.hint}>
+                Compare one medication with your saved active list. This does not add it to your medications. Each new check replaces the previous comparison.
+              </Text>
+              <MedicationNameInput
+                value={extraDrug}
+                onChange={setExtraDrug}
+                placeholder="e.g. ibuprofen, Advil, Lexapro"
+              />
+              <Pressable
+                accessibilityRole="button"
+                style={[
+                  styles.secondaryBtn,
+                  (rechecking || refreshing || !extraDrug.trim()) && styles.btnDisabled,
+                ]}
+                disabled={rechecking || refreshing || !extraDrug.trim()}
+                onPress={() => void handleAddExtraDrug()}
+              >
+                <Text style={styles.secondaryBtnText}>
+                  {rechecking ? 'Checking…' : 'Check medication'}
+                </Text>
+              </Pressable>
+            </View>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>{result.inputNames.length === 0 ? 'Add a medication to begin' : `${result.interactions.length + allergyWarnings.length + conditionWarnings.length} warnings found in this check`}</Text>
+              {result.inputNames.length < 2 ? <Text style={styles.hint}>At least two matched medications are needed for a drug-pair check.</Text> : null}
+              <Text style={styles.hint}>{result.mappedCount} of {result.resolved.length} names matched · {result.pairCount} drug pairs checked</Text>
+              {unresolved.length > 0 ? <Text style={styles.warnText}>Incomplete coverage: {unresolved.length} unmatched names. Review the unmatched list below.</Text> : null}
+              {lastCheckedDrug ? <Pressable accessibilityRole="button" disabled={refreshing || rechecking} style={styles.secondaryBtn} onPress={() => void onRefresh()}><Text style={styles.secondaryBtnText}>Clear comparison · saved medications only</Text></Pressable> : null}
+            </View>
+            <CollapsibleSection title={lastCheckedDrug ? 'Medications in this comparison' : 'Your active medications'} summary={`${result.inputNames.length} medications · view matched names`}>
+              <View style={{ gap: 10 }}>
               {result.inputNames.length === 0 ? (
                 <Text style={styles.body}>
                   No active medications today.{' '}
@@ -468,6 +462,7 @@ export default function InteractionsScreen() {
               )}
             </View>
 
+            </CollapsibleSection>
             {allergyWarnings.length > 0 || conditionWarnings.length > 0 ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Medical record cross-check</Text>
@@ -530,7 +525,7 @@ export default function InteractionsScreen() {
               </View>
             ) : result.inputNames.length >= 2 && result.mappedCount >= 2 ? (
               <View style={[styles.card, styles.successCard]}>
-                <Text style={styles.successTitle}>No known interactions</Text>
+                <Text style={styles.successTitle}>No drug-pair warnings found</Text>
                 <Text style={styles.body}>
                   in our reference database for your current medication list.
                 </Text>
@@ -552,8 +547,7 @@ export default function InteractionsScreen() {
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Could not fully map</Text>
                 <Text style={styles.hint}>
-                  These names were not matched to our interaction database. They were still
-                  included in the check if a synonym matched.
+                  These names could not be matched to the reference set. Their drug-pair checks are incomplete.
                 </Text>
                 {unresolved.map((r) => (
                   <Text key={r.original} style={styles.body}>
@@ -563,33 +557,11 @@ export default function InteractionsScreen() {
               </View>
             ) : null}
 
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Check another drug</Text>
-              <Text style={styles.hint}>
-                See if a medication you are considering interacts with your current list.
-              </Text>
-              <MedicationNameInput
-                value={extraDrug}
-                onChange={setExtraDrug}
-                placeholder="e.g. ibuprofen, Advil, Lexapro"
-              />
-              <Pressable
-                style={[
-                  styles.secondaryBtn,
-                  (rechecking || !extraDrug.trim()) && styles.btnDisabled,
-                ]}
-                disabled={rechecking || !extraDrug.trim()}
-                onPress={() => void handleAddExtraDrug()}
-              >
-                <Text style={styles.secondaryBtnText}>
-                  {rechecking ? 'Checking…' : 'Add & recheck'}
-                </Text>
-              </Pressable>
-            </View>
+
           </>
         ) : null}
 
-        <MedicalSourcesCard />
+        <CollapsibleSection title="Sources & limitations" summary="References used by the safety check"><MedicalSourcesCard /></CollapsibleSection>
 
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>

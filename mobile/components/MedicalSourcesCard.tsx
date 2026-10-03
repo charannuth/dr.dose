@@ -6,17 +6,10 @@ import { MEDICAL_SOURCES } from '../lib/medicalSources';
 
 function makeStyles(colors: ColorPalette) {
   return {
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
+    card: { paddingVertical: 8, gap: 12 },
     title: { fontSize: 16, fontWeight: '900' as const, color: colors.text },
     intro: { color: colors.textMuted, lineHeight: 20, fontSize: 14 },
-    row: { paddingVertical: spacing.xs },
+    row: { paddingVertical: 12, minHeight: 44, gap: 5 },
     link: { color: colors.accent, fontWeight: '800' as const, fontSize: 15 },
     desc: { color: colors.textMuted, lineHeight: 18, fontSize: 13 },
   };

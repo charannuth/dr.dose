@@ -1,71 +1,40 @@
-import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
+import { useTheme } from '../../context/ThemeProvider';
+import { TulipGarden } from './TulipGarden';
 import { bouquetColorsForMinDays } from '../../lib/streakBadges';
 
-function Tulip({
-  x,
-  color,
-  opacity,
-}: {
-  x: number;
-  color: string;
-  opacity: number;
-}) {
-  return (
-    <G translateX={x} opacity={opacity}>
-      <Path
-        d="M16 38 C16 30 15.5 24 16 18"
-        stroke="#16a34a"
-        strokeWidth={2}
-        strokeLinecap="round"
-        opacity={0.95}
-      />
-      <Path
-        d="M16 30 C10 28 9 24 11 22 C13 20 16 22 16 25"
-        fill="#22c55e"
-        opacity={0.85}
-      />
-      <Path
-        d="M16 29 C22 27 23 23 21 21 C19 19 16 21 16 24"
-        fill="#16a34a"
-        opacity={0.75}
-      />
-      <G translateX={16} translateY={14}>
-        <Ellipse cx={-3.2} cy={-2.5} rx={4.2} ry={6.7} fill={color} />
-        <Ellipse cx={3.2} cy={-2.5} rx={4.2} ry={6.7} fill={color} />
-        <Ellipse cx={0} cy={-4.2} rx={4.9} ry={7.8} fill={color} />
-        <Circle cx={0} cy={0.5} r={2.3} fill="rgba(255,255,255,0.35)" />
-      </G>
-    </G>
-  );
-}
-
-export function TulipBadgeIcon({
-  earned,
-  minDays,
-  size = 48,
-}: {
+/** One fixed coordinate system keeps the bouquet intact at every display size. */
+export function TulipBadgeIcon({ earned, minDays, size = 48 }: {
   earned: boolean;
   minDays: number;
   size?: number;
 }) {
-  const colorsList = bouquetColorsForMinDays(minDays);
-  const baseOpacity = earned ? 1 : 0.25;
-  const scale = size / 40;
-
+  const { colors, isDark } = useTheme();
+  const petals = bouquetColorsForMinDays(minDays);
+  const stem = earned ? (isDark ? '#8BAF9C' : '#527B68') : colors.textMuted;
+  const palette: Record<string, string> = {
+    '#7c3aed': isDark ? '#BCA0D8' : '#9263B1',
+    '#facc15': '#D9B76B', '#fb923c': '#D89D77', '#f472b6': '#CE8FA7',
+    '#f8fafc': isDark ? '#E6DFD4' : '#C5B8A5', '#ef4444': '#BA737E',
+  };
+  if (minDays >= 30) return <TulipGarden minDays={minDays} earned={earned} width={size} height={size * 1.25} />;
   return (
-    <Svg width={size} height={size * 1.25} viewBox="-16 0 64 40">
-      <G transform={`scale(${scale})`}>
-        {colorsList.length === 1 ? (
-          <Tulip x={0} color={colorsList[0]} opacity={baseOpacity} />
-        ) : (
-          colorsList.slice(0, 6).map((c, idx) => {
-            const offsets = [-8, 8, -4, 4, -12, 12];
-            const x = offsets[idx] ?? 0;
-            const depth = idx === 0 || idx === 1 ? 1 : 0.92;
-            return <Tulip key={`${c}-${idx}`} x={x} color={c} opacity={baseOpacity * depth} />;
-          })
-        )}
-      </G>
+    <Svg width={size} height={size * 1.25} viewBox="0 0 100 125" accessible={false}>
+      {petals.map((color, index) => {
+        const angle = petals.length === 1 ? 0 : (index - (petals.length - 1) / 2) * 9;
+        const fill = earned ? palette[color] ?? colors.accent : colors.textMuted;
+        return (
+          <G key={index} rotation={angle} origin="50,108" opacity={earned ? 1 : 0.5}>
+            <Path d="M50 109 C48 87 53 69 50 46" fill="none" stroke={stem} strokeWidth={2.8} strokeLinecap="round" />
+            <Path d="M50 94 C31 91 25 77 27 66 C41 72 48 83 50 94Z" fill={stem} />
+            <Path d="M51 83 C66 78 72 65 70 57 C58 64 53 73 51 83Z" fill={stem} opacity={0.8} />
+            <Path d="M50 17 C39 25 37 35 40 42 L60 42 C63 33 59 23 50 17Z" fill={fill} />
+            <Path d="M32 25 C33 43 34 54 50 55 C67 54 69 41 68 25 C59 27 53 33 50 40 C45 32 39 27 32 25Z" fill={fill} />
+            <Path d="M33 27 C35 44 38 50 49 52 C46 39 41 32 33 27Z" fill="#FFFFFF" opacity={0.16} />
+            <Path d="M50 52 C59 48 64 40 67 28" fill="none" stroke={isDark ? '#FFFFFF' : '#38223D'} strokeOpacity={0.12} strokeWidth={1.3} strokeLinecap="round" />
+          </G>
+        );
+      })}
     </Svg>
   );
 }

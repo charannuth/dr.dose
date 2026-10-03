@@ -1,119 +1,57 @@
 import { Text, View } from 'react-native';
 import { streakMessage, type StreakStats } from '../../lib/streaks';
-import type { ColorPalette } from '../../constants/theme';
-import { radii, spacing } from '../../constants/theme';
+import { getActiveStreakBadge, getDisplayStreakDays } from '../../lib/streakBadges';
+import { fonts, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
-
-function makeStreakCardStyles(colors: ColorPalette) {
-  return {
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    header: { gap: 4 },
-    h3: { fontSize: 18, fontWeight: '900' as const, color: colors.text },
-    sub: { color: colors.textMuted, lineHeight: 18 },
-    muted: { color: colors.textMuted },
-    statsRow: { flexDirection: 'row' as const, gap: spacing.md },
-    stat: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      padding: spacing.md,
-      backgroundColor: colors.bg,
-      gap: 2,
-    },
-    statPrimary: {
-      borderColor: colors.accent,
-      backgroundColor: colors.typeCardActiveBg,
-    },
-    value: { fontSize: 28, fontWeight: '900' as const, color: colors.text },
-    label: { color: colors.textMuted, fontWeight: '800' as const },
-    unit: { color: colors.textMuted },
-    today: { color: colors.text, lineHeight: 20 },
-    todayDone: { color: colors.success, fontWeight: '900' as const },
-    todayExtra: { color: colors.textMuted },
-    week: { flexDirection: 'row' as const, gap: 6, marginTop: spacing.sm },
-    weekBar: {
-      flex: 1,
-      height: 14,
-      borderRadius: 8,
-      backgroundColor: colors.border,
-    },
-    weekBarPerfect: { backgroundColor: colors.success },
-    weekLabels: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-    },
-    weekLabelText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' as const },
-    message: { color: colors.textMuted, lineHeight: 20, marginTop: spacing.sm },
-  };
-}
+import { TulipBadgeIcon } from './TulipBadgeIcon';
 
 export function StreakCard({ stats, loading }: { stats: StreakStats; loading?: boolean }) {
-  const styles = useThemedStyles(makeStreakCardStyles);
-
-  if (loading) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.muted}>Loading streak…</Text>
-      </View>
-    );
-  }
-
+  const s = useThemedStyles(makeStyles);
+  const current = getDisplayStreakDays(stats);
+  const badge = getActiveStreakBadge(current);
+  if (loading) return <Text style={s.hint}>Loading streak…</Text>;
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.h3}>Adherence streak</Text>
-        <Text style={styles.sub}>A perfect day means every scheduled dose was logged.</Text>
-      </View>
-
-      <View style={styles.statsRow}>
-        <View style={[styles.stat, styles.statPrimary]}>
-          <Text style={styles.value}>{stats.currentStreak}</Text>
-          <Text style={styles.label}>Current streak</Text>
-          <Text style={styles.unit}>{stats.currentStreak === 1 ? 'day' : 'days'}</Text>
+    <View style={s.section}>
+      <View style={s.hero}>
+        <View style={s.summary}>
+          <Text style={s.eyebrow}>CURRENT STREAK</Text>
+          <Text style={s.value}>{current}<Text style={s.unit}> {current === 1 ? 'day' : 'days'}</Text></Text>
+          <Text style={s.hint}>Personal best · {stats.longestStreak} {stats.longestStreak === 1 ? 'day' : 'days'}</Text>
         </View>
-        <View style={styles.stat}>
-          <Text style={styles.value}>{stats.longestStreak}</Text>
-          <Text style={styles.label}>Longest streak</Text>
-          <Text style={styles.unit}>{stats.longestStreak === 1 ? 'day' : 'days'}</Text>
-        </View>
+        <TulipBadgeIcon earned={current > 0} minDays={badge?.minDays ?? 1} size={96} />
       </View>
-
-      {stats.hasMedications ? (
-        <Text style={styles.today}>
-          Today: {stats.todayTaken} of {stats.todayExpected} scheduled doses logged
-          {stats.todayComplete ? <Text style={styles.todayDone}> · Complete</Text> : null}
-          {stats.todayExtraLogs > 0 ? (
-            <Text style={styles.todayExtra}>
-              {' '}
-              ({stats.todayExtraLogs} extra log{stats.todayExtraLogs === 1 ? '' : 's'} not on today&apos;s
-              schedule)
-            </Text>
-          ) : null}
-        </Text>
-      ) : null}
-
-      <View style={styles.week} accessibilityLabel="Last 7 days">
-        {stats.last7Days.map((day) => (
-          <View
-            key={day.date}
-            style={[styles.weekBar, day.perfect && styles.weekBarPerfect]}
-          />
-        ))}
+      <Text style={s.message}>{streakMessage(stats)}</Text>
+      <View style={s.divider} />
+      <Text style={s.title}>Last 7 days</Text>
+      <View style={s.week}>
+        {stats.last7Days.map((day) => {
+          const date = new Date(`${day.date}T12:00:00`);
+          return <View key={day.date} style={s.day} accessible accessibilityLabel={`${date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}: ${day.perfect ? 'All scheduled doses logged' : 'Not complete'}`}>
+            <Text style={s.weekday}>{date.toLocaleDateString(undefined, { weekday: 'narrow' })}</Text>
+            <View style={[s.dayCircle, day.perfect && s.complete]}><Text style={[s.dayMark, day.perfect && s.completeMark]}>{day.perfect ? '✓' : '–'}</Text></View>
+            <Text style={s.weekday}>{date.getDate()}</Text>
+          </View>;
+        })}
       </View>
-      <View style={styles.weekLabels}>
-        <Text style={styles.weekLabelText}>7 days ago</Text>
-        <Text style={styles.weekLabelText}>Today</Text>
-      </View>
-
-      <Text style={styles.message}>{streakMessage(stats)}</Text>
+      {stats.hasMedications ? <Text style={s.hint}>
+        Today · {stats.todayTaken} of {stats.todayExpected} scheduled doses logged{stats.todayComplete ? ' · Complete' : ''}
+        {stats.todayExtraLogs > 0 ? `\n${stats.todayExtraLogs} additional log${stats.todayExtraLogs === 1 ? '' : 's'} outside today’s schedule` : ''}
+      </Text> : null}
+      <Text style={s.note}>A complete day means every scheduled dose was logged.</Text>
     </View>
   );
+}
+function makeStyles(c: ColorPalette) {
+  return {
+    section: { gap: 16 }, hero: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 }, summary: { flex: 1, gap: 8 },
+    eyebrow: { fontFamily: fonts.bodySemibold, fontSize: 11, letterSpacing: 1.5, color: c.textMuted },
+    value: { fontFamily: fonts.heading, fontSize: 48, color: c.text }, unit: { fontFamily: fonts.bodyRegular, fontSize: 20, color: c.textMuted },
+    hint: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 21, color: c.textMuted },
+    message: { fontFamily: fonts.bodyMedium, fontSize: 15, lineHeight: 24, color: c.text },
+    divider: { height: 1, backgroundColor: c.border, marginVertical: 4 }, title: { fontFamily: fonts.bodySemibold, fontSize: 15, color: c.text },
+    week: { flexDirection: 'row' as const, gap: 4 }, day: { flex: 1, alignItems: 'center' as const, gap: 9 }, weekday: { fontFamily: fonts.bodyMedium, fontSize: 12, color: c.textMuted },
+    dayCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: c.border, justifyContent: 'center' as const, alignItems: 'center' as const },
+    complete: { backgroundColor: c.accent, borderColor: c.accent }, dayMark: { fontSize: 16, color: c.textMuted }, completeMark: { color: c.onAccent },
+    note: { fontFamily: fonts.bodyRegular, fontSize: 12, lineHeight: 19, color: c.textMuted },
+  };
 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { CollapsibleSection } from '../forms/CollapsibleSection';
 import { IsoDateInput } from '../IsoDateInput';
 import { todayLocalDate } from '../../lib/dates';
 import { useRouter } from 'expo-router';
@@ -49,7 +50,7 @@ export function MedicalRecordsForm({
   const age = value.date_of_birth ? ageFromDateOfBirth(value.date_of_birth) : null;
 
   return (
-    <View style={styles.form}>
+    <View style={styles.form} pointerEvents={busy ? 'none' : 'auto'}>
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
           <Text style={styles.disclaimerStrong}>Not certified medical records.</Text> This is
@@ -58,7 +59,7 @@ export function MedicalRecordsForm({
         </Text>
       </View>
 
-      <Text style={trackingStyles.sectionTitle}>About you</Text>
+      <CollapsibleSection title="About you" summary="Birth date, gender, height and weight"><View style={{ gap: 12 }}>
       <Text style={trackingStyles.hint}>
         Optional basics — also editable on Tracking. Update weight and height anytime.
       </Text>
@@ -98,9 +99,8 @@ export function MedicalRecordsForm({
         Unit preference is saved to your account. Values are stored as cm and kg.
       </Text>
 
-      <Text style={[trackingStyles.sectionTitle, { marginTop: spacing.lg }]}>
-        Clinical history
-      </Text>
+      </View></CollapsibleSection>
+      <CollapsibleSection title="Allergies & conditions" summary={`${value.known_allergies.length} allergies · ${value.known_conditions.length} conditions`} initiallyOpen><View style={{ gap: 12 }}>
 
       <SelectField
         label="Blood type"
@@ -134,6 +134,8 @@ export function MedicalRecordsForm({
         placeholder="e.g. Type 2 diabetes"
       />
 
+      </View></CollapsibleSection>
+      <CollapsibleSection title="History & notes" summary="Surgeries, family history and emergency information"><View style={{ gap: 12 }}>
       <Text style={trackingStyles.label}>Past surgeries or hospitalizations</Text>
       <TextInput
         style={[trackingStyles.input, styles.textArea]}
@@ -174,7 +176,9 @@ export function MedicalRecordsForm({
         multiline
       />
 
+      </View></CollapsibleSection>
       <Pressable
+        accessibilityRole="button"
         style={[trackingStyles.primaryBtn, busy && trackingStyles.disabled, { marginTop: spacing.lg }]}
         disabled={busy}
         onPress={onSubmit}
@@ -191,9 +195,9 @@ function makeFormStyles(colors: ColorPalette) {
   return {
     form: { paddingBottom: spacing.xl },
     disclaimer: {
-      backgroundColor: colors.partialBg,
+      backgroundColor: colors.bg,
       borderWidth: 1,
-      borderColor: colors.partialBorder,
+      borderColor: colors.border,
       borderRadius: radii.md,
       padding: spacing.md,
       marginBottom: spacing.md,

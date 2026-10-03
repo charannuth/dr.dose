@@ -4,7 +4,7 @@ import { useTheme } from '../../context/ThemeProvider';
 import { getEarnedStreakBadges } from '../../lib/streakBadges';
 import type { StreakStats } from '../../lib/streaks';
 import { ProfileAvatar } from '../ProfileAvatar';
-import { radii, spacing } from '../../constants/theme';
+import { fonts, radii, spacing } from '../../constants/theme';
 
 type Props = {
   user: User | null | undefined;
@@ -46,16 +46,8 @@ export function ProfileStreakSummary({ user, displayName, email, stats }: Props)
 
 function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
   return StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-    },
-    cardGlow: {
-      borderColor: colors.accent,
-    },
+    card: { paddingVertical: 16 },
+    cardGlow: {},
     row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
     avatarWrap: { position: 'relative' },
     pill: {
@@ -71,7 +63,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
     },
     pillText: { color: colors.onAccent, fontWeight: '900', fontSize: 12 },
     textCol: { flex: 1, gap: 4 },
-    name: { fontSize: 18, fontWeight: '900', color: colors.text },
+    name: { fontSize: 20, fontFamily: fonts.heading, color: colors.text },
     email: { fontSize: 14, color: colors.textMuted },
     streakLine: { fontSize: 13, color: colors.textMuted, lineHeight: 18, marginTop: 4 },
   });
