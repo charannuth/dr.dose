@@ -136,7 +136,8 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
       case 'supplements': onMedicationTab('supplement'); return;
       case 'streak': router.push(routes.streaks); return;
       case 'week': router.push(routes.history); return;
-      case 'refills': case 'account': router.push(routes.account); return;
+      case 'refills': router.push(routes.refills); return;
+      case 'account': router.push(routes.account); return;
       case 'wellness': router.push(routes.wellness); return;
       case 'visits': router.push(routes.doctorVisits); return;
       case 'records': router.push(routes.medicalRecords); return;

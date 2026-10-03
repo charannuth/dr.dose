@@ -201,7 +201,9 @@ export default function AccountScreen() {
         // ignore reschedule errors on timezone change
       }
     }
-    setMessage('Timezone saved. Dose times and visit reminders use this zone.');
+    setMessage(
+      'Timezone saved. Dose reminders follow this zone until your phone timezone changes, then they switch to the phone.',
+    );
   }
 
   async function handleThemeChange(mode: ThemeMode) {
@@ -468,6 +470,10 @@ export default function AccountScreen() {
           </View>
 
           <TimezonePickerField value={timezone} onChange={(tz) => void handleTimezoneChange(tz)} />
+          <Text style={styles.hint}>
+            A dose at 10:00 PM rings at 10:00 PM on the phone clock. After a trip, open the app once
+            so reminders move off the old timezone.
+          </Text>
 
           <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>
             Same-time doses on Today

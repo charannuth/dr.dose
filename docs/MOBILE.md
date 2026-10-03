@@ -233,3 +233,21 @@ sources in collapsible sections, with a compact disclaimer still visible. Device
 create a past-day entry, reopen/edit it, cancel changes, change baseline symptoms, and
 confirm the calendar and report refresh after Save. Check keyboard, large text, and
 screen-reader labels. No native rebuild is required.
+
+## Refill management
+
+Both the Today refill banner and Quick view refill widget open `/(modals)/refills`.
+The page lists current medications with low supply first. Select one to set the total
+remaining count, increment/decrement it, add a refill quantity, or turn supply tracking
+off. A collapsed details section edits name, strength, and notes. Header Save applies
+changes; Cancel protects unsaved edits. Inventory uses the medication's existing units.
+
+The refill write is account-scoped, encrypts text fields, and updates only those details
+and `pills_remaining`. It does not reconcile schedules or dose logs. A conditional update
+checks the original supply and timestamp to avoid overwriting a dose or edit made while
+the page was open. Saving reschedules reminders; list and Today refresh on return.
+Existing global reminder preferences and the threshold of 7 remain in effect.
+
+Device QA: open both refill entry points, add supply, correct a count to zero, disable
+tracking, cancel edits, and check that logged doses still deduct supply. Test a concurrent
+dose log while the editor is open and verify the stale-save message instead of an overwrite.

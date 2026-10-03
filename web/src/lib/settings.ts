@@ -32,6 +32,7 @@ export const SAME_TIME_DOSE_MODES: {
 const KEYS = {
   theme: 'mt-theme',
   timezone: 'mt-timezone',
+  deviceTimezoneSeen: 'mt-device-timezone-seen',
   reminders: 'mt-reminders',
   missedBanner: 'mt-missed-banner-dismiss',
   onboarding: 'mt-onboarding-v1',
@@ -72,12 +73,26 @@ export function applyTheme(theme: Theme): void {
 
 export function initTheme(): void {
   applyTheme(getTheme())
+  syncTimezoneWithDevice()
 }
 
 export function getTimezone(): string {
   const stored = localStorage.getItem(KEYS.timezone)
   if (stored) return stored
   return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+/** Same rule as mobile: a zone saved while traveling should not stick after the clock changes. */
+export function syncTimezoneWithDevice(): string {
+  const device = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const seen = localStorage.getItem(KEYS.deviceTimezoneSeen)
+  const stored = localStorage.getItem(KEYS.timezone)
+  const phoneMoved = seen != null && seen !== device
+  const stuckOnOldZone = seen == null && stored != null && stored !== device
+  const next = phoneMoved || stuckOnOldZone || !stored ? device : stored
+  if (stored !== next) localStorage.setItem(KEYS.timezone, next)
+  if (seen !== device) localStorage.setItem(KEYS.deviceTimezoneSeen, device)
+  return next
 }
 
 export function setTimezone(timezone: string): void {

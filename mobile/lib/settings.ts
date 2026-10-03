@@ -63,6 +63,8 @@ const EMPTY_CUSTOM_ORDERS: CustomOrders = {
 const KEYS = {
   themeMode: 'mt-theme-mode',
   timezone: 'mt-timezone',
+  /** Phone timezone last observed. Compared on launch so travel can move the clock. */
+  deviceTimezoneSeen: 'mt-device-timezone-seen',
   reminders: 'mt-reminders',
   reminderSound: 'mt-reminder-sound',
   medSort: 'mt-med-sort',
@@ -102,13 +104,45 @@ export function getTimezone(): string {
 }
 
 export async function loadTimezone(): Promise<string> {
+  const { timezone } = await syncTimezoneWithDevice();
+  return timezone;
+}
+
+/**
+ * Dose times are wall-clock times ("10:00 PM"), so they must follow the phone.
+ * A zone saved in Texas stays Central forever unless we notice the phone moved.
+ * A manual zone is kept until the phone's own timezone actually changes.
+ */
+export async function syncTimezoneWithDevice(): Promise<{
+  timezone: string;
+  changed: boolean;
+}> {
+  const device = deviceTimezone();
+  let seen: string | null = null;
+  let stored: string | null = null;
   try {
-    const stored = await AsyncStorage.getItem(KEYS.timezone);
-    timezoneCache = stored ?? deviceTimezone();
+    seen = await AsyncStorage.getItem(KEYS.deviceTimezoneSeen);
+    stored = await AsyncStorage.getItem(KEYS.timezone);
   } catch {
-    timezoneCache = deviceTimezone();
+    timezoneCache = device;
+    return { timezone: device, changed: false };
   }
-  return timezoneCache;
+
+  const phoneMoved = seen != null && seen !== device;
+  // First run of this check: a saved zone that isn't the phone's was captured
+  // somewhere else (the Texas trip) and never updated.
+  const stuckOnOldZone = seen == null && stored != null && stored !== device;
+  const next = phoneMoved || stuckOnOldZone || !stored ? device : stored;
+  const changed = next !== (timezoneCache ?? stored);
+
+  timezoneCache = next;
+  try {
+    if (stored !== next) await AsyncStorage.setItem(KEYS.timezone, next);
+    if (seen !== device) await AsyncStorage.setItem(KEYS.deviceTimezoneSeen, device);
+  } catch {
+    // The in-memory clock still follows the phone for this session.
+  }
+  return { timezone: next, changed };
 }
 
 export async function setTimezone(timezone: string): Promise<void> {

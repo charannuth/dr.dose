@@ -22,6 +22,7 @@ import {
 import {
   getReminders,
   getReminderSound,
+  getTimezone,
   reminderSoundFile,
   type ReminderSound,
 } from './settings';
@@ -160,11 +161,15 @@ function buildDailyTrigger(
   androidChannelId: string,
 ) {
   // Calendar + repeats is the reliable iOS pattern for “every day at this time”.
+  // Pass the phone's zone explicitly. Omitting it lets iOS keep the zone from
+  // when the alert was first created, so a dose stays on Central after you land
+  // back in Eastern. Travel reschedules this with the new zone.
   if (Platform.OS === 'ios') {
     return {
       type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
       hour,
       minute,
+      timezone: getTimezone(),
       repeats: true,
     } as const;
   }

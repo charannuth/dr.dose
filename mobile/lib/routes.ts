@@ -19,4 +19,5 @@ export const routes = {
   supplementNew: '/(modals)/supplements/new',
   supplementEdit: (id: string) => `/(modals)/supplements/${id}` as const,
   reorder: '/(modals)/reorder',
+  refills: '/(modals)/refills',
 } as const;

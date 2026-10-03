@@ -937,7 +937,7 @@ export default function TodayScreen() {
   if (refillAlerts.length > 0) {
     alertItems.push({
       key: 'refill',
-      node: <RefillBanner alerts={refillAlerts} onPress={() => router.push(routes.account)} />,
+      node: <RefillBanner alerts={refillAlerts} onPress={() => router.push(routes.refills)} />,
     });
   }
 

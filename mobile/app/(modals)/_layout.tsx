@@ -14,6 +14,7 @@ export default function ModalLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
+        <Stack.Screen name="refills" options={{ title: 'Refills', animation: 'slide_from_right' }} />
         <Stack.Screen name="wellness-entry" options={{ title: 'Daily wellness' }} />
         <Stack.Screen name="wellness-baseline" options={{ title: 'Your baseline' }} />
         <Stack.Screen name="doctor-appointment" options={{ title: 'Appointment', animation: 'slide_from_right', headerShadowVisible: false }} />
