@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import ReorderableList, {
   reorderItems,
   useIsActive,
@@ -148,7 +147,7 @@ function makeStyles(colors: ColorPalette) {
 
 /**
  * One draggable medication. Holding anywhere on the card picks it up, and the
- * card lifts while it is being carried so it is obvious what is moving.
+ * card gets a shadow while it is being carried so it is obvious what is moving.
  */
 function ReorderRow({
   item,
@@ -164,16 +163,9 @@ function ReorderRow({
   const active = useIsActive();
   const accent = colors[tileFgKey(item.tile_color, item.medication_route)];
   const tint = colors[tileBgKey(item.tile_color, item.medication_route)];
-  const lift = useSharedValue(0);
-  useEffect(() => {
-    lift.value = withSpring(active ? 1 : 0, { damping: 14, stiffness: 260 });
-  }, [active, lift]);
-  const liftStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + lift.value * 0.04 }, { rotate: `${lift.value * -1.5}deg` }],
-  }));
 
   return (
-    <Animated.View style={[styles.rowShell, active && styles.rowLifted, liftStyle]}>
+    <View style={[styles.rowShell, active && styles.rowLifted]}>
       <PressableScale
         style={[
           styles.row,
@@ -183,7 +175,7 @@ function ReorderRow({
             borderLeftColor: accent,
           },
         ]}
-        scaleTo={0.98}
+        scaleTo={0.99}
         onLongPress={drag}
         delayLongPress={160}
         accessibilityRole="button"
@@ -206,7 +198,7 @@ function ReorderRow({
           <View style={[styles.handleBar, { backgroundColor: withAlpha(accent, 0.7) }]} />
         </View>
       </PressableScale>
-    </Animated.View>
+    </View>
   );
 }
 

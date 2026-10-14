@@ -140,20 +140,17 @@ export function SortSheet({
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View entering={FadeIn.duration(160)} style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
-        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.sheet}>
+        <Animated.View entering={FadeInDown.duration(200)} style={styles.sheet}>
           <View style={styles.grabber} />
           <Text style={styles.title}>Order your cards</Text>
           <Text style={styles.subtitle}>Pick how Today lists your medications.</Text>
 
-          {options.map((option, index) => {
+          {options.map((option) => {
             const active = option.value === value;
             return (
-              <Animated.View
-                key={option.value}
-                entering={FadeInDown.delay(60 + index * 50).springify().damping(16)}
-              >
+              <View key={option.value}>
                 <PressableScale
-                  scaleTo={0.97}
+                  scaleTo={0.99}
                   style={[styles.option, active && styles.optionActive]}
                   onPress={() => {
                     tapFeedback();
@@ -173,13 +170,13 @@ export function SortSheet({
                     {active ? <Text style={styles.radioGlyph}>✓</Text> : null}
                   </View>
                 </PressableScale>
-              </Animated.View>
+              </View>
             );
           })}
 
           {onReorder ? (
             <PressableScale
-              scaleTo={0.96}
+              scaleTo={0.98}
               style={styles.arrangeBtn}
               haptic
               onPress={onReorder}
