@@ -219,6 +219,14 @@ export function accentForIndex(index: number): AccentKey {
   return ACCENT_KEYS[((index % ACCENT_KEYS.length) + ACCENT_KEYS.length) % ACCENT_KEYS.length];
 }
 
+/** `#rrggbb` plus an opacity, for tinted borders and washes built from an accent. */
+export function withAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.min(Math.max(alpha, 0), 1) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex.slice(0, 7)}${a}`;
+}
+
 export function accentBgKey(key: AccentKey): keyof ColorPalette {
   return `${key}Bg` as keyof ColorPalette;
 }

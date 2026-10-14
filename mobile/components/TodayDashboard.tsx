@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View, useWindowDimensions, type LayoutRectangle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { fonts, type ColorPalette } from '../constants/theme';
+import { accentBgKey, fonts, withAlpha, type ColorPalette } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useAuth } from '../hooks/useAuth';
@@ -19,6 +19,7 @@ import { REMOTE_WIDGETS } from '../lib/dashboardSummaries';
 import { dashboardColumns, widgetDropTarget, moveWidgetTo, dashboardStorageKey, parseDashboardLayout, WIDGET_CATALOG, type DashboardLayout, type WidgetKind, type WidgetSummary } from '../lib/dashboardLayout';
 import { WidgetMotion } from './dashboard/WidgetMotion';
 import { DashboardEditor } from './dashboard/DashboardEditor';
+import { WIDGET_ACCENTS } from './dashboard/widgetAccents';
 
 type Props = {
   stats: StreakStats | null;
@@ -161,6 +162,10 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
               const wide = widget.size === 'wide';
               const sideBySide = wide && width >= 350 && fontScale < 1.3 && widget.kind !== 'week';
               const selected = preview && widget.id === (config.widgets.some((w) => w.id === selectedWidgetId) ? selectedWidgetId : config.widgets[0]?.id);
+              const accentKey = WIDGET_ACCENTS[widget.kind];
+              const accent = colors[accentKey];
+              const tint = { backgroundColor: colors[accentBgKey(accentKey)], borderColor: withAlpha(accent, 0.45) };
+              const divider = { borderColor: withAlpha(accent, 0.3) };
               return (
                 <WidgetMotion key={widget.id} id={widget.id} editable={preview && !saving} active={preview && draggingId === widget.id}
                   onLayout={preview ? recordRect : () => {}} onStart={startDrag} onMove={dragMove} onEnd={endDrag}
@@ -168,17 +173,17 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
                 <Pressable disabled={preview && (saving || draggingId !== null)} onPress={preview ? () => setSelectedWidgetId(widget.id) : () => openWidget(widget.kind)} onLongPress={preview ? undefined : () => { edit(); setSelectedWidgetId(widget.id); }}
                   accessibilityState={preview ? { selected } : undefined} accessibilityRole="button" accessibilityLabel={`${item.title}. ${content.value}. ${content.subtitle}${wide ? '. ' + content.details.join('. ') : ''}`}
                   accessibilityHint={preview ? 'Tap to select. Use the size controls above, or hold to drag.' : 'Tap to open. Long press to edit your widgets.'}
-                  style={[s.widget, selected && s.selectedWidget]}>
-                  <View style={s.widgetHeader}><Text style={s.symbol}>{item.symbol}</Text><Text style={s.widgetTitle}>{item.title}</Text><Text style={s.arrow}>{preview ? selected ? '✓' : '⋯' : '↗'}</Text></View>
+                  style={[s.widget, tint, selected && s.selectedWidget]}>
+                  <View style={s.widgetHeader}><View style={[s.symbolTile, { backgroundColor: accent }]}><Text style={s.symbol}>{item.symbol}</Text></View><Text style={s.widgetTitle}>{item.title}</Text><Text style={[s.arrow, { color: accent }]}>{preview ? selected ? '✓' : '⋯' : '↗'}</Text></View>
                   <View style={[s.widgetBody, sideBySide && s.wideBody]}>
                     <View style={[s.summary, sideBySide && { flex: 0.85 }]}>
                       <Text numberOfLines={wide ? undefined : 2} style={s.value}>{content.value}</Text>
                       <Text style={s.caption}>{content.subtitle}</Text>
-                      {wide && widget.kind === 'doses' && totals.total > 0 ? <View style={s.progressTrack} accessibilityLabel={`${totals.taken} of ${totals.total} doses logged`}>
-                        <View style={[s.progressFill, { width: `${Math.min(100, totals.taken / totals.total * 100)}%` }]} />
+                      {wide && widget.kind === 'doses' && totals.total > 0 ? <View style={[s.progressTrack, { backgroundColor: withAlpha(accent, 0.25) }]} accessibilityLabel={`${totals.taken} of ${totals.total} doses logged`}>
+                        <View style={[s.progressFill, { backgroundColor: accent, width: `${Math.min(100, totals.taken / totals.total * 100)}%` }]} />
                       </View> : null}
                     </View>
-                    {wide && widget.kind !== 'week' ? <View style={[s.details, sideBySide && s.sideDetails]}>
+                    {wide && widget.kind !== 'week' ? <View style={[s.details, divider, sideBySide && s.sideDetails]}>
                       {content.details.slice(0, 4).map((detail, index) => <Text key={index} style={s.detail}>{detail}</Text>)}
                       {content.details.length > 4 ? <Text style={s.caption}>+{content.details.length - 4} more in {item.title}</Text> : null}
                     </View> : null}
@@ -188,7 +193,7 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
                       <Text style={s.dayLabel}>{new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'narrow' })}</Text>
                       <Text style={[s.dayMark, { color: day.status === 'perfect' ? colors.successText : day.status === 'partial' ? colors.partialText : colors.textMuted }]}>{day.status === 'perfect' ? '✓' : day.status === 'partial' ? '◐' : day.status === 'missed' ? '○' : '–'}</Text>
                     </View>)}</View> : null}
-                    <View style={s.details}>{content.details.slice(0, 3).map((detail, index) => <Text key={index} style={s.detail}>{detail}</Text>)}</View>
+                    <View style={[s.details, divider]}>{content.details.slice(0, 3).map((detail, index) => <Text key={index} style={s.detail}>{detail}</Text>)}</View>
                   </> : null}
                 </Pressable>
                 </WidgetMotion>
@@ -218,14 +223,15 @@ function makeStyles(c: ColorPalette) {
     title: { fontFamily: fonts.heading, fontSize: 22, color: c.text, marginTop: 4 },
     control: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center' as const }, link: { fontFamily: fonts.bodySemibold, fontSize: 13, color: c.accent },
     board: { width: '100%' as const, flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 12, alignItems: 'stretch' as const }, row: { flexDirection: 'row' as const, gap: 12, alignItems: 'stretch' as const },
-    widget: { flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20, padding: 16, gap: 14 },
-    widgetHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
-    symbol: { fontSize: 20, color: c.accent }, widgetTitle: { flex: 1, fontFamily: fonts.bodySemibold, fontSize: 13, color: c.text },
-    arrow: { color: c.textMuted, fontSize: 14 }, value: { fontFamily: fonts.heading, fontSize: 23, letterSpacing: -0.6, color: c.text },
+    widget: { flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20, padding: 16, gap: 14, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+    widgetHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+    symbolTile: { width: 30, height: 30, borderRadius: 9, alignItems: 'center' as const, justifyContent: 'center' as const },
+    symbol: { fontSize: 16, color: '#ffffff', fontWeight: '700' as const }, widgetTitle: { flex: 1, fontFamily: fonts.bodySemibold, fontSize: 13, color: c.text },
+    arrow: { fontSize: 16, fontWeight: '700' as const }, value: { fontFamily: fonts.heading, fontSize: 23, letterSpacing: -0.6, color: c.text },
     caption: { fontFamily: fonts.bodyMedium, fontSize: 12, lineHeight: 18, color: c.textMuted },
     details: { borderTopWidth: 1, borderColor: c.border, paddingTop: 10, gap: 5 }, detail: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 19, color: c.textMuted },
     empty: { padding: 20, gap: 10, backgroundColor: c.surface, borderRadius: 20 },
-    selectedWidget: { borderColor: c.accent },
+    selectedWidget: { borderColor: c.text, borderWidth: 2 },
     widgetBody: { flex: 1, gap: 14, justifyContent: 'center' as const },
     wideBody: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 20 },
     summary: { gap: 8 },
