@@ -9,7 +9,7 @@ import {
 import type { AppetiteLevel, WellnessLogInput } from '../lib/wellness';
 import { buildSymptomChipOptions } from '../lib/wellness';
 import type { ColorPalette } from '../constants/theme';
-import { radii, spacing } from '../constants/theme';
+import { fonts, radii, spacing, typography } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { CollapsibleSection } from './forms/CollapsibleSection';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -17,62 +17,105 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 function makeDailyFormStyles(colors: ColorPalette) {
   return {
     wrap: { gap: spacing.sm },
-    wrapCompact: { gap: spacing.sm },
-    legend: { marginTop: spacing.sm, fontSize: 13, fontWeight: '900' as const, color: colors.text },
-    hint: { color: colors.textMuted, lineHeight: 18 },
-    row: { flexDirection: 'row' as const, gap: spacing.sm },
-    field: { flex: 1, gap: 6 },
-    label: { fontSize: 12, fontWeight: '800' as const, color: colors.textMuted },
+    wrapCompact: { gap: spacing.sm + 2 },
+    panel: {
+      backgroundColor: colors.inputBg,
+      borderRadius: radii.lg,
+      padding: spacing.md - 2,
+      gap: spacing.sm + 4,
+    },
+    panelHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+    },
+    panelIcon: { fontSize: 16 },
+    panelTitle: { ...typography.heading, fontSize: 15, color: colors.text },
+    legend: { fontFamily: fonts.bodySemibold, fontSize: 13, color: colors.text },
+    hint: { fontFamily: fonts.bodyRegular, fontSize: 12.5, color: colors.textMuted, lineHeight: 17 },
+    fieldRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: spacing.sm,
+    },
+    field: { gap: 8 },
+    label: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMuted },
     input: {
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: colors.border,
       borderRadius: radii.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      fontFamily: fonts.bodyRegular,
       fontSize: 15,
       backgroundColor: colors.surface,
       color: colors.text,
     },
-    notes: { minHeight: 90, textAlignVertical: 'top' as const },
-    chips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
+    hoursInput: { width: 96, textAlign: 'center' as const },
+    notes: { minHeight: 84, textAlignVertical: 'top' as const },
+    segments: {
+      flexDirection: 'row' as const,
+      backgroundColor: colors.surface,
+      borderRadius: 999,
+      padding: 3,
+      gap: 3,
+    },
+    segment: {
+      flex: 1,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    segmentActive: { backgroundColor: colors.accent },
+    segmentText: { fontFamily: fonts.bodySemibold, fontSize: 13.5, color: colors.textMuted },
+    segmentTextActive: { color: colors.onAccent },
+    scaleEnds: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: 6,
+    },
+    scaleEnd: { fontFamily: fonts.bodyRegular, fontSize: 11, color: colors.textMuted },
+    chips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
     chip: {
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 999,
-      paddingHorizontal: 10,
-      minHeight: 44,
-      justifyContent: 'center' as const,
-      paddingVertical: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
       backgroundColor: colors.surface,
     },
-    chipActive: { borderColor: colors.accent, backgroundColor: colors.typeCardActiveBg },
-    chipText: { color: colors.text, fontWeight: '700' as const, fontSize: 12 },
-    chipTextActive: { color: colors.accentDark },
-    switchRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    switchLabel: { color: colors.text, fontWeight: '700' as const },
+    chipActive: { borderColor: colors.accent, backgroundColor: colors.accent },
+    chipText: { fontFamily: fonts.bodyMedium, color: colors.text, fontSize: 13 },
+    chipTextActive: { color: colors.onAccent },
+    switchLabel: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.text },
     customRow: { flexDirection: 'row' as const, gap: 8, alignItems: 'center' as const },
     customInput: { flex: 1 },
     addBtn: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 12,
-      backgroundColor: colors.surface,
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: colors.accentPurpleBg,
     },
-    addBtnText: { fontWeight: '900' as const, color: colors.text },
+    addBtnText: { fontFamily: fonts.bodySemibold, color: colors.accent, fontSize: 14 },
+    actions: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
     saveBtn: {
-      marginTop: spacing.md,
+      flex: 1,
       backgroundColor: colors.accent,
-      borderRadius: radii.md,
-      paddingVertical: 14,
+      borderRadius: 999,
+      paddingVertical: 13,
       alignItems: 'center' as const,
     },
-    saveBtnText: { color: colors.onAccent, fontWeight: '900' as const, fontSize: 16 },
-    disabled: { opacity: 0.6 },
+    saveBtnText: { fontFamily: fonts.bodyBold, color: colors.onAccent, fontSize: 15.5 },
+    cancelBtn: { paddingHorizontal: spacing.md, paddingVertical: 13 },
+    cancelText: { fontFamily: fonts.bodySemibold, color: colors.textMuted, fontSize: 15 },
+    disabled: { opacity: 0.5 },
   };
 }
 
@@ -98,6 +141,43 @@ function Chip({
   );
 }
 
+/** Equal-width pill segments; tapping the selected one clears it. */
+function Segments<T extends string | number>({
+  options,
+  value,
+  onChange,
+  busy,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T | null;
+  onChange: (next: T | null) => void;
+  busy: boolean;
+  label: string;
+}) {
+  const s = useThemedStyles(makeDailyFormStyles);
+  return (
+    <View style={s.segments}>
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <Pressable
+            key={String(opt.value)}
+            style={[s.segment, active && s.segmentActive]}
+            disabled={busy}
+            onPress={() => onChange(active ? null : opt.value)}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}: ${opt.label}`}
+            accessibilityState={{ selected: active }}
+          >
+            <Text style={[s.segmentText, active && s.segmentTextActive]}>{opt.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 type Props = {
   value: WellnessLogInput;
   onChange: (next: WellnessLogInput) => void;
@@ -107,6 +187,8 @@ type Props = {
   compact?: boolean;
   trackedSymptoms?: string[];
   hideSubmit?: boolean;
+  /** Shows a Cancel button beside Save when set. */
+  onCancel?: () => void;
 };
 
 export function WellnessDailyForm({
@@ -118,6 +200,7 @@ export function WellnessDailyForm({
   compact = false,
   trackedSymptoms = [],
   hideSubmit = false,
+  onCancel,
 }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeDailyFormStyles);
@@ -166,125 +249,150 @@ export function WellnessDailyForm({
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
-      <DailySection enabled={hideSubmit} title="Sleep & energy" summary="How rested are you feeling?" initiallyOpen>
-      <Text style={styles.legend}>Sleep last night</Text>
-      <Text style={styles.label}>Hours</Text>
-      <NumericEntry value={value.sleep_hours} onChange={(sleep_hours) => patch({ sleep_hours })} busy={busy} label="Sleep hours" />
-      <RatingScale label="Sleep quality" value={value.sleep_quality} onChange={(sleep_quality) => patch({ sleep_quality })} busy={busy} />
-      <RatingScale label="Energy" value={value.energy_level} onChange={(energy_level) => patch({ energy_level })} busy={busy} />
-
+      <DailySection enabled={hideSubmit} icon="😴" title="Sleep & energy" summary="How rested are you feeling?" initiallyOpen>
+        <View style={styles.fieldRow}>
+          <Text style={styles.legend}>Hours slept</Text>
+          <NumericEntry value={value.sleep_hours} onChange={(sleep_hours) => patch({ sleep_hours })} busy={busy} label="Sleep hours" />
+        </View>
+        <RatingScale label="Sleep quality" value={value.sleep_quality} onChange={(sleep_quality) => patch({ sleep_quality })} busy={busy} />
+        <RatingScale label="Energy" value={value.energy_level} onChange={(energy_level) => patch({ energy_level })} busy={busy} />
       </DailySection>
-      <DailySection enabled={hideSubmit} title="Food & movement" summary="Appetite and exercise">
-      <Text style={styles.legend}>Appetite</Text>
-      <View style={styles.chips}>
-        {appetiteOptions.map((opt) => (
-          <Chip
-            key={opt.value}
-            label={opt.label}
-            active={value.appetite === opt.value}
-            onPress={() =>
-              patch({ appetite: value.appetite === opt.value ? null : opt.value })
+
+      <DailySection enabled={hideSubmit} icon="🍎" title="Food & movement" summary="Appetite and exercise">
+        <View style={styles.field}>
+          <Text style={styles.legend}>Appetite</Text>
+          <Segments
+            label="Appetite"
+            options={appetiteOptions}
+            value={value.appetite}
+            onChange={(appetite) => patch({ appetite })}
+            busy={busy}
+          />
+        </View>
+        <View style={styles.fieldRow}>
+          <Text style={styles.switchLabel}>Exercised today</Text>
+          <Switch
+            value={value.exercised}
+            onValueChange={(v) =>
+              patch({ exercised: v, exercise_minutes: v ? value.exercise_minutes : null })
             }
+            trackColor={{ true: colors.accent, false: colors.border }}
+            disabled={busy}
           />
-        ))}
-      </View>
+        </View>
+        {value.exercised ? (
+          <View style={styles.fieldRow}>
+            <Text style={styles.label}>Minutes</Text>
+            <TextInput
+              style={[styles.input, styles.hoursInput]}
+              keyboardType="number-pad"
+              placeholder="30"
+              placeholderTextColor={colors.textMuted}
+              editable={!busy}
+              value={value.exercise_minutes == null ? '' : String(value.exercise_minutes)}
+              onChangeText={(t) => setNullableNumber('exercise_minutes', t)}
+            />
+          </View>
+        ) : null}
+      </DailySection>
 
-      <Text style={styles.legend}>Exercise</Text>
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Exercised today</Text>
-        <Switch
-          value={value.exercised}
-          onValueChange={(v) =>
-            patch({ exercised: v, exercise_minutes: v ? value.exercise_minutes : null })
-          }
-          disabled={busy}
-        />
-      </View>
-      {value.exercised ? (
-        <>
-          <Text style={styles.label}>Minutes</Text>
+      <DailySection enabled={hideSubmit} icon="🩺" title="Symptoms & changes" summary={value.symptoms.length ? `${value.symptoms.length} selected` : 'Choose or add symptoms'}>
+        <Text style={styles.hint}>Tap any that apply today, including ones from your tracking list.</Text>
+        <View style={styles.chips}>
+          {symptomOptions.map((sym) => (
+            <Chip key={sym} label={sym} active={value.symptoms.includes(sym)} onPress={() => toggleSymptom(sym)} />
+          ))}
+        </View>
+        <View style={styles.customRow}>
           <TextInput
-            style={styles.input}
-            keyboardType="number-pad"
-            placeholder="e.g. 30"
-            placeholderTextColor={colors.textMuted}
+            style={[styles.input, styles.customInput]}
+            value={customSymptom}
+            onChangeText={setCustomSymptom}
             editable={!busy}
-            value={value.exercise_minutes == null ? '' : String(value.exercise_minutes)}
-            onChangeText={(t) => setNullableNumber('exercise_minutes', t)}
+            placeholder="Add your own"
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={addCustomSymptom}
+            returnKeyType="done"
           />
-        </>
-      ) : null}
-
+          <Pressable
+            style={[styles.addBtn, (!customSymptom.trim() || busy) && styles.disabled]}
+            disabled={!customSymptom.trim() || busy}
+            onPress={addCustomSymptom}
+            accessibilityRole="button"
+          >
+            <Text style={styles.addBtnText}>+ Add</Text>
+          </Pressable>
+        </View>
       </DailySection>
-      <DailySection enabled={hideSubmit} title="Symptoms & changes" summary={value.symptoms.length ? `${value.symptoms.length} selected` : 'Choose or add symptoms'}>
-      <Text style={styles.legend}>Symptoms or changes today</Text>
-      <Text style={styles.hint}>
-        Select any that apply today, including symptoms from your tracking list.
-      </Text>
-      <View style={styles.chips}>
-        {symptomOptions.map((s) => (
-          <Chip key={s} label={s} active={value.symptoms.includes(s)} onPress={() => toggleSymptom(s)} />
-        ))}
-      </View>
-      <View style={styles.customRow}>
+
+      <DailySection enabled={hideSubmit} icon="📝" title="Notes for your clinician" summary="Anything else to remember">
         <TextInput
-          style={[styles.input, styles.customInput]}
-          value={customSymptom}
-          onChangeText={setCustomSymptom}
+          style={[styles.input, styles.notes]}
+          multiline
           editable={!busy}
-          placeholder="e.g. Chest tightness today"
+          placeholder="Anything else to mention at your next visit"
           placeholderTextColor={colors.textMuted}
-          onSubmitEditing={addCustomSymptom}
-          returnKeyType="done"
+          value={value.notes}
+          onChangeText={(t) => patch({ notes: t })}
         />
-        <Pressable
-          style={[styles.addBtn, (!customSymptom.trim() || busy) && styles.disabled]}
-          disabled={!customSymptom.trim() || busy}
-          onPress={addCustomSymptom}
-        >
-          <Text style={styles.addBtnText}>Add</Text>
-        </Pressable>
-      </View>
-
       </DailySection>
-      <DailySection enabled={hideSubmit} title="Clinician notes" summary="Anything else to remember">
-      <Text style={styles.legend}>Notes for your clinician</Text>
-      <TextInput
-        style={[styles.input, styles.notes]}
-        multiline
-        editable={!busy}
-        placeholder="Anything else to mention at your next visit"
-        placeholderTextColor={colors.textMuted}
-        value={value.notes}
-        onChangeText={(t) => patch({ notes: t })}
-      />
 
-      </DailySection>
-      {!hideSubmit ? <Pressable
-        onPress={onSubmit}
-        disabled={busy}
-        style={[styles.saveBtn, busy && styles.disabled]}
-      >
-        <Text style={styles.saveBtnText}>{busy ? 'Saving…' : submitLabel}</Text>
-      </Pressable> : null}
+      {!hideSubmit ? (
+        <View style={styles.actions}>
+          {onCancel ? (
+            <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={busy} accessibilityRole="button">
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onSubmit}
+            disabled={busy}
+            style={[styles.saveBtn, busy && styles.disabled]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.saveBtnText}>{busy ? 'Saving…' : submitLabel}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function DailySection({ enabled, title, summary, initiallyOpen = false, children }: { enabled: boolean; title: string; summary: string; initiallyOpen?: boolean; children: ReactNode }) {
-  if (!enabled) return <>{children}</>;
+function DailySection({ enabled, icon, title, summary, initiallyOpen = false, children }: { enabled: boolean; icon: string; title: string; summary: string; initiallyOpen?: boolean; children: ReactNode }) {
+  const s = useThemedStyles(makeDailyFormStyles);
+  if (!enabled) {
+    // Inline (Today) form: each group sits in its own soft panel.
+    return (
+      <View style={s.panel}>
+        <View style={s.panelHeader}>
+          <Text style={s.panelIcon}>{icon}</Text>
+          <Text style={s.panelTitle}>{title}</Text>
+        </View>
+        {children}
+      </View>
+    );
+  }
   return <CollapsibleSection title={title} summary={summary} initiallyOpen={initiallyOpen}><View style={{ gap: 12 }}>{children}</View></CollapsibleSection>;
 }
 
+const RATING_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }));
+
 function RatingScale({ label, value, onChange, busy }: { label: string; value: number | null; onChange: (value: number | null) => void; busy: boolean }) {
   const s = useThemedStyles(makeDailyFormStyles);
-  return <View style={{ gap: 8 }}><Text style={s.legend}>{label} · 1 low, 5 high</Text><View style={s.chips}>
-    {[1, 2, 3, 4, 5].map((rating) => <Pressable key={rating} style={[s.chip, { minWidth: 44, alignItems: 'center' }, value === rating && s.chipActive]} disabled={busy} onPress={() => onChange(value === rating ? null : rating)} accessibilityRole="button" accessibilityLabel={`${label}: ${rating} of 5`} accessibilityState={{ selected: value === rating }}><Text style={[s.chipText, value === rating && s.chipTextActive]}>{rating}</Text></Pressable>)}
-  </View></View>;
+  return (
+    <View style={s.field}>
+      <Text style={s.legend}>{label}</Text>
+      <Segments label={label} options={RATING_OPTIONS} value={value} onChange={onChange} busy={busy} />
+      <View style={s.scaleEnds}>
+        <Text style={s.scaleEnd}>Low</Text>
+        <Text style={s.scaleEnd}>High</Text>
+      </View>
+    </View>
+  );
 }
 function NumericEntry({ value, onChange, busy, label }: { value: number | null; onChange: (value: number | null) => void; busy: boolean; label: string }) {
   const s = useThemedStyles(makeDailyFormStyles);
   const [text, setText] = useState(value === null ? '' : String(value));
   useEffect(() => { if (value === null) setText(''); else if (Number.isFinite(value)) setText(String(value)); }, [value]);
-  return <TextInput style={s.input} accessibilityLabel={label} value={text} keyboardType="decimal-pad" editable={!busy} placeholder="e.g. 7.5" placeholderTextColor={s.hint.color} onChangeText={(raw) => { setText(raw); onChange(raw.trim() ? Number(raw.replace(',', '.')) : null); }} />;
+  return <TextInput style={[s.input, s.hoursInput]} accessibilityLabel={label} value={text} keyboardType="decimal-pad" editable={!busy} placeholder="7.5" placeholderTextColor={s.hint.color} onChangeText={(raw) => { setText(raw); onChange(raw.trim() ? Number(raw.replace(',', '.')) : null); }} />;
 }

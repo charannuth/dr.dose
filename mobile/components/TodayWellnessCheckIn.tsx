@@ -91,27 +91,29 @@ function makeTodayWellnessStyles(colors: ColorPalette) {
     },
     faces: {
       flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
+    },
+    faceSlot: { flex: 1 },
+    faceBtn: {
+      alignItems: 'center' as const,
       gap: 6,
     },
-    faceBtn: {
-      flex: 1,
+    faceCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       alignItems: 'center' as const,
-      gap: 4,
-      paddingVertical: 10,
-      borderRadius: radii.md,
-      backgroundColor: colors.inputBg,
-      borderWidth: 1,
-      borderColor: colors.border,
+      justifyContent: 'center' as const,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
     },
-    faceBtnActive: {
+    faceCircleActive: {
       backgroundColor: colors.accentPurpleBg,
       borderColor: colors.accent,
     },
-    face: { fontSize: 24 },
+    face: { fontSize: 28 },
     faceLabel: {
       fontFamily: fonts.bodyMedium,
-      fontSize: 11,
+      fontSize: 11.5,
       color: colors.textMuted,
     },
     faceLabelActive: { color: colors.accent },
@@ -292,6 +294,10 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
           busy={busy}
           submitLabel="Save check-in"
           trackedSymptoms={trackedSymptoms}
+          onCancel={() => {
+            setError(null);
+            setExpanded(false);
+          }}
         />
       ) : (
         <>
@@ -300,19 +306,22 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
             {ENERGY_FACES.map((option) => {
               const active = draft.energy_level === option.value;
               return (
-                <PressableScale
-                  key={option.value}
-                  style={[styles.faceBtn, active && styles.faceBtnActive]}
-                  scaleTo={0.97}
-                  onPress={() => startWithEnergy(option.value)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Energy ${option.label}, ${option.value} of 5`}
-                >
-                  <Text style={styles.face}>{option.face}</Text>
-                  <Text style={[styles.faceLabel, active && styles.faceLabelActive]}>
-                    {option.label}
-                  </Text>
-                </PressableScale>
+                <View key={option.value} style={styles.faceSlot}>
+                  <PressableScale
+                    style={styles.faceBtn}
+                    scaleTo={0.95}
+                    onPress={() => startWithEnergy(option.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Energy ${option.label}, ${option.value} of 5`}
+                  >
+                    <View style={[styles.faceCircle, active && styles.faceCircleActive]}>
+                      <Text style={styles.face}>{option.face}</Text>
+                    </View>
+                    <Text style={[styles.faceLabel, active && styles.faceLabelActive]}>
+                      {option.label}
+                    </Text>
+                  </PressableScale>
+                </View>
               );
             })}
           </View>
