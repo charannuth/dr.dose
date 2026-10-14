@@ -11,6 +11,7 @@ import { VaultGate } from '../../components/VaultGate';
 import { useAuth } from '../../hooks/useAuth';
 import { MenuAvatarButton } from '../../components/MenuAvatarButton';
 import { AppDrawerContent } from '../../components/navigation/AppDrawerContent';
+import { AmbientScreenLayout } from '../../components/AmbientBackground';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { DemoTour } from '../../components/DemoTour';
 import { useDemoTourTargets } from '../../context/DemoTourTargetsContext';
@@ -210,6 +211,7 @@ function DrawerLayoutInner({
         />
       ) : null}
       <Drawer
+        screenLayout={({ children }) => <AmbientScreenLayout>{children}</AmbientScreenLayout>}
         drawerContent={(props) => {
           drawerNavRef.current = props.navigation;
           return <AppDrawerContent {...props} />;
@@ -220,6 +222,7 @@ function DrawerLayoutInner({
           headerShadowVisible: true,
           headerTitleAlign: 'center',
           drawerStyle: { backgroundColor: colors.bg, width: 312 },
+          sceneStyle: { backgroundColor: colors.bg },
           drawerActiveTintColor: colors.accent,
           drawerInactiveTintColor: colors.textMuted,
           drawerActiveBackgroundColor: colors.pendingBg,

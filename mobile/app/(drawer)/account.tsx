@@ -729,7 +729,7 @@ export default function AccountScreen() {
 
 function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
     title: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },

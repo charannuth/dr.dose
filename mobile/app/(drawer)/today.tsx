@@ -159,7 +159,7 @@ function makeTodayStyles(colors: ColorPalette) {
   return {
     safe: {
       flex: 1,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
     },
     scroll: {
       padding: spacing.md,
@@ -170,7 +170,7 @@ function makeTodayStyles(colors: ColorPalette) {
       flex: 1,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
       gap: spacing.sm,
     },
     loadingText: {

@@ -18,7 +18,7 @@ function makeStyles(colors: ColorPalette) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.sm,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
     },
     muted: { color: colors.textMuted },
     error: { color: colors.error, fontWeight: '800' },

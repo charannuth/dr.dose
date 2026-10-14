@@ -506,7 +506,7 @@ export default function TrackingScreen() {
 
 function makeTrackingScreenStyles(colors: ColorPalette) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
     subtitle: {
       fontSize: 15,

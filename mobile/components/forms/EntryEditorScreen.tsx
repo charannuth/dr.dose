@@ -64,5 +64,5 @@ export function EntryEditorScreen<T>({ title, subtitle, load, save, children }: 
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {
-  return { safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 20, paddingBottom: 40, gap: 20 }, action: { minWidth: 44, minHeight: 44, justifyContent: 'center' as const }, link: { fontFamily: fonts.bodySemibold, fontSize: 16, color: c.accent }, subtitle: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 21, color: c.textMuted }, error: { color: c.error, fontSize: 14, lineHeight: 21 } };
+  return { safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 20, paddingBottom: 40, gap: 20 }, action: { minWidth: 44, minHeight: 44, justifyContent: 'center' as const }, link: { fontFamily: fonts.bodySemibold, fontSize: 16, color: c.accent }, subtitle: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 21, color: c.textMuted }, error: { color: c.error, fontSize: 14, lineHeight: 21 } };
 }

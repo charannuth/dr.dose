@@ -29,7 +29,7 @@ import { DayAdherenceDetail } from '../../components/history/DayAdherenceDetail'
 
 function makeHistoryStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     headerCard: { gap: 8, paddingTop: 4 },
     h1: { fontFamily: fonts.heading, fontSize: 26, color: colors.text },

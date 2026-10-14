@@ -120,7 +120,7 @@ function AppointmentEditor({ userId, date, id }: { userId: string; date: string;
 }
 function makeStyles(c: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 20, paddingBottom: 40, gap: 24 },
+    safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 20, paddingBottom: 40, gap: 24 },
     intro: { gap: 8, paddingBottom: 4 }, date: { fontFamily: fonts.heading, fontSize: 23, color: c.text },
     subtitle: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 20, color: c.textMuted },
     action: { minHeight: 44, minWidth: 44, justifyContent: 'center' as const },

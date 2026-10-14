@@ -37,7 +37,7 @@ function emptyStats(): StreakStats {
 
 function makeStreakScreenStyles(colors: ColorPalette) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: 20, paddingBottom: 40, gap: 28 },
     headerCard: { gap: 8, paddingTop: 4 },
     card: { paddingVertical: 20, borderTopWidth: 1, borderColor: colors.border, gap: 8 },

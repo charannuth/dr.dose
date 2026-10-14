@@ -18,13 +18,13 @@ import { MedicationFormWizard } from '../../../components/medication/MedicationF
 import type { Medication, MedicationInput } from '../../../lib/types';
 function makeMedicationModalStyles(colors: ColorPalette) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     loading: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.sm,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
     },
     muted: { color: colors.textMuted },
     error: { color: colors.error, fontWeight: '800' },

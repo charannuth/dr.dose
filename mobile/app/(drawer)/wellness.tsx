@@ -85,7 +85,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {
-  return { safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 16, paddingBottom: 36, gap: 16 }, intro: { gap: 7, paddingTop: 8 },
+  return { safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 16, paddingBottom: 36, gap: 16 }, intro: { gap: 7, paddingTop: 8 },
     title: { fontFamily: fonts.heading, fontSize: 24, color: c.text }, hint: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 20, color: c.textMuted },
     add: { minWidth: 44, minHeight: 44, marginRight: 12, alignItems: 'center' as const, justifyContent: 'center' as const }, plus: { color: c.accent, fontSize: 32, fontWeight: '300' as const },
     summary: { backgroundColor: c.surface, borderRadius: 18, padding: 18, gap: 10 }, row: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },

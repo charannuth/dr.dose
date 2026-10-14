@@ -50,7 +50,7 @@ export default function DoctorVisitsScreen() {
 }
 function makeStyles(c: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 16, paddingBottom: 32, gap: 24 },
+    safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 16, paddingBottom: 32, gap: 24 },
     add: { minHeight: 44, minWidth: 44, marginRight: 12, alignItems: 'center' as const, justifyContent: 'center' as const },
     plus: { color: c.accent, fontSize: 32, fontWeight: '300' as const },
     agenda: { borderTopWidth: 1, borderColor: c.border, paddingTop: 20 },

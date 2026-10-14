@@ -36,7 +36,7 @@ type AddMode = 'choose' | 'review' | 'form';
 
 function makeStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: spacing.md, gap: spacing.md },
     title: { ...typography.display, fontSize: 26, color: colors.text },
     subtitle: { ...typography.body, fontSize: 15, color: colors.textMuted, lineHeight: 22 },
@@ -72,7 +72,7 @@ function makeStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       gap: spacing.md,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
       padding: spacing.lg,
     },
     scanningText: { ...typography.body, fontSize: 16, color: colors.text, textAlign: 'center' as const },

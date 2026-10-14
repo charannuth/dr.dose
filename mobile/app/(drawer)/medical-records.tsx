@@ -35,7 +35,7 @@ import {
 
 function makeMedicalRecordsStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
     h1: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },

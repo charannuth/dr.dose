@@ -20,6 +20,7 @@ import { dashboardColumns, widgetDropTarget, moveWidgetTo, dashboardStorageKey, 
 import { WidgetMotion } from './dashboard/WidgetMotion';
 import { DashboardEditor } from './dashboard/DashboardEditor';
 import { WIDGET_ACCENTS } from './dashboard/widgetAccents';
+import { ShineSweep } from './dashboard/ShineSweep';
 
 type Props = {
   stats: StreakStats | null;
@@ -156,7 +157,7 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
     return (
       <View style={s.board} onLayout={(event) => (preview ? setPreviewWidth : setBoardWidth)(event.nativeEvent.layout.width)}>
         {!config.widgets.length ? <View style={s.empty}><Text style={s.widgetTitle}>Your space, your widgets</Text><Text style={s.caption}>Choose Edit to add your first widget.</Text></View> : null}
-        {config.widgets.map((widget) => {
+        {config.widgets.map((widget, widgetIndex) => {
               const item = WIDGET_CATALOG.find((entry) => entry.kind === widget.kind)!;
               const content = summary(widget.kind);
               const wide = widget.size === 'wide';
@@ -195,6 +196,7 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
                     </View>)}</View> : null}
                     <View style={[s.details, divider]}>{content.details.slice(0, 3).map((detail, index) => <Text key={index} style={s.detail}>{detail}</Text>)}</View>
                   </> : null}
+                  {preview ? null : <ShineSweep delay={widgetIndex * 260} />}
                 </Pressable>
                 </WidgetMotion>
               );

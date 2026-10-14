@@ -477,7 +477,7 @@ export function SupplementForm({
 
 function makeStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: spacing.md, gap: spacing.xs, paddingBottom: spacing.xl },
     title: { fontFamily: fonts.heading, fontSize: 24, color: colors.text },
     subtitle: {
