@@ -3,10 +3,11 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import type { ColorPalette } from '../constants/theme';
 import { fonts, radii, spacing } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { tapFeedback } from '../lib/haptics';
 import { PressableScale } from './PressableScale';
 import type { MedSort } from '../lib/settings';
 
-export type SortOption = { value: MedSort; label: string; hint: string };
+export type SortOption = { value: MedSort; label: string; hint: string; icon: string };
 
 function makeStyles(colors: ColorPalette) {
   return {
@@ -17,10 +18,11 @@ function makeStyles(colors: ColorPalette) {
     },
     sheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: radii.lg,
-      borderTopRightRadius: radii.lg,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
       padding: spacing.lg,
-      gap: spacing.xs,
+      paddingBottom: spacing.xl,
+      gap: spacing.sm,
     },
     grabber: {
       alignSelf: 'center' as const,
@@ -28,25 +30,45 @@ function makeStyles(colors: ColorPalette) {
       height: 4,
       borderRadius: 2,
       backgroundColor: colors.border,
-      marginBottom: spacing.sm,
+      marginBottom: spacing.xs,
     },
     title: {
       fontFamily: fonts.heading,
       fontSize: 18,
       color: colors.text,
+    },
+    subtitle: {
+      fontFamily: fonts.bodyRegular,
+      fontSize: 13,
+      color: colors.textMuted,
       marginBottom: spacing.xs,
     },
     option: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: spacing.sm,
+      gap: spacing.md - 4,
       paddingVertical: 12,
-      paddingHorizontal: spacing.md,
-      borderRadius: radii.md,
+      paddingHorizontal: 12,
+      borderRadius: radii.lg,
+      borderWidth: 1.5,
+      borderColor: colors.border,
     },
     optionActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accentPurpleBg,
+    },
+    iconBubble: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
       backgroundColor: colors.pendingBg,
     },
+    iconBubbleActive: {
+      backgroundColor: colors.accent,
+    },
+    icon: { fontSize: 19 },
     optionText: { flex: 1, gap: 2 },
     optionLabel: {
       fontFamily: fonts.bodySemibold,
@@ -58,20 +80,38 @@ function makeStyles(colors: ColorPalette) {
       fontSize: 13,
       color: colors.textMuted,
     },
-    check: {
-      fontSize: 17,
-      color: colors.accent,
-      fontWeight: '900' as const,
+    radio: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginVertical: spacing.xs,
+    radioActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accent,
     },
-    reorderLabel: {
-      fontFamily: fonts.bodySemibold,
-      fontSize: 16,
-      color: colors.accent,
+    radioGlyph: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 12,
+      color: colors.onAccent,
+    },
+    arrangeBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+      paddingVertical: 13,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+    },
+    arrangeText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 15,
+      color: colors.onAccent,
     },
   };
 }
@@ -100,42 +140,53 @@ export function SortSheet({
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View entering={FadeIn.duration(160)} style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
-        <Animated.View entering={FadeInDown.duration(220)} style={styles.sheet}>
+        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.sheet}>
           <View style={styles.grabber} />
-          <Text style={styles.title}>Sort medications</Text>
+          <Text style={styles.title}>Order your cards</Text>
+          <Text style={styles.subtitle}>Pick how Today lists your medications.</Text>
 
-          {options.map((option) => {
+          {options.map((option, index) => {
             const active = option.value === value;
             return (
-              <PressableScale
+              <Animated.View
                 key={option.value}
-                scaleTo={0.98}
-                style={[styles.option, active && styles.optionActive]}
-                onPress={() => onSelect(option.value)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
+                entering={FadeInDown.delay(60 + index * 50).springify().damping(16)}
               >
-                <View style={styles.optionText}>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                  <Text style={styles.optionHint}>{option.hint}</Text>
-                </View>
-                {active ? <Text style={styles.check}>✓</Text> : null}
-              </PressableScale>
+                <PressableScale
+                  scaleTo={0.97}
+                  style={[styles.option, active && styles.optionActive]}
+                  onPress={() => {
+                    tapFeedback();
+                    onSelect(option.value);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={[styles.iconBubble, active && styles.iconBubbleActive]}>
+                    <Text style={styles.icon}>{option.icon}</Text>
+                  </View>
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionLabel}>{option.label}</Text>
+                    <Text style={styles.optionHint}>{option.hint}</Text>
+                  </View>
+                  <View style={[styles.radio, active && styles.radioActive]}>
+                    {active ? <Text style={styles.radioGlyph}>✓</Text> : null}
+                  </View>
+                </PressableScale>
+              </Animated.View>
             );
           })}
 
           {onReorder ? (
-            <>
-              <View style={styles.divider} />
-              <PressableScale
-                scaleTo={0.98}
-                style={styles.option}
-                onPress={onReorder}
-                accessibilityRole="button"
-              >
-                <Text style={styles.reorderLabel}>Reorder manually…</Text>
-              </PressableScale>
-            </>
+            <PressableScale
+              scaleTo={0.96}
+              style={styles.arrangeBtn}
+              haptic
+              onPress={onReorder}
+              accessibilityRole="button"
+            >
+              <Text style={styles.arrangeText}>✋ Arrange my order</Text>
+            </PressableScale>
           ) : null}
         </Animated.View>
       </Animated.View>

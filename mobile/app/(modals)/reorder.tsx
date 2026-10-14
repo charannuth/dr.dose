@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import ReorderableList, {
   reorderItems,
+  useIsActive,
   useReorderableDrag,
   type ReorderableListReorderEvent,
 } from 'react-native-reorderable-list';
 import type { ColorPalette } from '../../constants/theme';
-import { fonts, radii, spacing, tileFgKey } from '../../constants/theme';
+import { fonts, radii, spacing, tileBgKey, tileFgKey, withAlpha } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
@@ -62,23 +64,35 @@ function makeStyles(colors: ColorPalette) {
     row: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: spacing.sm,
-      backgroundColor: colors.surface,
+      gap: spacing.md - 4,
       borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 1.5,
+      borderLeftWidth: 5,
       paddingVertical: 14,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
+      paddingLeft: spacing.sm + 4,
+      paddingRight: spacing.sm,
     },
-    rowActive: {
-      borderColor: colors.accent,
+    rowShell: {
+      marginBottom: spacing.sm + 2,
+    },
+    rowLifted: {
+      shadowColor: '#000',
+      shadowOpacity: 0.28,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 10,
     },
     position: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    positionText: {
       fontFamily: fonts.bodyBold,
-      fontSize: 13,
-      color: colors.textMuted,
-      minWidth: 22,
+      fontSize: 14,
+      color: colors.onAccent,
     },
     rowText: { flex: 1, gap: 2 },
     name: {
@@ -91,15 +105,30 @@ function makeStyles(colors: ColorPalette) {
       color: colors.textMuted,
     },
     handle: {
-      paddingVertical: 6,
+      paddingVertical: 8,
       paddingHorizontal: 10,
-      gap: 3,
+      gap: 3.5,
     },
     handleBar: {
-      width: 20,
-      height: 2.5,
+      width: 18,
+      height: 3,
       borderRadius: 2,
-      backgroundColor: colors.textMuted,
+    },
+    footer: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    doneBtn: {
+      alignItems: 'center' as const,
+      paddingVertical: 14,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+    },
+    doneText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 16,
+      color: colors.onAccent,
     },
     center: {
       flex: 1,
@@ -117,22 +146,67 @@ function makeStyles(colors: ColorPalette) {
   };
 }
 
-/** Press-and-hold target that hands the gesture to the list's drag machinery. */
-function DragHandle({ styles }: { styles: ReturnType<typeof makeStyles> }) {
+/**
+ * One draggable medication. Holding anywhere on the card picks it up, and the
+ * card lifts while it is being carried so it is obvious what is moving.
+ */
+function ReorderRow({
+  item,
+  index,
+  styles,
+}: {
+  item: MedicationWithStatus;
+  index: number;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const { colors } = useTheme();
   const drag = useReorderableDrag();
+  const active = useIsActive();
+  const accent = colors[tileFgKey(item.tile_color, item.medication_route)];
+  const tint = colors[tileBgKey(item.tile_color, item.medication_route)];
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withSpring(active ? 1 : 0, { damping: 14, stiffness: 260 });
+  }, [active, lift]);
+  const liftStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + lift.value * 0.04 }, { rotate: `${lift.value * -1.5}deg` }],
+  }));
+
   return (
-    <PressableScale
-      style={styles.handle}
-      scaleTo={0.88}
-      onLongPress={drag}
-      delayLongPress={140}
-      accessibilityRole="button"
-      accessibilityLabel="Hold and drag to reorder"
-    >
-      <View style={styles.handleBar} />
-      <View style={styles.handleBar} />
-      <View style={styles.handleBar} />
-    </PressableScale>
+    <Animated.View style={[styles.rowShell, active && styles.rowLifted, liftStyle]}>
+      <PressableScale
+        style={[
+          styles.row,
+          {
+            backgroundColor: tint,
+            borderColor: active ? accent : withAlpha(accent, 0.45),
+            borderLeftColor: accent,
+          },
+        ]}
+        scaleTo={0.98}
+        onLongPress={drag}
+        delayLongPress={160}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, position ${index + 1}. Hold and drag to reorder`}
+      >
+        <View style={[styles.position, { backgroundColor: accent }]}>
+          <Text style={styles.positionText}>{index + 1}</Text>
+        </View>
+        <View style={styles.rowText}>
+          <Text style={[styles.name, { color: accent }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.detail} numberOfLines={1}>
+            {formatDoseDisplay(item) || 'No dose set'}
+          </Text>
+        </View>
+        <View style={styles.handle}>
+          <View style={[styles.handleBar, { backgroundColor: withAlpha(accent, 0.7) }]} />
+          <View style={[styles.handleBar, { backgroundColor: withAlpha(accent, 0.7) }]} />
+          <View style={[styles.handleBar, { backgroundColor: withAlpha(accent, 0.7) }]} />
+        </View>
+      </PressableScale>
+    </Animated.View>
   );
 }
 
@@ -142,7 +216,7 @@ export default function ReorderScreen() {
     params.tab === 'as_needed' || params.tab === 'supplement' ? params.tab : 'scheduled';
 
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const router = useRouter();
   const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<MedicationWithStatus[] | null>(null);
 
@@ -212,7 +286,7 @@ export default function ReorderScreen() {
       <View style={styles.header}>
         <Text style={styles.heading}>{TAB_TITLES[tab]}</Text>
         <Text style={styles.hint}>
-          Hold the handle and drag to set the order. Changes save as you go.
+          Press and hold a card, then drag it where you want it. Changes save as you go.
         </Text>
       </View>
       <ReorderableList
@@ -221,26 +295,20 @@ export default function ReorderScreen() {
         onReorder={handleReorder}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => (
-          <View style={styles.row}>
-            <Text style={styles.position}>{index + 1}</Text>
-            <View style={styles.rowText}>
-              <Text
-                style={[
-                  styles.name,
-                  { color: colors[tileFgKey(item.tile_color, item.medication_route)] },
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-              <Text style={styles.detail} numberOfLines={1}>
-                {formatDoseDisplay(item) || 'No dose set'}
-              </Text>
-            </View>
-            <DragHandle styles={styles} />
-          </View>
+          <ReorderRow item={item} index={index} styles={styles} />
         )}
       />
+      <View style={styles.footer}>
+        <PressableScale
+          style={styles.doneBtn}
+          scaleTo={0.96}
+          haptic
+          onPress={() => router.back()}
+          accessibilityRole="button"
+        >
+          <Text style={styles.doneText}>Done</Text>
+        </PressableScale>
+      </View>
     </SafeAreaView>
   );
 }

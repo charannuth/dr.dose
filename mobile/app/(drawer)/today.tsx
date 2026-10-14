@@ -111,7 +111,13 @@ const TAB_LABELS: Record<TodayTab, string> = {
 const SORT_LABELS: Record<MedSort, string> = {
   time: 'By time',
   name: 'A–Z',
-  custom: 'Custom order',
+  custom: 'My order',
+};
+
+const SORT_ICONS: Record<MedSort, string> = {
+  time: '⏰',
+  name: '🔤',
+  custom: '✋',
 };
 
 /**
@@ -270,24 +276,33 @@ function makeTodayStyles(colors: ColorPalette) {
     list: {
       gap: spacing.md,
     },
-    sortBar: {
+    listHeader: {
       flexDirection: 'row' as const,
-      justifyContent: 'flex-end' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: spacing.sm,
     },
     sortButton: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: radii.md,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
+      gap: 5,
+      paddingLeft: 10,
+      paddingRight: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.accentPurpleBg,
+    },
+    sortButtonIcon: {
+      fontSize: 13,
     },
     sortButtonText: {
       fontFamily: fonts.bodySemibold,
       fontSize: 13,
-      color: colors.textMuted,
+      color: colors.accent,
+    },
+    sortButtonCaret: {
+      fontSize: 11,
+      color: colors.accent,
     },
     takeAllRow: {
       gap: spacing.sm,
@@ -399,12 +414,13 @@ export default function TodayScreen() {
 
   useEffect(() => {
     isMissedDosesBannerDismissed().then(setMissedBannerDismissed).catch(() => {});
-    getMedSort().then(setMedSortState).catch(() => {});
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       getSameTimeDoseMode().then(setSameTimeMode).catch(() => {});
+      // Re-read on focus: arranging cards on the reorder screen switches this to "custom".
+      getMedSort().then(setMedSortState).catch(() => {});
     }, []),
   );
 
@@ -879,11 +895,17 @@ export default function TodayScreen() {
             value: 'time' as const,
             label: 'By time',
             hint: 'Earliest dose first, taken ones last',
+            icon: SORT_ICONS.time,
           },
         ]
       : []),
-    { value: 'name', label: 'A–Z', hint: 'Alphabetical by medication name' },
-    { value: 'custom', label: 'Custom order', hint: 'The order you arranged by hand' },
+    { value: 'name', label: 'A–Z', hint: 'Alphabetical by medication name', icon: SORT_ICONS.name },
+    {
+      value: 'custom',
+      label: 'My order',
+      hint: 'Drag your cards into the order you like',
+      icon: SORT_ICONS.custom,
+    },
   ];
   const refillAlerts = getRefillAlerts(medications);
 
@@ -1129,7 +1151,25 @@ export default function TodayScreen() {
           }}
         />
 
-        <Text style={{ ...typography.heading, color: colors.text }}>Your medications</Text>
+        <View style={styles.listHeader}>
+          <Text style={{ ...typography.heading, color: colors.text }}>Your medications</Text>
+          {showSortRow ? (
+            <PressableScale
+              style={styles.sortButton}
+              scaleTo={0.92}
+              onPress={() => {
+                tapFeedback();
+                setSortSheetOpen(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort medications, currently ${SORT_LABELS[medSort]}`}
+            >
+              <Text style={styles.sortButtonIcon}>{SORT_ICONS[medSort]}</Text>
+              <Text style={styles.sortButtonText}>{SORT_LABELS[medSort]}</Text>
+              <Text style={styles.sortButtonCaret}>▾</Text>
+            </PressableScale>
+          ) : null}
+        </View>
         <View
           ref={tabsRef}
           collapsable={false}
@@ -1187,23 +1227,6 @@ export default function TodayScreen() {
             );
           })}
         </View>
-
-        {showSortRow ? (
-          <View style={styles.sortBar}>
-            <PressableScale
-              style={styles.sortButton}
-              scaleTo={0.95}
-              onPress={() => {
-                tapFeedback();
-                setSortSheetOpen(true);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Sort medications, currently ${SORT_LABELS[medSort]}`}
-            >
-              <Text style={styles.sortButtonText}>⇅ {SORT_LABELS[medSort]}</Text>
-            </PressableScale>
-          </View>
-        ) : null}
 
         {error ? (
           <View style={styles.errorBanner}>
@@ -1267,6 +1290,11 @@ export default function TodayScreen() {
         onSelect={(next) => {
           setSortSheetOpen(false);
           void changeMedSort(next);
+          // Picking "My order" before arranging anything would show no change,
+          // so go straight to arranging.
+          if (next === 'custom' && customOrders[todayTab].length === 0 && visibleMeds.length > 1) {
+            router.push({ pathname: routes.reorder, params: { tab: todayTab } });
+          }
         }}
         onReorder={
           visibleMeds.length > 1
