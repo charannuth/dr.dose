@@ -13,6 +13,7 @@ import { VaultGate } from '../../components/VaultGate';
 import { useAuth } from '../../hooks/useAuth';
 import { useVault } from '../../hooks/useVault';
 import { ProfileAvatar } from '../../components/ProfileAvatar';
+import { MenuAvatarButton } from '../../components/MenuAvatarButton';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { DemoTour } from '../../components/DemoTour';
 import { useDemoTourTargets } from '../../context/DemoTourTargetsContext';
@@ -29,25 +30,6 @@ type DrawerContentProps = DrawerContentComponentProps & {
   styles: ReturnType<typeof makeStyles>;
   colors: ColorPalette;
 };
-
-function Hamburger({
-  onPress,
-  styles,
-}: {
-  onPress: () => void;
-  styles: ReturnType<typeof makeStyles>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Open navigation menu"
-      style={styles.iconButton}
-    >
-      <Text style={styles.iconText}>≡</Text>
-    </Pressable>
-  );
-}
 
 function Plus({
   onPress,
@@ -390,7 +372,7 @@ function DrawerLayoutInner({
           drawerActiveBackgroundColor: colors.pendingBg,
           headerLeft: () => (
             <View ref={menuRef} collapsable={false}>
-              <Hamburger onPress={() => navigation.toggleDrawer()} styles={styles} />
+              <MenuAvatarButton user={user} onPress={() => navigation.toggleDrawer()} />
             </View>
           ),
           headerRight: () =>
