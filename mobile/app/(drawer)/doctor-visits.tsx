@@ -78,11 +78,11 @@ export default function DoctorVisitsScreen() {
           </View>
         </View> : null}
       </View>
-      <Pressable style={s.report} onPress={() => router.push(routes.wellness)} accessibilityRole="button">
+      <Pressable style={s.report} onPress={() => router.push(routes.medicalRecords)} accessibilityRole="button">
         <Text style={s.reportEmoji}>📋</Text>
         <View style={{ flex: 1 }}>
           <Text style={s.calendarTitle}>Prepare for your visit</Text>
-          <Text style={s.calendarHint}>Build a wellness report to share with your doctor</Text>
+          <Text style={s.calendarHint}>Share your history, medications and recent check-ins</Text>
         </View>
         <Text style={s.calendarChevron}>›</Text>
       </Pressable>

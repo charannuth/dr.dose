@@ -7,11 +7,9 @@ import { fonts, radii, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuth } from '../../hooks/useAuth';
 import { useWellnessPageData } from '../../hooks/useWellnessPageData';
-import { useWellnessMedBriefings } from '../../hooks/useWellnessMedBriefings';
 import { WellnessDisclaimer } from '../../components/WellnessDisclaimer';
 import { WellnessTrendsSection } from '../../components/wellness/WellnessTrendsSection';
 import { PrnInsightsSection } from '../../components/wellness/PrnInsightsSection';
-import { WellnessExportReport } from '../../components/wellness/WellnessExportReport';
 import { WellnessMedBriefings } from '../../components/wellness/WellnessMedBriefings';
 import { WellnessMoreSheet } from '../../components/wellness/WellnessMoreSheet';
 import { WellnessWeekCard } from '../../components/wellness/WellnessWeekCard';
@@ -36,14 +34,14 @@ const STRIP_REACH = 10;
 export default function WellnessScreen() {
   const { user } = useAuth();
   if (!user) return null;
-  return <WellnessOverview key={user.id} userId={user.id} userEmail={user.email} />;
+  return <WellnessOverview key={user.id} userId={user.id} />;
 }
 
 function stripDates(center: string): string[] {
   return Array.from({ length: 29 }, (_, i) => addDaysToDateString(center, i - 14));
 }
 
-function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: string }) {
+function WellnessOverview({ userId }: { userId: string }) {
   const s = useThemedStyles(makeStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ wellnessDate?: string }>();
@@ -61,8 +59,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
   const [calendarError, setCalendarError] = useState<string | null>(null);
   useFocusEffect(useCallback(() => { setRefreshKey((key) => key + 1); }, []));
   useEffect(() => { setSelectedDate(initialDate); setAnchor(initialDate); }, [initialDate]);
-  const { profileDraft, trendLogs, reportLogs, prnInsights, activeMeds, pageLoading, error } = useWellnessPageData(userId, selectedDate, refreshKey);
-  const { entries: briefingEntries } = useWellnessMedBriefings(activeMeds);
+  const { profileDraft, trendLogs, prnInsights, activeMeds, pageLoading, error } = useWellnessPageData(userId, selectedDate, refreshKey);
 
   // Month view loads its grid; the default week strip loads the days around the anchor.
   const window = useMemo(() => getCalendarWindow(anchor, range), [anchor, range]);
@@ -144,7 +141,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
       onEditBaseline={() => { setMoreOpen(false); router.push(routes.wellnessBaseline); }}
       sections={[
         { key: 'trends', title: 'Detailed trends', summary: 'Day-by-day charts and as-needed medication use', content: <View style={{ gap: 14 }}><WellnessTrendsSection trendLogs={trendLogs} /><PrnInsightsSection insights={prnInsights} /></View> },
-        { key: 'report', title: 'Doctor report', summary: 'Review and share your recent wellbeing', content: <WellnessExportReport userEmail={userEmail} profile={profileDraft} medications={activeMeds} reportLogs={reportLogs} prnInsights={prnInsights} briefingEntries={briefingEntries} /> },
+        { key: 'report', title: 'Report for your doctor', summary: 'Shared from Medical records with your history', content: <Pressable style={s.reportLink} onPress={() => { setMoreOpen(false); router.push(routes.medicalRecords); }} accessibilityRole="link"><Text style={s.hint}>Your report includes these check-ins plus your allergies, conditions, medications and care team.</Text><Text style={s.link}>Open in Medical records ›</Text></Pressable> },
         { key: 'guidance', title: 'Medication guidance', summary: 'Information about your current medications', content: <WellnessMedBriefings medications={activeMeds} /> },
         { key: 'sources', title: 'Sources & information', content: <MedicalSourcesCard /> },
       ]}
@@ -155,6 +152,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
 
 function makeStyles(c: ColorPalette) {
   return { safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 16, paddingBottom: 36, gap: 18 },
+    reportLink: { gap: 8, paddingVertical: 4 },
     hint: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 19, color: c.textMuted },
     add: { minWidth: 44, minHeight: 44, marginRight: 12, alignItems: 'center' as const, justifyContent: 'center' as const }, plus: { color: c.accent, fontSize: 32, fontWeight: '300' as const },
     row: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },

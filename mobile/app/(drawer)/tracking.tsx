@@ -384,7 +384,7 @@ export default function TrackingScreen() {
                 onPress={() => setProfileExpanded((v) => !v)}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={trackingStyles.sectionTitle}>Physical profile</Text>
+                  <Text style={trackingStyles.sectionTitle}>Height and weight</Text>
                   {!profileExpanded && profileSummary ? (
                     <Text style={trackingStyles.profileSummary}>{profileSummary}</Text>
                   ) : null}
