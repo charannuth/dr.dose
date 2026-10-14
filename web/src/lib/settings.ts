@@ -38,6 +38,7 @@ const KEYS = {
   onboarding: 'mt-onboarding-v1',
   onboardingLegacy: 'mt-onboarding-v1',
   sameTimeDoseMode: 'mt-same-time-dose-mode',
+  sidebarCollapsed: 'mt-sidebar-collapsed',
 } as const
 
 function onboardingKey(userId: string): string {
@@ -146,4 +147,20 @@ export function getSameTimeDoseMode(): SameTimeDoseMode {
 
 export function setSameTimeDoseMode(mode: SameTimeDoseMode): void {
   localStorage.setItem(KEYS.sameTimeDoseMode, mode)
+}
+
+export function isSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(KEYS.sidebarCollapsed) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setSidebarCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(KEYS.sidebarCollapsed, collapsed ? '1' : '0')
+  } catch {
+    /* storage unavailable */
+  }
 }
