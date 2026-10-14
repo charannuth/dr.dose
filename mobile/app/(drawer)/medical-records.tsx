@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -32,10 +31,11 @@ import {
   upsertMedicalRecord,
   type MedicalRecordInput,
 } from '../../lib/medicalRecords';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 function makeMedicalRecordsStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: 20, paddingBottom: 40, gap: 24 },
     header: { gap: spacing.xs },
     h1: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },
@@ -186,7 +186,7 @@ export default function MedicalRecordsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <AmbientScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.h1}>Medical records</Text>
           <Text style={styles.sub}>
@@ -332,7 +332,7 @@ export default function MedicalRecordsScreen() {
             <NavigationRow title="Drug safety check" subtitle="Review medications against your saved history" onPress={() => router.push(routes.interactions)} />
           </>
         )}
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

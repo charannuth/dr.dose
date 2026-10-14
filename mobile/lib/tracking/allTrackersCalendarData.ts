@@ -5,6 +5,8 @@ import { loadHrtCalendarData } from './hrtCalendarData'
 import { loadMedProgressCalendarData } from './medProgressCalendarData'
 import { loadWeightCalendarData } from './weightCalendarData'
 import { mergeCalendarData } from './mergeCalendarData'
+import { loadGenericCalendarData } from './genericCalendarData'
+import { getTrackerDef } from './trackerDefs'
 import type { TrackingCalendarData } from './calendarTypes'
 
 async function loadTrackerCalendar(
@@ -23,8 +25,10 @@ async function loadTrackerCalendar(
       return loadHrtCalendarData(userId, start, end)
     case 'med_progress':
       return loadMedProgressCalendarData(userId, start, end)
-    default:
-      return null
+    default: {
+      const def = getTrackerDef(trackerId)
+      return def ? loadGenericCalendarData(userId, def, start, end) : null
+    }
   }
 }
 

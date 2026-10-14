@@ -31,8 +31,9 @@ Dr. Dose uses **Supabase PostgreSQL** with migrations in `supabase/migrations/`.
 | 027 | `027_e2ee_column_types.sql` | PHI array/numeric columns → text for ciphertext | Full E2EE column types |
 | 028 | `028_rollback_027_for_live_app.sql` | Restores text[] / numeric / date / jsonb after 027 | Keeps pre-E2EE App Store clients working |
 | 029 | `029_cycle_custom_symptoms.sql` | `custom_symptoms_pre` / `custom_symptoms_during` on `cycle_settings` | Persistent user-defined cycle symptom chips |
+| 030 | `030_tracker_preferences_and_entries.sql` | `tracker_preferences`, `tracker_day_entries` (client-encrypted JSON) | Tracker personalization, extended cycle / HRT / weight logging |
 
-**Production (current):** Apply **026** (`user_crypto`). **Do not leave 027 applied alone** while the App Store build is still pre-E2EE — that broke `text[]` consumers (`undefined is not a function` on As needed). Live production was rolled back with **028**. The shipping E2EE client stores encrypted arrays as single-element `text[]` (`[ciphertext]`) so it works on the post-028 schema. Re-apply **027** only when promoting a matching client to the App Store (and coordinating with force-update). Apply **029** for custom period symptom labels.
+**Production (current):** Apply **026** (`user_crypto`). **Do not leave 027 applied alone** while the App Store build is still pre-E2EE — that broke `text[]` consumers (`undefined is not a function` on As needed). Live production was rolled back with **028**. The shipping E2EE client stores encrypted arrays as single-element `text[]` (`[ciphertext]`) so it works on the post-028 schema. Re-apply **027** only when promoting a matching client to the App Store (and coordinating with force-update). Apply **029** for custom period symptom labels and **030** for tracker personalization and the extended cycle / HRT day logs.
 
 **Existing projects:** Need **026**. Apply **027** only as part of a coordinated App Store cutover; use **028** if 027 must be undone for older binaries.
 
@@ -79,6 +80,7 @@ You should see the expected tables and both unit columns. Also confirm `medicati
 | Profile | `medical_records`, storage `avatars` |
 | Tracking | `user_trackers`, `cycle_settings`, `cycle_periods`, `cycle_day_logs`, `tracker_dose_events` |
 | Weight & HRT | `weight_settings`, `weight_logs`, `hrt_day_logs` |
+| Tracker extras | `tracker_preferences`, `tracker_day_entries` |
 
 All user tables use **RLS** (`auth.uid() = user_id` or equivalent).
 
@@ -115,5 +117,6 @@ All user tables use **RLS** (`auth.uid() = user_id` or equivalent).
 | PRN check-in errors | Run `011`–`013` |
 | Weight tracker errors | Run `017_weight_tracking.sql` |
 | HRT tracker errors | Run `018_hrt_tracking.sql` |
+| "Run migration 030" banner on Tracking | Run `030_tracker_preferences_and_entries.sql` |
 
 See also [SUPABASE_SETUP.md](SUPABASE_SETUP.md) and [DEPLOY.md](DEPLOY.md).

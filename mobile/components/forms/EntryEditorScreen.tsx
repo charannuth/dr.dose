@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useNavigation, useRouter } from 'expo-router';
 import { useHeaderHeight, usePreventRemove } from 'expo-router/react-navigation';
 import { useReducedMotion } from 'react-native-reanimated';
 import { fonts, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { AmbientScrollView } from '../AmbientBackground';
 
 /** Shared load → edit → save screen with draft protection and native navigation. */
 export function EntryEditorScreen<T>({ title, subtitle, load, save, children }: {
@@ -55,14 +56,14 @@ export function EntryEditorScreen<T>({ title, subtitle, load, save, children }: 
       headerRight: () => <Pressable style={s.action} disabled={busy || loading || draft === null} onPress={() => void submit()} accessibilityRole="button" accessibilityState={{ disabled: busy || loading || draft === null }}><Text style={[s.link, (loading || busy || draft === null) && { opacity: 0.4 }]}>{busy ? 'Saving…' : 'Save'}</Text></Pressable>,
     }} />
     <KeyboardAvoidingView style={s.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={height}>
-      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.content}>
+      <AmbientScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.content}>
         <Text style={s.subtitle}>{subtitle}</Text>
         {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
         {loading ? <ActivityIndicator accessibilityLabel="Loading entry" /> : draft === null ? <Pressable style={s.action} onPress={() => setRetry((v) => v + 1)} accessibilityRole="button"><Text style={s.link}>Try again</Text></Pressable> : <View pointerEvents={busy ? 'none' : 'auto'}>{children(draft, setDraft, busy)}</View>}
-      </ScrollView>
+      </AmbientScrollView>
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {
-  return { safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 20, paddingBottom: 40, gap: 20 }, action: { minWidth: 44, minHeight: 44, justifyContent: 'center' as const }, link: { fontFamily: fonts.bodySemibold, fontSize: 16, color: c.accent }, subtitle: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 21, color: c.textMuted }, error: { color: c.error, fontSize: 14, lineHeight: 21 } };
+  return { safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 20, paddingBottom: 40, gap: 20 }, action: { minWidth: 44, minHeight: 44, justifyContent: 'center' as const }, link: { fontFamily: fonts.bodySemibold, fontSize: 16, color: c.accent }, subtitle: { fontFamily: fonts.bodyRegular, fontSize: 14, lineHeight: 21, color: c.textMuted }, error: { color: c.error, fontSize: 14, lineHeight: 21 } };
 }

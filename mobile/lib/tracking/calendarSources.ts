@@ -1,5 +1,6 @@
 import type { TrackerId } from './catalog'
 import { trackerCatalogEntry } from './catalog'
+import { getTrackerDef } from './trackerDefs'
 
 export const CALENDAR_SOURCE_ALL = 'all' as const
 
@@ -16,17 +17,14 @@ export type CalendarSourceMeta = {
 const CALENDAR_SUPPORT: Partial<Record<TrackerId, CalendarSupport>> = {
   cycle: 'full',
   weight: 'full',
-  vitals: 'planned',
-  pain: 'planned',
-  migraine: 'planned',
-  respiratory: 'planned',
   med_progress: 'full',
   hrt: 'full',
-  custom: 'planned',
 }
 
 export function calendarSupportFor(id: CalendarSourceId): CalendarSupport {
   if (id === CALENDAR_SOURCE_ALL) return 'full'
+  // Every tracker on the generic engine shows its logged days.
+  if (getTrackerDef(id)) return 'full'
   return CALENDAR_SUPPORT[id] ?? 'none'
 }
 

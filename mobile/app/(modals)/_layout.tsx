@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { VaultGate } from '../../components/VaultGate';
 import { useTheme } from '../../context/ThemeProvider';
+import { AmbientScreenLayout } from '../../components/AmbientBackground';
 
 export default function ModalLayout() {
   const { colors } = useTheme();
@@ -8,6 +9,7 @@ export default function ModalLayout() {
   return (
     <VaultGate>
       <Stack
+        screenLayout={({ children }) => <AmbientScreenLayout>{children}</AmbientScreenLayout>}
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,

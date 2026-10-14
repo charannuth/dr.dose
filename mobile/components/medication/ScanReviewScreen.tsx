@@ -321,7 +321,7 @@ export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props)
 
 function makeStyles(colors: ColorPalette) {
   return {
-    wrap: { flex: 1, backgroundColor: colors.bg },
+    wrap: { flex: 1, backgroundColor: 'transparent' },
     scroll: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
     title: { fontFamily: fonts.heading, fontSize: 24, color: colors.text },
     subtitle: {

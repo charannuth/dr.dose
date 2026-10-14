@@ -95,6 +95,7 @@ import type { ColorPalette } from '../../constants/theme';
 import type { PrnDoseLogPayload } from '../../lib/prnCheckIn';
 import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 type TodayTab = 'scheduled' | 'as_needed' | 'supplement';
 
@@ -159,7 +160,7 @@ function makeTodayStyles(colors: ColorPalette) {
   return {
     safe: {
       flex: 1,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
     },
     scroll: {
       padding: spacing.md,
@@ -170,7 +171,7 @@ function makeTodayStyles(colors: ColorPalette) {
       flex: 1,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      backgroundColor: colors.bg,
+      backgroundColor: 'transparent',
       gap: spacing.sm,
     },
     loadingText: {
@@ -1092,7 +1093,7 @@ export default function TodayScreen() {
       {celebrationStreak != null ? (
         <StreakCelebration streakDays={celebrationStreak} onDismiss={dismissCelebration} />
       ) : null}
-      <ScrollView
+      <AmbientScrollView
         ref={scrollRef}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -1257,7 +1258,7 @@ export default function TodayScreen() {
         )}
 
         <TodayWellnessCheckIn onSaved={() => setDashboardRefreshKey((key) => key + 1)} />
-      </ScrollView>
+      </AmbientScrollView>
 
       <SortSheet
         visible={sortSheetOpen}

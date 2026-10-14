@@ -29,7 +29,9 @@ import {
   SameTimeDoseGroupBar,
 } from '../components/SameTimeDoseActions'
 import { MedicationForm } from '../components/MedicationForm'
+import { DoseProgressRing } from '../components/DoseProgressRing'
 import { DueNowBanner } from '../components/DueNowBanner'
+import { NavIcon } from '../components/NavIcon'
 import { MissedDosesBanner } from '../components/MissedDosesBanner'
 import { RefillBanner } from '../components/RefillBanner'
 import { StreakCelebration } from '../components/StreakCelebration'
@@ -52,10 +54,16 @@ import {
 import { todayLocalDate } from '../lib/dates'
 import { isAsNeededMed } from '../lib/medicationSchedule'
 import type { MedicationScheduleType } from '../lib/medicationSchedule'
+import { findNextDose, greetingFor } from '../lib/nextDose'
 import { getRefillAlerts } from '../lib/refills'
 import { fetchStreakStats, type StreakStats } from '../lib/streaks'
 
 type TodayTab = 'scheduled' | 'as_needed'
+
+function formatNextDoseNames(names: string[]): string {
+  if (names.length <= 2) return names.join(' and ')
+  return `${names[0]} and ${names.length - 1} more`
+}
 
 export function TodayPage() {
   const { registerAddHandler } = useOutletContext<LayoutOutletContext>()
@@ -460,6 +468,13 @@ export function TodayPage() {
     )
   }
 
+  const nextDose = findNextDose(scheduledMeds)
+  const todayLabel = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+
   const summaryText =
     todayTab === 'scheduled'
       ? dosesTotal === 0
@@ -476,11 +491,33 @@ export function TodayPage() {
   return (
     <>
       <main className="page dashboard">
-        <section className="today-summary">
-          <h2>Today</h2>
-          <p>{summaryText}</p>
-          {todayTab === 'scheduled' && (
-            <StreakSnippet stats={streakStats} badgeReplayKey={badgeReplayKey} />
+        <section className="today-summary today-hero">
+          <div className="today-hero-text">
+            <p className="today-hero-date">{todayLabel}</p>
+            <h2>{greetingFor()}</h2>
+            <p className="today-hero-summary">{summaryText}</p>
+            {todayTab === 'scheduled' && !loading && dosesTotal > 0 && (
+              <p
+                className={`today-hero-next${nextDose?.kind === 'overdue' ? ' is-overdue' : ''}${nextDose ? '' : ' is-done'}`}
+              >
+                <NavIcon name={nextDose ? 'clock' : 'check'} />
+                {nextDose ? (
+                  <span>
+                    {nextDose.kind === 'overdue' ? 'Still to take: ' : 'Next up: '}
+                    <strong>{formatNextDoseNames(nextDose.names)}</strong> at{' '}
+                    {nextDose.timeLabel}
+                  </span>
+                ) : (
+                  <span>Every scheduled dose is done for today.</span>
+                )}
+              </p>
+            )}
+            {todayTab === 'scheduled' && (
+              <StreakSnippet stats={streakStats} badgeReplayKey={badgeReplayKey} />
+            )}
+          </div>
+          {todayTab === 'scheduled' && !loading && dosesTotal > 0 && (
+            <DoseProgressRing taken={dosesTaken} total={dosesTotal} />
           )}
         </section>
 

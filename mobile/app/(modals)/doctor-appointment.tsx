@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useHeaderHeight, usePreventRemove } from 'expo-router/react-navigation';
@@ -16,6 +16,7 @@ import { tryNormalizeIsoDate } from '../../lib/isoDateInput';
 import { todayLocalDate } from '../../lib/dates';
 import { rescheduleAllReminders } from '../../lib/reminders';
 import { routes } from '../../lib/routes';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 export default function AppointmentScreen() {
   const { user } = useAuth();
@@ -103,7 +104,7 @@ function AppointmentEditor({ userId, date, id }: { userId: string; date: string;
       </Pressable>,
     }} />
     <KeyboardAvoidingView style={s.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}>
-      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.content}>
+      <AmbientScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.content}>
         <View style={s.intro}><Text style={s.date}>{new Date(`${draft.visit_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
           <Text style={s.subtitle}>{saved ? 'Your appointment details, all in one place.' : 'Make room for your next visit.'}</Text></View>
         {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
@@ -114,13 +115,13 @@ function AppointmentEditor({ userId, date, id }: { userId: string; date: string;
           {saved && !dirty ? <AddToCalendar key={saved.updated_at} visit={saved} /> : saved ? <Text style={s.subtitle}>Save your changes before adding a calendar copy.</Text> : null}
           {saved ? <Pressable style={s.delete} disabled={busy} onPress={remove} accessibilityRole="button"><Text style={s.deleteText}>Delete appointment</Text></Pressable> : null}
         </> : null}
-      </ScrollView>
+      </AmbientScrollView>
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: c.bg }, content: { padding: 20, paddingBottom: 40, gap: 24 },
+    safe: { flex: 1, backgroundColor: 'transparent' }, content: { padding: 20, paddingBottom: 40, gap: 24 },
     intro: { gap: 8, paddingBottom: 4 }, date: { fontFamily: fonts.heading, fontSize: 23, color: c.text },
     subtitle: { fontFamily: fonts.bodyRegular, fontSize: 13, lineHeight: 20, color: c.textMuted },
     action: { minHeight: 44, minWidth: 44, justifyContent: 'center' as const },

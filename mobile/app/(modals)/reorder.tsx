@@ -37,7 +37,7 @@ const TAB_TITLES: Record<MedListTab, string> = {
 
 function makeStyles(colors: ColorPalette) {
   return {
-    safe: { flex: 1, backgroundColor: colors.bg },
+    safe: { flex: 1, backgroundColor: 'transparent' },
     header: {
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,

@@ -2,17 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/build/react-navigation/drawer';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
-import { accentBgKey, accentForIndex, fonts, radii, spacing } from '../../constants/theme';
+import { fonts, spacing } from '../../constants/theme';
 import { DrDoseWordmark } from '../../components/DrDoseWordmark';
 import { AddEntryTypeSheet, type AddEntryType } from '../../components/AddEntryTypeSheet';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { VaultGate } from '../../components/VaultGate';
 import { useAuth } from '../../hooks/useAuth';
-import { useVault } from '../../hooks/useVault';
-import { ProfileAvatar } from '../../components/ProfileAvatar';
+import { MenuAvatarButton } from '../../components/MenuAvatarButton';
+import { AppDrawerContent } from '../../components/navigation/AppDrawerContent';
+import { AmbientScreenLayout } from '../../components/AmbientBackground';
 import { OnboardingModal } from '../../components/OnboardingModal';
 import { DemoTour } from '../../components/DemoTour';
 import { useDemoTourTargets } from '../../context/DemoTourTargetsContext';
@@ -20,34 +19,9 @@ import { setDemoTourDone, type DemoTourStep } from '../../lib/demoTour';
 import { isOnboardingDone, setOnboardingDone } from '../../lib/settings';
 import { routes } from '../../lib/routes';
 import { fetchMedicationsWithStatus } from '../../lib/medications';
-import { getDisplayName } from '../../lib/profile';
 import { useReminderBootstrap } from '../../hooks/useReminderBootstrap';
 import { useNotificationResponses } from '../../hooks/useNotificationResponses';
 import { useTheme } from '../../context/ThemeProvider';
-
-type DrawerContentProps = DrawerContentComponentProps & {
-  styles: ReturnType<typeof makeStyles>;
-  colors: ColorPalette;
-};
-
-function Hamburger({
-  onPress,
-  styles,
-}: {
-  onPress: () => void;
-  styles: ReturnType<typeof makeStyles>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Open navigation menu"
-      style={styles.iconButton}
-    >
-      <Text style={styles.iconText}>≡</Text>
-    </Pressable>
-  );
-}
 
 function Plus({
   onPress,
@@ -80,144 +54,6 @@ function HeaderTitle({
       <DrDoseWordmark />
       <Text style={styles.pageTitle}>{pageTitle}</Text>
     </View>
-  );
-}
-
-function DrawerNavItem({
-  label,
-  focused,
-  onPress,
-  colors,
-  index,
-}: {
-  label: string;
-  focused: boolean;
-  onPress: () => void;
-  colors: ColorPalette;
-  index: number;
-}) {
-  const accentKey = accentForIndex(index);
-  const accent = colors[accentKey];
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: focused }}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginHorizontal: spacing.sm,
-        marginVertical: 2,
-        paddingVertical: 11,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
-        backgroundColor: focused ? colors[accentBgKey(accentKey)] : 'transparent',
-      }}
-    >
-      <View
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: 5,
-          backgroundColor: accent,
-          opacity: focused ? 1 : 0.55,
-        }}
-      />
-      <Text
-        style={{
-          fontFamily: focused ? fonts.bodyBold : fonts.bodyMedium,
-          fontSize: 16,
-          color: focused ? accent : colors.textMuted,
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function DrawerContent(props: DrawerContentProps) {
-  const router = useRouter();
-  const { user, signOut } = useAuth();
-  const { lock: lockVault } = useVault();
-  const insets = useSafeAreaInsets();
-  const { styles, colors, state, navigation, descriptors, ...drawerProps } = props;
-  const streaksRef = useRef<View>(null);
-  const navRef = useRef<View>(null);
-  const { registerTarget, unregisterTarget } = useDemoTourTargets();
-
-  useEffect(() => {
-    registerTarget('drawer-streaks', streaksRef);
-    registerTarget('drawer-nav', navRef);
-    return () => {
-      unregisterTarget('drawer-streaks');
-      unregisterTarget('drawer-nav');
-    };
-  }, [registerTarget, unregisterTarget]);
-
-  return (
-    <DrawerContentScrollView
-      {...drawerProps}
-      contentContainerStyle={[
-        styles.drawerScroll,
-        { paddingTop: Math.max(insets.top, spacing.md), paddingBottom: insets.bottom + spacing.md },
-      ]}
-      style={{ backgroundColor: styles.drawerBg.backgroundColor }}
-    >
-      <View style={styles.drawerHeader}>
-        <ProfileAvatar user={user} size="lg" />
-        <View style={styles.drawerUser}>
-          <Text style={styles.drawerName} numberOfLines={1}>
-            {getDisplayName(user)?.trim() || 'Your profile'}
-          </Text>
-          <Text style={styles.drawerEmail} numberOfLines={1}>
-            {user?.email ?? ''}
-          </Text>
-        </View>
-      </View>
-
-      <View ref={navRef} collapsable={false}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const label = options.drawerLabel ?? options.title ?? route.name;
-          const focused = state.index === index;
-          const item = (
-            <DrawerNavItem
-              label={String(label)}
-              focused={focused}
-              colors={colors}
-              index={index}
-              onPress={() => navigation.navigate(route.name)}
-            />
-          );
-
-          if (route.name === 'streaks') {
-            return (
-              <View key={route.key} ref={streaksRef} collapsable={false}>
-                {item}
-              </View>
-            );
-          }
-
-          return <View key={route.key}>{item}</View>;
-        })}
-      </View>
-
-      <Pressable
-        onPress={async () => {
-          await lockVault();
-          await signOut();
-          navigation.closeDrawer();
-          router.replace(routes.login);
-        }}
-        style={styles.signOutRow}
-        accessibilityRole="button"
-        accessibilityLabel="Sign out"
-      >
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-    </DrawerContentScrollView>
   );
 }
 
@@ -375,22 +211,24 @@ function DrawerLayoutInner({
         />
       ) : null}
       <Drawer
+        screenLayout={({ children }) => <AmbientScreenLayout>{children}</AmbientScreenLayout>}
         drawerContent={(props) => {
           drawerNavRef.current = props.navigation;
-          return <DrawerContent {...props} styles={styles} colors={colors} />;
+          return <AppDrawerContent {...props} />;
         }}
         screenOptions={({ navigation, route }) => ({
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           headerShadowVisible: true,
           headerTitleAlign: 'center',
-          drawerStyle: { backgroundColor: colors.bg },
+          drawerStyle: { backgroundColor: colors.bg, width: 312 },
+          sceneStyle: { backgroundColor: colors.bg },
           drawerActiveTintColor: colors.accent,
           drawerInactiveTintColor: colors.textMuted,
           drawerActiveBackgroundColor: colors.pendingBg,
           headerLeft: () => (
             <View ref={menuRef} collapsable={false}>
-              <Hamburger onPress={() => navigation.toggleDrawer()} styles={styles} />
+              <MenuAvatarButton user={user} onPress={() => navigation.toggleDrawer()} />
             </View>
           ),
           headerRight: () =>
@@ -430,32 +268,6 @@ function DrawerLayoutInner({
 
 function makeStyles(colors: ColorPalette) {
   return StyleSheet.create({
-    drawerBg: { backgroundColor: colors.bg },
-    header: {
-      backgroundColor: colors.surface,
-    },
-    drawerScroll: {},
-    drawerHeader: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.md,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-    },
-    drawerUser: {
-      flex: 1,
-      gap: 2,
-    },
-    drawerName: {
-      color: colors.text,
-      fontFamily: fonts.heading,
-      fontSize: 16,
-    },
-    drawerEmail: {
-      color: colors.textMuted,
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
-    },
     titleWrap: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -481,15 +293,6 @@ function makeStyles(colors: ColorPalette) {
     },
     plusText: {
       color: colors.accent,
-    },
-    signOutRow: {
-      marginTop: spacing.lg,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-    },
-    signOutText: {
-      color: colors.error,
-      fontFamily: fonts.bodyBold,
     },
   });
 }

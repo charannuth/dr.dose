@@ -5,6 +5,7 @@ import { formatMedicationDateRange } from '../lib/medicationDates'
 import { isAsNeededMed } from '../lib/medicationSchedule'
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types'
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn'
+import { CardOverflowMenu, type CardOverflowAction } from './CardOverflowMenu'
 import { PrnDoseLogPanel } from './PrnDoseLogPanel'
 
 type MedicationCardProps = {
@@ -54,12 +55,33 @@ export function MedicationCard({
   const prnBusy = busySlot === `${medication.id}-prn`
   const maxPrn = medication.max_doses_per_day
 
+  const overflowActions: CardOverflowAction[] = [
+    { label: 'Edit', icon: 'edit', onSelect: onEdit },
+  ]
+  if (!asNeeded && onMoveToAsNeeded) {
+    overflowActions.push({
+      label: migrateToPrnBusy ? 'Moving…' : 'Move to as needed',
+      icon: 'move',
+      disabled: migrateToPrnBusy,
+      onSelect: onMoveToAsNeeded,
+    })
+  }
+  if (asNeeded && onMoveToDailySchedule) {
+    overflowActions.push({
+      label: migrateToDailyBusy ? 'Moving…' : 'Move to daily schedule',
+      icon: 'move',
+      disabled: migrateToDailyBusy,
+      onSelect: onMoveToDailySchedule,
+    })
+  }
+  overflowActions.push({ label: 'Delete', icon: 'trash', danger: true, onSelect: onDelete })
+
   return (
     <article
       className={`med-card ${!asNeeded && allDosesTakenToday ? 'taken' : ''}${asNeeded ? ' med-card-prn' : ''}`}
     >
       <div className="med-card-header">
-        <div>
+        <div className="med-card-title">
           <h3>{medication.name}</h3>
           {typeLabel && <p className="med-type-label">{typeLabel}</p>}
           <p className="med-dosage">
@@ -96,6 +118,7 @@ export function MedicationCard({
         ) : (
           <span className="badge badge-pending">No times set</span>
         )}
+        <CardOverflowMenu label={`More actions for ${medication.name}`} actions={overflowActions} />
       </div>
 
       {showDateRange && (
@@ -185,34 +208,6 @@ export function MedicationCard({
         </p>
       )}
 
-      <div className="med-card-actions">
-        {!asNeeded && onMoveToAsNeeded && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={migrateToPrnBusy}
-            onClick={onMoveToAsNeeded}
-          >
-            {migrateToPrnBusy ? '…' : 'Move to as needed'}
-          </button>
-        )}
-        {asNeeded && onMoveToDailySchedule && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={migrateToDailyBusy}
-            onClick={onMoveToDailySchedule}
-          >
-            {migrateToDailyBusy ? '…' : 'Move to daily schedule'}
-          </button>
-        )}
-        <button type="button" className="btn btn-ghost" onClick={onEdit}>
-          Edit
-        </button>
-        <button type="button" className="btn btn-ghost danger" onClick={onDelete}>
-          Delete
-        </button>
-      </div>
     </article>
   )
 }

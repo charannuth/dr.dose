@@ -973,7 +973,7 @@ export function MedicationFormWizard({
 
 function makeMedicationWizardStyles(colors: ColorPalette) {
   return {
-  wrap: { flex: 1, backgroundColor: colors.bg },
+  wrap: { flex: 1, backgroundColor: 'transparent' },
   header: {
     padding: spacing.md,
     borderBottomWidth: 1,

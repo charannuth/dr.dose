@@ -59,7 +59,7 @@ export const DEMO_TOUR_STEPS: DemoTourStep[] = [
     id: 'profile-menu',
     target: 'profile-menu',
     title: 'Open the menu',
-    body: 'Tap ≡ to open the side menu. History, Streaks, Tracking, and the rest of the app live here.',
+    body: 'Tap your profile photo to open the side menu. History, Streaks, Tracking, and the rest of the app live here.',
     placement: 'right',
     drawer: 'closed',
   },

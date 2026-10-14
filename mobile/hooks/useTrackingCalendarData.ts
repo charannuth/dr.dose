@@ -11,6 +11,8 @@ import { loadCycleCalendarData } from '../lib/tracking/cycleCalendarData'
 import { loadWeightCalendarData } from '../lib/tracking/weightCalendarData'
 import { loadHrtCalendarData } from '../lib/tracking/hrtCalendarData'
 import { loadMedProgressCalendarData } from '../lib/tracking/medProgressCalendarData'
+import { loadGenericCalendarData } from '../lib/tracking/genericCalendarData'
+import { getTrackerDef } from '../lib/tracking/trackerDefs'
 import type { TrackingCalendarData } from '../lib/tracking/calendarTypes'
 import type { TrackerId } from '../lib/tracking/catalog'
 
@@ -78,6 +80,9 @@ export function useTrackingCalendarData(
         next = await loadHrtCalendarData(userId, window.start, window.end)
       } else if (source === 'med_progress') {
         next = await loadMedProgressCalendarData(userId, window.start, window.end)
+      } else {
+        const def = getTrackerDef(source)
+        if (def) next = await loadGenericCalendarData(userId, def, window.start, window.end)
       }
       if (request === requestId.current) setData(next)
     } catch (err) {

@@ -1,13 +1,14 @@
 import { type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedProps,
   useDerivedValue,
   withSpring,
 } from 'react-native-reanimated';
 import type { ColorPalette } from '../constants/theme';
-import { fonts, radii, spacing } from '../constants/theme';
+import { fonts, radii, spacing, withAlpha } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
@@ -26,6 +27,7 @@ function makeStyles(colors: ColorPalette) {
       gap: spacing.md,
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
+      borderWidth: 1,
       padding: spacing.md,
       // Depth instead of a border: the hero should sit above the cards below it.
       shadowColor: '#000',
@@ -85,7 +87,7 @@ type Props = {
 };
 
 export function TodayHero({ taken, total, headline, detail, accent, footer }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   const ratio = total > 0 ? Math.min(taken / total, 1) : 0;
@@ -99,7 +101,13 @@ export function TodayHero({ taken, total, headline, detail, accent, footer }: Pr
   }));
 
   return (
-    <View style={styles.card}>
+    // A wash of the tab's accent lifts the hero off the page and tells the tabs apart.
+    <LinearGradient
+      colors={[withAlpha(accent, isDark ? 0.4 : 0.3), colors.surface]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.card, { borderColor: withAlpha(accent, 0.5) }]}
+    >
       {total > 0 ? (
         <View style={styles.ringWrap}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -107,7 +115,7 @@ export function TodayHero({ taken, total, headline, detail, accent, footer }: Pr
               cx={RING_SIZE / 2}
               cy={RING_SIZE / 2}
               r={RADIUS}
-              stroke={colors.border}
+              stroke={withAlpha(accent, 0.22)}
               strokeWidth={RING_STROKE}
               fill="none"
             />
@@ -139,6 +147,6 @@ export function TodayHero({ taken, total, headline, detail, accent, footer }: Pr
         <Text style={styles.detail}>{detail}</Text>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </View>
-    </View>
+    </LinearGradient>
   );
 }

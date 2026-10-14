@@ -1,5 +1,5 @@
 import { supabase } from '../supabase'
-import type { TrackerId } from './catalog'
+import { trackerCatalogEntry, type TrackerId } from './catalog'
 
 export async function fetchEnabledTrackers(userId: string): Promise<TrackerId[]> {
   if (!supabase) return []
@@ -9,7 +9,10 @@ export async function fetchEnabledTrackers(userId: string): Promise<TrackerId[]>
     .eq('user_id', userId)
     .order('enabled_at', { ascending: true })
   if (error) throw error
-  return (data ?? []).map((row) => row.tracker_id as TrackerId)
+  // Trackers enabled in the mobile app that the web app can't show yet are skipped.
+  return (data ?? [])
+    .map((row) => row.tracker_id as TrackerId)
+    .filter((id) => trackerCatalogEntry(id)?.available)
 }
 
 export async function enableTracker(userId: string, trackerId: TrackerId): Promise<void> {

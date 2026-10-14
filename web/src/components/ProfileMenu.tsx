@@ -1,22 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { registerDemoTourMenu, unregisterDemoTourMenu } from '../lib/demoTourMenu'
 import { ProfileAvatar } from './ProfileAvatar'
-
-const navItems = [
-  { to: '/', label: 'Today', end: true },
-  { to: '/history', label: 'History', end: false },
-  { to: '/wellness', label: 'Wellness', end: false },
-  { to: '/doctor-visits', label: 'Doctor visits', end: false },
-  { to: '/streaks', label: 'Streaks', end: false },
-  { to: '/account', label: 'My account', end: false },
-  { to: '/tracking', label: 'Tracking', end: false },
-  { to: '/medical-records', label: 'Medical records', end: false },
-  { to: '/interactions', label: 'Drug safety check', end: false },
-  { to: '/help', label: 'Help & safety', end: false },
-] as const
+import { SidebarNav } from './SidebarNav'
 
 const CLOSE_DELAY_MS = 220
 const SIDEBAR_TRANSITION_MS = 300
@@ -179,46 +167,16 @@ export function ProfileMenu() {
             <aside
               id={sidebarId}
               className={`profile-sidebar${visible ? ' is-visible' : ''}`}
-              role="navigation"
               aria-label="Main menu"
               aria-hidden={!visible}
               onMouseEnter={canHoverMenu ? handleSidebarMouseEnter : undefined}
               onMouseLeave={canHoverMenu ? handleSidebarMouseLeave : undefined}
             >
-              <div className="profile-sidebar-header">
-                <ProfileAvatar user={user} size="lg" />
-                <div className="profile-sidebar-user">
-                  <p className="profile-dropdown-title">Signed in</p>
-                  <p className="profile-dropdown-email">{user?.email}</p>
-                </div>
-              </div>
-
-              <nav className="profile-nav profile-sidebar-nav" data-tour="drawer-nav">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    data-tour={item.to === '/streaks' ? 'drawer-streaks' : undefined}
-                    className={({ isActive }) =>
-                      `profile-nav-link${isActive ? ' active' : ''}`
-                    }
-                    onClick={closeMenu}
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </nav>
-
-              <div className="profile-sidebar-footer">
-                <button
-                  type="button"
-                  className="profile-nav-link profile-sign-out"
-                  onClick={() => void handleSignOut()}
-                >
-                  Sign out
-                </button>
-              </div>
+              <SidebarNav
+                variant="drawer"
+                onNavigate={closeMenu}
+                onSignOut={() => void handleSignOut()}
+              />
             </aside>
           </>,
           document.body,

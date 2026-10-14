@@ -64,6 +64,8 @@ export const SENSITIVE_FIELDS = {
     'notes',
   ] as const,
   cycle_settings: ['custom_symptoms_pre', 'custom_symptoms_during'] as const,
+  tracker_preferences: ['prefs'] as const,
+  tracker_day_entries: ['data'] as const,
 } as const
 
 export type EncryptedTable = keyof typeof SENSITIVE_FIELDS
@@ -169,7 +171,7 @@ const ARRAY_FIELDS = new Set([
   'custom_symptoms_during',
 ])
 
-const OBJECT_FIELDS = new Set(['substance_use'])
+const OBJECT_FIELDS = new Set(['substance_use', 'prefs', 'data'])
 
 function ensureStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String)
