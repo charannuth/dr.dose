@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { spacing } from '../../constants/theme';
+import { fonts, radii, spacing, withAlpha } from '../../constants/theme';
 import type { ColorPalette } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,7 +21,6 @@ import { HrtTrackerPanel } from '../../components/tracking/HrtTrackerPanel';
 import { MedProgressPanel } from '../../components/tracking/MedProgressPanel';
 import { WeightTrackerPanel } from '../../components/tracking/WeightTrackerPanel';
 import { TrackingCalendar } from '../../components/tracking/TrackingCalendar';
-import { SelectField } from '../../components/tracking/SelectField';
 import { useTrackingStyles } from '../../components/tracking/trackingStyles';
 import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import {
@@ -37,8 +36,10 @@ import { updateBodyMetricUnits } from '../../lib/medicalRecords';
 import {
   TRACKER_CATALOG,
   trackerCatalogEntry,
+  type TrackerAccent,
   type TrackerId,
 } from '../../lib/tracking/catalog';
+import { tapFeedback } from '../../lib/haptics';
 import {
   disableTracker,
   enableTracker,
@@ -58,7 +59,15 @@ import { AmbientScrollView } from '../../components/AmbientBackground';
 
 export default function TrackingScreen() {
   const { widgetTracker } = useLocalSearchParams<{ widgetTracker?: string }>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const accentColor = (accent: TrackerAccent) =>
+    ({
+      red: colors.accentRed,
+      purple: colors.accentPurple,
+      blue: colors.accentBlue,
+      green: colors.accentGreen,
+      amber: colors.accentAmber,
+    })[accent];
   const trackingStyles = useTrackingStyles();
   const styles = useMemo(() => makeTrackingScreenStyles(colors), [colors]);
   const { user } = useAuth();
@@ -70,7 +79,6 @@ export default function TrackingScreen() {
   const [enabled, setEnabled] = useState<TrackerId[]>([]);
   const [activeTracker, setActiveTracker] = useState<TrackerId | null>(null);
   const [profileExpanded, setProfileExpanded] = useState(false);
-  const [addTrackerId, setAddTrackerId] = useState('');
   const [loading, setLoading] = useState(true);
   const [profileBusy, setProfileBusy] = useState(false);
   const [trackerBusy, setTrackerBusy] = useState(false);
@@ -92,8 +100,7 @@ export default function TrackingScreen() {
     if (enabled.includes(requested.id)) {
       setActiveTracker(requested.id);
     } else {
-      setAddTrackerId(requested.id);
-      setMessage(`Enable ${requested.label} below to start using this tracker.`);
+      setMessage(`Add ${requested.label} below to start using this tracker.`);
     }
   }, [widgetTracker, loading, enabled]));
 
@@ -243,18 +250,19 @@ export default function TrackingScreen() {
     }
   }
 
-  async function handleAddTracker() {
-    if (!user || !addTrackerId) return;
-    const entry = trackerCatalogEntry(addTrackerId as TrackerId);
+  async function handleAddTracker(trackerId: TrackerId) {
+    if (!user) return;
+    const entry = trackerCatalogEntry(trackerId);
     if (!entry?.available) return;
-    if (enabled.includes(addTrackerId as TrackerId)) return;
+    if (enabled.includes(trackerId)) return;
+    tapFeedback();
     setTrackerBusy(true);
     setError(null);
     try {
-      await enableTracker(user.id, addTrackerId as TrackerId);
-      setAddTrackerId('');
+      await enableTracker(user.id, trackerId);
       await reload();
-      setActiveTracker(addTrackerId as TrackerId);
+      setActiveTracker(trackerId);
+      setMessage(`${entry.label} is on. Tap ✨ Make it yours to set it up your way.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not enable tracker');
     } finally {
@@ -293,22 +301,8 @@ export default function TrackingScreen() {
     }
   }
 
-  const enableableTrackers = TRACKER_CATALOG.filter((t) => t.available);
-  const enableableNotEnabled = enableableTrackers.filter((t) => !enabled.includes(t.id));
+  const enableableNotEnabled = TRACKER_CATALOG.filter((t) => t.available && !enabled.includes(t.id));
   const profileSummary = physicalProfileSummary(medicalRecord);
-
-  const addTrackerOptions = [
-    {
-      value: '',
-      label:
-        enableableNotEnabled.length === 0 ? 'All trackers enabled' : 'Choose a tracker…',
-    },
-    ...enableableTrackers.map((t) => ({
-      value: t.id,
-      label: `${t.label}${enabled.includes(t.id) ? ' (enabled)' : ''}`,
-      disabled: enabled.includes(t.id),
-    })),
-  ];
 
   function renderTrackerPanel(id: TrackerId) {
     switch (id) {
@@ -352,7 +346,7 @@ export default function TrackingScreen() {
         }
       >
         <Text style={styles.subtitle}>
-          Optional health modules — enable what you need, skip the rest
+          Your body, your way. Turn on the trackers that help you and skip the rest.
         </Text>
 
         {error ? <Text style={trackingStyles.errorBanner}>{error}</Text> : null}
@@ -409,18 +403,24 @@ export default function TrackingScreen() {
                   {enabled.map((id) => {
                     const entry = trackerCatalogEntry(id);
                     const active = activeTracker === id;
+                    const tint = entry ? accentColor(entry.accent) : colors.accent;
                     return (
                       <Pressable
                         key={id}
-                        onPress={() => setActiveTracker(id)}
-                        style={[trackingStyles.tab, active && trackingStyles.tabActive]}
+                        onPress={() => {
+                          tapFeedback();
+                          setActiveTracker(id);
+                        }}
+                        style={[
+                          trackingStyles.tab,
+                          { borderColor: withAlpha(tint, 0.5) },
+                          active && { backgroundColor: tint, borderColor: tint },
+                        ]}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
                       >
-                        <Text
-                          style={[
-                            trackingStyles.tabText,
-                            active && trackingStyles.tabTextActive,
-                          ]}
-                        >
+                        <Text style={[trackingStyles.tabText, active && { color: '#fff' }]}>
+                          {entry?.emoji ? `${entry.emoji}  ` : ''}
                           {entry?.label ?? id}
                         </Text>
                       </Pressable>
@@ -446,37 +446,11 @@ export default function TrackingScreen() {
                 />
               ) : null}
 
-              <View style={trackingStyles.addRow}>
-                <SelectField
-                  label="Add tracker"
-                  value={addTrackerId}
-                  options={addTrackerOptions}
-                  onChange={setAddTrackerId}
-                  disabled={enableableTrackers.length === 0 || trackerBusy}
-                />
-                <Pressable
-                  style={[
-                    trackingStyles.primaryBtn,
-                    (!addTrackerId ||
-                      trackerBusy ||
-                      enabled.includes(addTrackerId as TrackerId)) &&
-                      trackingStyles.disabled,
-                  ]}
-                  disabled={
-                    !addTrackerId ||
-                    trackerBusy ||
-                    enabled.includes(addTrackerId as TrackerId)
-                  }
-                  onPress={() => void handleAddTracker()}
-                >
-                  <Text style={trackingStyles.primaryBtnText}>Enable</Text>
-                </Pressable>
-              </View>
-
               {activeTracker && enabled.includes(activeTracker) ? (
                 <View>
                   <View style={trackingStyles.moduleHeader}>
                     <Text style={trackingStyles.moduleTitle}>
+                      {trackerCatalogEntry(activeTracker)?.emoji}{' '}
                       {trackerCatalogEntry(activeTracker)?.label}
                     </Text>
                     <Pressable
@@ -488,12 +462,62 @@ export default function TrackingScreen() {
                       </Text>
                     </Pressable>
                   </View>
-                  <Text style={trackingStyles.hint}>
-                    {trackerCatalogEntry(activeTracker)?.description}
-                  </Text>
                   {renderTrackerPanel(activeTracker)}
                 </View>
               ) : null}
+            </View>
+
+            <View style={trackingStyles.section}>
+              <Text style={trackingStyles.sectionTitle}>
+                {enabled.length === 0 ? 'Pick your first tracker' : 'Add a tracker'}
+              </Text>
+              {enableableNotEnabled.length === 0 ? (
+                <Text style={trackingStyles.hint}>You've turned on every tracker that's ready.</Text>
+              ) : (
+                <View style={{ gap: 10, marginBottom: spacing.md }}>
+                  {enableableNotEnabled.map((t) => {
+                    const tint = accentColor(t.accent);
+                    return (
+                      <Pressable
+                        key={t.id}
+                        disabled={trackerBusy}
+                        onPress={() => void handleAddTracker(t.id)}
+                        style={[
+                          styles.addCard,
+                          {
+                            borderColor: withAlpha(tint, 0.45),
+                            backgroundColor: withAlpha(tint, isDark ? 0.16 : 0.08),
+                          },
+                          trackerBusy && trackingStyles.disabled,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add ${t.label}`}
+                      >
+                        <View style={[styles.addIcon, { backgroundColor: withAlpha(tint, isDark ? 0.32 : 0.2) }]}>
+                          <Text style={{ fontSize: 22 }}>{t.emoji}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.addTitle}>{t.label}</Text>
+                          <Text style={styles.addDesc}>{t.description}</Text>
+                        </View>
+                        <View style={[styles.addPill, { backgroundColor: tint }]}>
+                          <Text style={styles.addPillText}>＋ Add</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+              <Text style={[trackingStyles.label, { marginTop: spacing.sm }]}>Coming soon</Text>
+              <View style={trackingStyles.chipWrap}>
+                {TRACKER_CATALOG.filter((t) => !t.available).map((t) => (
+                  <View key={t.id} style={[trackingStyles.chip, { opacity: 0.7 }]}>
+                    <Text style={trackingStyles.chipText}>
+                      {t.emoji} {t.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </>
         )}
@@ -514,5 +538,24 @@ function makeTrackingScreenStyles(colors: ColorPalette) {
       marginBottom: spacing.md,
       lineHeight: 22,
     },
+    addCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderWidth: 1,
+      borderRadius: radii.lg,
+      padding: 12,
+    },
+    addIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addTitle: { fontFamily: fonts.heading, fontSize: 15, color: colors.text },
+    addDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
+    addPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+    addPillText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   });
 }

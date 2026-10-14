@@ -34,6 +34,12 @@ import {
 } from '../../lib/tracking/weight';
 import { kgToLbString, lbStringToKg, parsePositiveNumber } from '../../lib/bodyMetrics';
 import { useTrackingStyles } from './trackingStyles';
+import { useTrackerPrefs } from '../../hooks/useTrackerPrefs';
+import { normalizeWeightPrefs, weightFocusUsesGoal, type WeightPrefs } from '../../lib/tracking/weightPrefs';
+import { TrackerStoreUnavailableError } from '../../lib/tracking/trackerStore';
+import { tapFeedback } from '../../lib/haptics';
+import { NoticeCard } from './TrackerUI';
+import { WeightPersonalizeSheet } from './WeightPersonalizeSheet';
 
 type Props = {
   selectedDate: string;
@@ -84,6 +90,15 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
   const [heightUnit, setHeightUnit] = useState<BodyMetricUnit>('metric');
   const [weightUnit, setWeightUnit] = useState<BodyMetricUnit>('metric');
   const isFutureDay = selectedDate > today;
+  const {
+    prefs: weightPrefs,
+    available: prefsAvailable,
+    save: saveWeightPrefs,
+    setAvailable: setPrefsAvailable,
+  } = useTrackerPrefs<WeightPrefs>(user?.id, 'weight', normalizeWeightPrefs);
+  const [personalizeOpen, setPersonalizeOpen] = useState(false);
+  const showCalories = weightPrefs.showCalories;
+  const usesGoal = weightFocusUsesGoal(weightPrefs.focus);
 
   const [breakfastDraft, setBreakfastDraft] = useState('');
   const [lunchDraft, setLunchDraft] = useState('');
@@ -320,9 +335,11 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
   const weightDisplay =
     weightKgDraft.trim() === ''
       ? null
-      : weightUnit === 'metric'
-        ? `${weightKgDraft} kg`
-        : `${kgToLbString(weightKgDraft)} lb`;
+      : weightPrefs.hideWeightNumber
+        ? 'Logged ✓'
+        : weightUnit === 'metric'
+          ? `${weightKgDraft} kg`
+          : `${kgToLbString(weightKgDraft)} lb`;
 
   if (loading || !settings || !settingsDraft) {
     return <ActivityIndicator color={colors.accent} style={{ marginVertical: 16 }} />;
@@ -330,10 +347,55 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
 
   return (
     <View>
-      <Text style={trackingStyles.hint}>
-        Weight + nutrition logging with calorie targets based on your baseline, goal, and activity.
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Text style={[trackingStyles.hint, { flex: 1, marginBottom: 0 }]}>
+          {showCalories
+            ? 'Weight and nutrition logging with calorie targets based on your baseline, goal and activity.'
+            : 'Weight logging at your own pace. Calorie tracking is off.'}
+        </Text>
+        <Pressable
+          onPress={() => {
+            tapFeedback();
+            setPersonalizeOpen(true);
+          }}
+          style={{
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: colors.accentGreen,
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+          }}
+          accessibilityRole="button"
+        >
+          <Text style={{ color: colors.accentGreen, fontWeight: '700', fontSize: 13 }}>✨ Make it yours</Text>
+        </Pressable>
+      </View>
+      {!prefsAvailable ? (
+        <NoticeCard
+          emoji="🛠️"
+          body="Personalization needs database migration 030 before it can save. Everything else works as usual."
+          accent={colors.accentAmber}
+        />
+      ) : !weightPrefs.configured ? (
+        <NoticeCard
+          emoji="💚"
+          body="If food or weight tracking ever feels stressful, you can turn calorie tracking off or hide your weight number in Make it yours."
+          accent={colors.accentGreen}
+        />
+      ) : null}
       {error ? <Text style={trackingStyles.errorBanner}>{error}</Text> : null}
+      <WeightPersonalizeSheet
+        visible={personalizeOpen}
+        prefs={weightPrefs}
+        onCancel={() => setPersonalizeOpen(false)}
+        onSave={(next) => {
+          setPersonalizeOpen(false);
+          void saveWeightPrefs(next).catch((err: unknown) => {
+            if (err instanceof TrackerStoreUnavailableError) setPrefsAvailable(false);
+            else setError(err instanceof Error ? err.message : 'Could not save your preferences');
+          });
+        }}
+      />
 
       <View style={trackingStyles.moduleHeader}>
         <Text style={trackingStyles.sectionTitle}>Weight plan</Text>
@@ -366,6 +428,8 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
               void updateBodyMetricUnits(user.id, { weight_unit: unit }).then(setMedicalRecord);
             }}
           />
+          {usesGoal ? (
+          <>
           <SelectField
             label="Goal"
             value={settingsDraft.goal_direction}
@@ -391,6 +455,13 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
               setSettingsDraft((d) => (d ? { ...d, goal_rate: v as WeightGoalRate } : d))
             }
           />
+          {settingsDraft.goal_rate === 'extreme' ? (
+            <Text style={trackingStyles.hint}>
+              Fast changes are hard on your body. Consider checking this pace with a clinician.
+            </Text>
+          ) : null}
+          </>
+          ) : null}
           <SelectField
             label="Activity level"
             value={settingsDraft.activity_level}
@@ -436,19 +507,21 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
         <Text style={trackingStyles.hint}>Weight plan saved.</Text>
       ) : null}
 
-      <Text style={trackingStyles.label}>Calorie targets</Text>
-      {targets && maintenance != null ? (
+      {showCalories ? <Text style={trackingStyles.label}>Calorie targets</Text> : null}
+      {!showCalories ? null : targets && maintenance != null ? (
         <View style={trackingStyles.row}>
           <View style={[trackingStyles.card, { flex: 1 }]}>
             <Text style={trackingStyles.cardLabel}>Maintenance</Text>
             <Text style={trackingStyles.cardValue}>{maintenance}</Text>
             <Text style={trackingStyles.hint}>kcal/day</Text>
           </View>
+          {usesGoal ? (
           <View style={[trackingStyles.card, { flex: 1 }]}>
             <Text style={trackingStyles.cardLabel}>Target ({targets.label})</Text>
             <Text style={trackingStyles.cardValue}>{targets.targetCalories}</Text>
             <Text style={trackingStyles.hint}>kcal/day</Text>
           </View>
+          ) : null}
         </View>
       ) : (
         <Text style={trackingStyles.hint}>
@@ -486,16 +559,20 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
               <Text style={trackingStyles.ghostBtnText}>Edit</Text>
             </Pressable>
           </View>
-          <Text style={trackingStyles.hint}>
-            Calories: {caloriesIn} in
-            {didWorkoutDraft ? ` · ${caloriesBurned} burned` : ''}
-          </Text>
+          {showCalories ? (
+            <Text style={trackingStyles.hint}>
+              Calories: {caloriesIn} in
+              {didWorkoutDraft ? ` · ${caloriesBurned} burned` : ''}
+            </Text>
+          ) : null}
           {weightDisplay ? (
             <Text style={trackingStyles.hint}>Weight: {weightDisplay}</Text>
           ) : null}
         </View>
       ) : (
         <>
+          {showCalories ? (
+          <>
           <Text style={trackingStyles.label}>Breakfast (kcal)</Text>
           <TextInput
             style={trackingStyles.input}
@@ -520,18 +597,24 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
             onChangeText={setDinnerDraft}
             editable={!isFutureDay}
           />
+          </>
+          ) : null}
           <View style={[trackingStyles.row, { alignItems: 'center' }]}>
             <Switch value={didWorkoutDraft} onValueChange={setDidWorkoutDraft} />
             <Text style={trackingStyles.label}>Workout / cardio</Text>
           </View>
-          <Text style={trackingStyles.label}>Calories burned</Text>
-          <TextInput
-            style={trackingStyles.input}
-            keyboardType="number-pad"
-            value={workoutCaloriesDraft}
-            onChangeText={setWorkoutCaloriesDraft}
-            editable={!isFutureDay && didWorkoutDraft}
-          />
+          {showCalories ? (
+            <>
+              <Text style={trackingStyles.label}>Calories burned</Text>
+              <TextInput
+                style={trackingStyles.input}
+                keyboardType="number-pad"
+                value={workoutCaloriesDraft}
+                onChangeText={setWorkoutCaloriesDraft}
+                editable={!isFutureDay && didWorkoutDraft}
+              />
+            </>
+          ) : null}
           <Text style={trackingStyles.label}>Weight</Text>
           <TextInput
             style={trackingStyles.input}
@@ -542,6 +625,7 @@ export function WeightTrackerPanel({ selectedDate, onSelectDate, onDataMutated }
               else setWeightKgDraft(lbStringToKg(v));
             }}
             editable={!isFutureDay && allowedWeightForSelectedDate}
+            secureTextEntry={weightPrefs.hideWeightNumber}
           />
           <Text style={trackingStyles.hint}>
             {allowedWeightForSelectedDate

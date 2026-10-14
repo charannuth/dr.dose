@@ -9,6 +9,8 @@ import {
   fetchWeightSettings,
 } from './weight'
 import { addDaysToDateString } from '../dates'
+import { fetchTrackerPrefs } from './trackerStore'
+import { normalizeWeightPrefs } from './weightPrefs'
 
 function cellFromWeightDay(input: {
   date: string
@@ -16,8 +18,9 @@ function cellFromWeightDay(input: {
   settings: WeightSettings
   log: WeightLog | null
   weightUnit: BodyMetricUnit
+  hideWeightNumber?: boolean
 }): TrackingCalendarCell {
-  const { date, today, settings, log, weightUnit } = input
+  const { date, today, settings, log, weightUnit, hideWeightNumber } = input
 
   const classNames: string[] = []
   const isFuture = date > today
@@ -54,7 +57,9 @@ function cellFromWeightDay(input: {
 
   const events: TrackingCalendarCell['events'] = []
   if (hasWeight && log?.weight_kg != null) {
-    const label = formatWeightForUnit(log.weight_kg, weightUnit) ?? 'Weight'
+    const label = hideWeightNumber
+      ? 'Weight logged'
+      : formatWeightForUnit(log.weight_kg, weightUnit) ?? 'Weight'
     events.push({ id: 'weight', label, tone: 'weight' })
   } else if (hasMeals) {
     events.push({ id: 'meals', label: 'Meals logged', tone: 'weight' })
@@ -94,10 +99,11 @@ export async function loadWeightCalendarData(
   end: string,
 ): Promise<TrackingCalendarData> {
   const today = todayLocalDate()
-  const [settings, logs, medical] = await Promise.all([
+  const [settings, logs, medical, prefs] = await Promise.all([
     fetchWeightSettings(userId),
     fetchWeightLogs(userId, start, end),
     fetchMedicalRecord(userId),
+    fetchTrackerPrefs(userId, 'weight', normalizeWeightPrefs).catch(() => null),
   ])
   const weightUnit = normalizeBodyMetricUnit(medical?.weight_unit)
 
@@ -114,6 +120,7 @@ export async function loadWeightCalendarData(
       settings,
       log: byDate.get(date) ?? null,
       weightUnit,
+      hideWeightNumber: prefs?.prefs.hideWeightNumber,
     })
     cells.set(date, cell)
   }
