@@ -53,6 +53,13 @@ function makeDailyFormStyles(colors: ColorPalette) {
       color: colors.text,
     },
     hoursInput: { width: 96, textAlign: 'center' as const },
+    durationRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+    },
+    durationInput: { width: 72, textAlign: 'center' as const },
+    durationUnit: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.textMuted, marginRight: spacing.xs },
     notes: { minHeight: 84, textAlignVertical: 'top' as const },
     segments: {
       flexDirection: 'row' as const,
@@ -281,18 +288,11 @@ export function WellnessDailyForm({
           />
         </View>
         {value.exercised ? (
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>Minutes</Text>
-            <TextInput
-              style={[styles.input, styles.hoursInput]}
-              keyboardType="number-pad"
-              placeholder="30"
-              placeholderTextColor={colors.textMuted}
-              editable={!busy}
-              value={value.exercise_minutes == null ? '' : String(value.exercise_minutes)}
-              onChangeText={(t) => setNullableNumber('exercise_minutes', t)}
-            />
-          </View>
+          <ExerciseDuration
+            minutes={value.exercise_minutes}
+            onChange={(exercise_minutes) => patch({ exercise_minutes })}
+            busy={busy}
+          />
         ) : null}
       </DailySection>
 
@@ -395,4 +395,110 @@ function NumericEntry({ value, onChange, busy, label }: { value: number | null; 
   const [text, setText] = useState(value === null ? '' : String(value));
   useEffect(() => { if (value === null) setText(''); else if (Number.isFinite(value)) setText(String(value)); }, [value]);
   return <TextInput style={[s.input, s.hoursInput]} accessibilityLabel={label} value={text} keyboardType="decimal-pad" editable={!busy} placeholder="7.5" placeholderTextColor={s.hint.color} onChangeText={(raw) => { setText(raw); onChange(raw.trim() ? Number(raw.replace(',', '.')) : null); }} />;
+}
+
+type DurationUnit = 'min' | 'hr';
+
+const DURATION_UNITS: { value: DurationUnit; label: string }[] = [
+  { value: 'min', label: 'Minutes' },
+  { value: 'hr', label: 'Hours + min' },
+];
+
+/** Digits only; empty stays empty so the field can be cleared. */
+function parseWhole(raw: string): number | null {
+  const digits = raw.replace(/[^0-9]/g, '');
+  return digits ? Number(digits) : null;
+}
+
+/**
+ * Exercise time, stored as total minutes. "Hours + min" splits the same value
+ * into two boxes so 1 hr 30 min doesn't have to be typed as 90.
+ */
+function ExerciseDuration({
+  minutes,
+  onChange,
+  busy,
+}: {
+  minutes: number | null;
+  onChange: (minutes: number | null) => void;
+  busy: boolean;
+}) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeDailyFormStyles);
+  const [unit, setUnit] = useState<DurationUnit>(minutes != null && minutes >= 60 ? 'hr' : 'min');
+  // Hours + min keeps its own text so a half-typed pair isn't rewritten under the cursor.
+  const [hrText, setHrText] = useState(minutes != null && minutes >= 60 ? String(Math.floor(minutes / 60)) : '');
+  const [minText, setMinText] = useState(
+    minutes == null ? '' : String(minutes >= 60 ? minutes % 60 : minutes),
+  );
+
+  function commitParts(nextHr: string, nextMin: string) {
+    setHrText(nextHr);
+    setMinText(nextMin);
+    const h = parseWhole(nextHr);
+    const m = parseWhole(nextMin);
+    onChange(h == null && m == null ? null : (h ?? 0) * 60 + (m ?? 0));
+  }
+
+  function switchUnit(next: DurationUnit) {
+    setUnit(next);
+    // Re-split the saved total so both modes always show the same amount.
+    if (next === 'hr' && minutes != null) {
+      setHrText(minutes >= 60 ? String(Math.floor(minutes / 60)) : '');
+      setMinText(String(minutes >= 60 ? minutes % 60 : minutes));
+    }
+  }
+
+  return (
+    <View style={s.field}>
+      <Text style={s.legend}>How long?</Text>
+      <Segments
+        label="Exercise time unit"
+        options={DURATION_UNITS}
+        value={unit}
+        onChange={(next) => next && switchUnit(next)}
+        busy={busy}
+      />
+      {unit === 'min' ? (
+        <View style={s.durationRow}>
+          <TextInput
+            style={[s.input, s.durationInput]}
+            keyboardType="number-pad"
+            placeholder="45"
+            placeholderTextColor={colors.textMuted}
+            editable={!busy}
+            value={minutes == null ? '' : String(minutes)}
+            onChangeText={(t) => onChange(parseWhole(t))}
+            accessibilityLabel="Exercise minutes"
+          />
+          <Text style={s.durationUnit}>min</Text>
+        </View>
+      ) : (
+        <View style={s.durationRow}>
+          <TextInput
+            style={[s.input, s.durationInput]}
+            keyboardType="number-pad"
+            placeholder="1"
+            placeholderTextColor={colors.textMuted}
+            editable={!busy}
+            value={hrText}
+            onChangeText={(t) => commitParts(t.replace(/[^0-9]/g, ''), minText)}
+            accessibilityLabel="Exercise hours"
+          />
+          <Text style={s.durationUnit}>hr</Text>
+          <TextInput
+            style={[s.input, s.durationInput]}
+            keyboardType="number-pad"
+            placeholder="30"
+            placeholderTextColor={colors.textMuted}
+            editable={!busy}
+            value={minText}
+            onChangeText={(t) => commitParts(hrText, t.replace(/[^0-9]/g, ''))}
+            accessibilityLabel="Exercise minutes"
+          />
+          <Text style={s.durationUnit}>min</Text>
+        </View>
+      )}
+    </View>
+  );
 }

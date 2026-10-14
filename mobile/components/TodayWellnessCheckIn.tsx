@@ -262,7 +262,21 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
       ) : null}
 
       {complete && !expanded ? (
-        <View style={styles.doneCard}>
+        // The whole row opens the editor: a small Edit pill alone was easy to miss,
+        // and Expo Go's floating tools button can sit right on top of it.
+        <PressableScale
+          style={styles.doneCard}
+          scaleTo={0.99}
+          onPress={() => {
+            tapFeedback();
+            setDraft(saved!);
+            setMessage(null);
+            setError(null);
+            setExpanded(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Edit today's check-in"
+        >
           <View style={styles.doneCheck}>
             <Text style={styles.doneCheckGlyph}>✓</Text>
           </View>
@@ -272,19 +286,10 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
               {formatWellnessLogSummary(saved!)}
             </Text>
           </View>
-          <PressableScale
-            style={styles.editBtn}
-            scaleTo={0.97}
-            onPress={() => {
-              setDraft(saved!);
-              setMessage(null);
-              setExpanded(true);
-            }}
-            accessibilityRole="button"
-          >
+          <View style={styles.editBtn}>
             <Text style={styles.editText}>Edit</Text>
-          </PressableScale>
-        </View>
+          </View>
+        </PressableScale>
       ) : expanded ? (
         <WellnessDailyForm
           compact

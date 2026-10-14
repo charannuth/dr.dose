@@ -170,7 +170,8 @@ function makeTodayStyles(colors: ColorPalette) {
     },
     scroll: {
       padding: spacing.md,
-      paddingBottom: spacing.xl,
+      // Room below the last tile so nothing ends under a floating button.
+      paddingBottom: spacing.xl * 3,
       gap: spacing.md,
     },
     loadingWrap: {

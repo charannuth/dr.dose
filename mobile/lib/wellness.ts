@@ -2,6 +2,7 @@ import { openRow, openRows, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
 import { localDateString, todayLocalDate } from './dates'
 import { validateWellnessLog } from './wellnessForm'
+import { formatMinutesDuration } from './duration'
 type SubstanceKey = 'alcohol' | 'cannabis' | 'tobacco'
 
 export const WELLNESS_SYMPTOM_OPTIONS = [
@@ -199,7 +200,7 @@ export function formatWellnessLogSummary(input: WellnessLogInput): string {
   if (input.exercised) {
     parts.push(
       input.exercise_minutes
-        ? `${input.exercise_minutes} min exercise`
+        ? `${formatMinutesDuration(input.exercise_minutes)} exercise`
         : 'exercise yes',
     )
   }
