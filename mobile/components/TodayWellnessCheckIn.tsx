@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import { useWellnessTodayLog } from '../hooks/useWellnessTodayLog';
@@ -15,89 +10,162 @@ import {
 } from '../lib/wellness';
 import { todayLocalDate } from '../lib/dates';
 import { routes } from '../lib/routes';
-import { WellnessDisclaimer } from './WellnessDisclaimer';
+import { PressableScale } from './PressableScale';
+import { tapFeedback } from '../lib/haptics';
 import { WellnessDailyForm } from './WellnessDailyForm';
 import { useDemoTourTarget } from '../context/DemoTourTargetsContext';
 import type { ColorPalette } from '../constants/theme';
-import { radii, spacing } from '../constants/theme';
+import { fonts, radii, spacing, typography, withAlpha } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+
+const ENERGY_FACES = [
+  { value: 1, face: '😫', label: 'Drained' },
+  { value: 2, face: '😕', label: 'Low' },
+  { value: 3, face: '😐', label: 'Okay' },
+  { value: 4, face: '🙂', label: 'Good' },
+  { value: 5, face: '😄', label: 'Great' },
+] as const;
 
 function makeTodayWellnessStyles(colors: ColorPalette) {
   return {
     card: {
       backgroundColor: colors.surface,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
+      borderColor: withAlpha(colors.accent, 0.35),
+      padding: spacing.md + 2,
+      gap: spacing.md - 2,
     },
     header: {
       flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      justifyContent: 'space-between' as const,
-      gap: spacing.sm,
+      alignItems: 'center' as const,
+      gap: spacing.sm + 4,
     },
+    iconBubble: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: colors.accentPurpleBg,
+    },
+    icon: { fontSize: 20 },
+    headerText: { flex: 1, gap: 1 },
     h3: {
+      ...typography.heading,
       fontSize: 18,
-      fontWeight: '900' as const,
       color: colors.text,
-      marginBottom: 2,
     },
-    muted: {
+    subtitle: {
+      fontFamily: fonts.bodyRegular,
+      fontSize: 13.5,
       color: colors.textMuted,
-      lineHeight: 18,
     },
-    linkBtn: {
+    linkChip: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: 11,
       paddingVertical: 6,
-      paddingHorizontal: 6,
+      borderRadius: 999,
+      backgroundColor: colors.accentPurpleBg,
     },
     linkText: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
       color: colors.accent,
-      fontWeight: '900' as const,
+    },
+    muted: {
+      fontFamily: fonts.bodyRegular,
+      color: colors.textMuted,
     },
     loadingRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 10,
     },
+    prompt: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+      color: colors.text,
+    },
+    faces: {
+      flexDirection: 'row' as const,
+    },
+    faceSlot: { flex: 1 },
+    faceBtn: {
+      alignItems: 'center' as const,
+      gap: 6,
+    },
+    faceCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    faceCircleActive: {
+      backgroundColor: colors.accentPurpleBg,
+      borderColor: colors.accent,
+    },
+    face: { fontSize: 28 },
+    faceLabel: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 11.5,
+      color: colors.textMuted,
+    },
+    faceLabelActive: { color: colors.accent },
     banner: {
       borderRadius: radii.md,
-      padding: spacing.md,
-      borderWidth: 1,
+      paddingVertical: 10,
+      paddingHorizontal: spacing.md - 4,
     },
-    bannerError: {
-      backgroundColor: colors.errorBg,
-      borderColor: colors.errorBorder,
+    bannerError: { backgroundColor: colors.errorBg },
+    bannerErrorText: { fontFamily: fonts.bodySemibold, color: colors.error },
+    primaryBtn: {
+      backgroundColor: colors.accent,
+      borderRadius: 999,
+      paddingVertical: 13,
+      alignItems: 'center' as const,
     },
-    bannerErrorText: { color: colors.error, fontWeight: '700' as const },
-    bannerSuccess: {
+    primaryText: { fontFamily: fonts.bodyBold, color: colors.onAccent, fontSize: 15.5 },
+    doneCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm + 2,
+      borderRadius: radii.md,
+      padding: spacing.sm + 4,
       backgroundColor: colors.successBg,
+    },
+    doneCheck: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: colors.success,
+    },
+    doneCheckGlyph: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.onAccent },
+    doneText: { flex: 1, gap: 2 },
+    doneTitle: { fontFamily: fonts.bodySemibold, fontSize: 14.5, color: colors.successText },
+    summary: { fontFamily: fonts.bodyRegular, fontSize: 13, color: colors.text },
+    editBtn: {
+      borderRadius: 999,
+      paddingHorizontal: 13,
+      paddingVertical: 7,
+      borderWidth: 1,
       borderColor: colors.successBorder,
     },
-    bannerSuccessText: { color: colors.text, fontWeight: '700' as const },
-    primaryBtn: {
-      marginTop: spacing.sm,
-      backgroundColor: colors.accent,
-      borderRadius: radii.md,
-      paddingVertical: 14,
-      alignItems: 'center' as const,
+    editText: { fontFamily: fonts.bodySemibold, fontSize: 13, color: colors.successText },
+    disclaimer: {
+      fontFamily: fonts.bodyRegular,
+      fontSize: 11.5,
+      lineHeight: 16,
+      color: colors.textMuted,
+      opacity: 0.8,
     },
-    primaryText: { color: colors.onAccent, fontWeight: '900' as const, fontSize: 16 },
-    secondaryBtn: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      paddingVertical: 10,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center' as const,
-    },
-    secondaryText: { color: colors.text, fontWeight: '800' as const },
-    doneRow: {
-      gap: spacing.sm,
-    },
-    summary: { color: colors.text, fontWeight: '700' as const },
   };
 }
 
@@ -137,7 +205,7 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
       setSaved({ ...draft });
       onSaved?.();
       setExpanded(false);
-      setMessage('Check-in saved. Share these notes with your doctor when you visit.');
+      setMessage('Check-in saved. Nice work!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save check-in');
     } finally {
@@ -159,67 +227,123 @@ export function TodayWellnessCheckIn({ onSaved }: { onSaved?: () => void } = {})
 
   const complete = saved != null && isWellnessLogFilled(saved);
 
+  function startWithEnergy(energy: number) {
+    tapFeedback();
+    setMessage(null);
+    setDraft({ ...(complete ? saved! : draft), energy_level: energy });
+    setExpanded(true);
+  }
+
   return (
     <View ref={tourRef} collapsable={false} style={styles.card}>
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.h3}>Daily check-in</Text>
-          <Text style={styles.muted}>
-            Log sleep, energy, and symptoms to discuss with your clinician — best done in the evening.
-          </Text>
+        <View style={styles.iconBubble}>
+          <Text style={styles.icon}>🌙</Text>
         </View>
-        <Pressable onPress={() => router.push(routes.wellness)} style={styles.linkBtn}>
-          <Text style={styles.linkText}>Wellness →</Text>
-        </Pressable>
+        <View style={styles.headerText}>
+          <Text style={styles.h3}>Daily check-in</Text>
+          <Text style={styles.subtitle}>Sleep, energy and symptoms for your clinician</Text>
+        </View>
+        <PressableScale
+          style={styles.linkChip}
+          scaleTo={0.97}
+          onPress={() => router.push(routes.wellness)}
+          accessibilityRole="link"
+          accessibilityLabel="Open Wellness"
+        >
+          <Text style={styles.linkText}>Trends →</Text>
+        </PressableScale>
       </View>
-
-      <WellnessDisclaimer compact />
 
       {error ? (
         <View style={[styles.banner, styles.bannerError]}>
           <Text style={styles.bannerErrorText}>{error}</Text>
         </View>
       ) : null}
-      {message ? (
-        <View style={[styles.banner, styles.bannerSuccess]}>
-          <Text style={styles.bannerSuccessText}>{message}</Text>
-        </View>
-      ) : null}
 
       {complete && !expanded ? (
-        <View style={styles.doneRow}>
-          <Text style={styles.summary}>{formatWellnessLogSummary(saved!)}</Text>
-          <Pressable
-            style={styles.secondaryBtn}
-            onPress={() => {
-              setDraft(saved!);
-              setExpanded(true);
-            }}
-          >
-            <Text style={styles.secondaryText}>Edit today</Text>
-          </Pressable>
-        </View>
+        // The whole row opens the editor: a small Edit pill alone was easy to miss,
+        // and Expo Go's floating tools button can sit right on top of it.
+        <PressableScale
+          style={styles.doneCard}
+          scaleTo={0.99}
+          onPress={() => {
+            tapFeedback();
+            setDraft(saved!);
+            setMessage(null);
+            setError(null);
+            setExpanded(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Edit today's check-in"
+        >
+          <View style={styles.doneCheck}>
+            <Text style={styles.doneCheckGlyph}>✓</Text>
+          </View>
+          <View style={styles.doneText}>
+            <Text style={styles.doneTitle}>{message ?? 'Checked in for today'}</Text>
+            <Text style={styles.summary} numberOfLines={2}>
+              {formatWellnessLogSummary(saved!)}
+            </Text>
+          </View>
+          <View style={styles.editBtn}>
+            <Text style={styles.editText}>Edit</Text>
+          </View>
+        </PressableScale>
+      ) : expanded ? (
+        <WellnessDailyForm
+          compact
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => void handleSave()}
+          busy={busy}
+          submitLabel="Save check-in"
+          trackedSymptoms={trackedSymptoms}
+          onCancel={() => {
+            setError(null);
+            setExpanded(false);
+          }}
+        />
       ) : (
         <>
-          {!expanded ? (
-            <Pressable style={styles.primaryBtn} onPress={() => setExpanded(true)}>
-              <Text style={styles.primaryText}>{complete ? 'Edit check-in' : 'Log how today went'}</Text>
-            </Pressable>
-          ) : null}
-
-          {expanded ? (
-            <WellnessDailyForm
-              compact
-              value={draft}
-              onChange={setDraft}
-              onSubmit={() => void handleSave()}
-              busy={busy}
-              submitLabel="Save check-in"
-              trackedSymptoms={trackedSymptoms}
-            />
-          ) : null}
+          <Text style={styles.prompt}>How's your energy today?</Text>
+          <View style={styles.faces}>
+            {ENERGY_FACES.map((option) => {
+              const active = draft.energy_level === option.value;
+              return (
+                <View key={option.value} style={styles.faceSlot}>
+                  <PressableScale
+                    style={styles.faceBtn}
+                    scaleTo={0.95}
+                    onPress={() => startWithEnergy(option.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Energy ${option.label}, ${option.value} of 5`}
+                  >
+                    <View style={[styles.faceCircle, active && styles.faceCircleActive]}>
+                      <Text style={styles.face}>{option.face}</Text>
+                    </View>
+                    <Text style={[styles.faceLabel, active && styles.faceLabelActive]}>
+                      {option.label}
+                    </Text>
+                  </PressableScale>
+                </View>
+              );
+            })}
+          </View>
+          <PressableScale
+            style={styles.primaryBtn}
+            scaleTo={0.98}
+            onPress={() => setExpanded(true)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryText}>Log how today went</Text>
+          </PressableScale>
         </>
       )}
+
+      <Text style={styles.disclaimer}>
+        Personal logs only, not a diagnosis. Ask your doctor or pharmacist for medical advice.
+      </Text>
     </View>
   );
 }

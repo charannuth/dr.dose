@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { formatDoseDisplay } from '../lib/dose';
 import { formatInventoryRemaining } from '../lib/inventory';
 import { formatMedicationType } from '../lib/medicationForms';
@@ -10,10 +15,11 @@ import { currentMinutesSinceMidnight, scheduleTimeToMinutes } from '../lib/dates
 import type { DoseSlotStatus, MedicationWithStatus } from '../lib/types';
 import type { PrnDoseLogPayload } from '../lib/prnCheckIn';
 import type { ColorPalette } from '../constants/theme';
-import { fonts, radii, spacing, tileBgKey, tileFgKey } from '../constants/theme';
+import { fonts, radii, spacing, tileBgKey, tileFgKey, withAlpha } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { PrnDoseLogPanel } from './PrnDoseLogPanel';
+import { DoseSlotRow } from './medication/DoseSlotRow';
 import { PressableScale } from './PressableScale';
 import { ActionSheet, type SheetAction } from './ActionSheet';
 import { useRouter } from 'expo-router';
@@ -107,6 +113,50 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     badgePending: {
       backgroundColor: colors.pendingBg,
     },
+    progressPill: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      alignSelf: 'flex-start' as const,
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    progressDots: {
+      flexDirection: 'row' as const,
+      gap: 3,
+    },
+    progressDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      borderWidth: 1.5,
+    },
+    progressText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 12.5,
+    },
+    progressDoneText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 12.5,
+      color: colors.onAccent,
+    },
+    cheer: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+      borderRadius: radii.md,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    cheerEmoji: {
+      fontSize: 16,
+    },
+    cheerText: {
+      flex: 1,
+      fontFamily: fonts.bodySemibold,
+      fontSize: 14,
+    },
     badgeText: {
       fontFamily: fonts.bodyBold,
       fontSize: 12,
@@ -116,40 +166,11 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       gap: spacing.sm,
       marginTop: spacing.xs,
     },
-    slotWrap: {
-      gap: 4,
-      paddingVertical: 2,
-    },
-    slot: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      flexWrap: 'wrap' as const,
-      gap: spacing.sm,
-      paddingVertical: 4,
-    },
-    slotTakenRow: {
-      opacity: 0.9,
-    },
-    snoozeStatus: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      alignSelf: 'flex-start' as const,
-      gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: radii.sm,
-      backgroundColor: colors.accentPurpleBg,
-    },
-    snoozeStatusText: {
-      fontFamily: fonts.bodySemibold,
-      fontSize: 13,
-      color: colors.accent,
-    },
-    slotActions: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: spacing.sm,
+    doseRows: {
+      gap: 2,
+      marginTop: spacing.xs,
+      // Rows carry their own padding for the tap flash; pull them back to the card edge.
+      marginHorizontal: -6,
     },
     slotTaken: {
       flexDirection: 'row' as const,
@@ -179,23 +200,10 @@ function makeMedicationCardStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
       marginTop: spacing.xs,
     },
-    primaryButtonSmall: {
-      backgroundColor: colors.accent,
-      borderRadius: radii.sm,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      minWidth: 110,
-      alignItems: 'center' as const,
-    },
     primaryButtonText: {
       fontFamily: fonts.bodyBold,
       color: colors.onAccent,
       fontSize: 15,
-    },
-    primaryButtonTextSmall: {
-      fontFamily: fonts.bodyBold,
-      color: colors.onAccent,
-      fontSize: 14,
     },
     secondaryButton: {
       borderWidth: 1,
@@ -224,6 +232,34 @@ function makeMedicationCardStyles(colors: ColorPalette) {
   };
 }
 
+const TAKEN_NOTES = [
+  'Taken. Nice one!',
+  'Done and dusted',
+  'Logged. You got this',
+  'Checked off!',
+  'Right on time',
+  'Another one down',
+];
+
+const ALL_DONE_CHEERS = [
+  'All done for today. Nailed it!',
+  'Every dose taken. Look at you go!',
+  "That's a wrap for today",
+  'Full set today. Keep it rolling!',
+  'All checked off. High five!',
+];
+
+/**
+ * Picks a phrase that stays put for a given key on a given day, so a card does
+ * not reshuffle its cheer every time the list re-renders.
+ */
+function pickCheer(list: readonly string[], key: string): string {
+  const seed = `${key}-${new Date().toDateString()}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  return list[Math.abs(hash) % list.length];
+}
+
 function formatSnoozeTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -247,6 +283,7 @@ export function MedicationCard({
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
   const [menuOpen, setMenuOpen] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   const slotSource = visibleScheduleTime
     ? medication.slots.filter((s) => s.time === visibleScheduleTime)
@@ -296,7 +333,8 @@ export function MedicationCard({
     medication.medication_route,
     medication.medication_form,
   );
-  const cardLayout = LinearTransition.springify().damping(22).stiffness(200);
+  // Eased rather than sprung so rows glide into place without overshooting.
+  const cardLayout = LinearTransition.duration(240).easing(Easing.out(Easing.cubic));
 
   const prnBusy = busySlot === `${medication.id}-prn`;
   const migrateToPrnBusy = busySlot === `${medication.id}-migrate-prn`;
@@ -376,9 +414,12 @@ export function MedicationCard({
     badge = { label: 'No times set', tone: 'pending' };
   }
 
+  const showProgress = !asNeeded && dosesTotalToday > 0;
+  const allDone = showProgress && allDosesTakenToday;
+
   return (
+    <Animated.View layout={cardLayout}>
     <Animated.View
-      layout={cardLayout}
       style={[
         styles.card,
         { backgroundColor: tileBackground, borderColor: accentColor },
@@ -401,7 +442,41 @@ export function MedicationCard({
                   : ''}
           </Text>
         </View>
-        {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
+        {showProgress ? (
+          <View
+            style={[
+              styles.progressPill,
+              allDone
+                ? { backgroundColor: accentColor }
+                : { backgroundColor: withAlpha(accentColor, 0.14) },
+            ]}
+            accessibilityLabel={`${dosesTakenToday} of ${dosesTotalToday} doses taken`}
+          >
+            {allDone ? (
+              <Text style={styles.progressDoneText}>✓ Done</Text>
+            ) : (
+              <>
+                <View style={styles.progressDots}>
+                  {Array.from({ length: Math.min(dosesTotalToday, 6) }, (_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.progressDot,
+                        { borderColor: accentColor },
+                        i < dosesTakenToday && { backgroundColor: accentColor },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.progressText, { color: accentColor }]}>
+                  {dosesTakenToday}/{dosesTotalToday}
+                </Text>
+              </>
+            )}
+          </View>
+        ) : badge ? (
+          <Badge label={badge.label} tone={badge.tone} />
+        ) : null}
         <PressableScale
           style={styles.overflowBtn}
           scaleTo={0.85}
@@ -413,6 +488,18 @@ export function MedicationCard({
           <Text style={styles.overflowGlyph}>⋯</Text>
         </PressableScale>
       </View>
+
+      {allDone && !visibleScheduleTime ? (
+        <Animated.View
+          entering={reducedMotion ? undefined : FadeIn.duration(260)}
+          style={[styles.cheer, { backgroundColor: withAlpha(accentColor, 0.16) }]}
+        >
+          <Text style={styles.cheerEmoji}>🎉</Text>
+          <Text style={[styles.cheerText, { color: accentColor }]}>
+            {pickCheer(ALL_DONE_CHEERS, medication.id)}
+          </Text>
+        </Animated.View>
+      ) : null}
 
       {medication.end_date ? (
         <Text style={styles.dateRange}>{formatMedicationDateRange(medication)}</Text>
@@ -507,7 +594,7 @@ export function MedicationCard({
           </>
         )
       ) : orderedSlots.length > 0 ? (
-        <View style={styles.slots}>
+        <View style={styles.doseRows}>
           {orderedSlots.map((slot) => {
             const slotKey = `${medication.id}-${slot.time}`;
             const busy = busySlot === slotKey;
@@ -519,54 +606,20 @@ export function MedicationCard({
             return (
               // Keyed on time alone so the row keeps its identity when taken
               // doses re-sort to the bottom, letting the layout animation track it.
-              <Animated.View key={slot.time} layout={cardLayout} style={styles.slotWrap}>
-                <View style={[styles.slot, slot.taken && styles.slotTakenRow]}>
-                  <Text style={styles.slotTime}>{slot.label}</Text>
-                  {slot.taken ? (
-                    <Pressable
-                      style={styles.secondaryButton}
-                      disabled={busy}
-                      onPress={() => onUndo(slot)}
-                    >
-                      <Text style={styles.secondaryButtonText}>
-                        {busy ? '…' : 'Undo'}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <View style={styles.slotActions}>
-                      {canSnooze ? (
-                        <Pressable
-                          style={styles.secondaryButton}
-                          disabled={busy}
-                          onPress={() => onSnooze?.(slot.time)}
-                        >
-                          <Text style={styles.secondaryButtonText}>
-                            {snoozedUntil ? 'Edit' : 'Snooze'}
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                      <PressableScale
-                        style={styles.primaryButtonSmall}
-                        scaleTo={0.93}
-                        disabled={busy}
-                        onPress={() => onMarkTaken(slot.time)}
-                      >
-                        {busy ? (
-                          <ActivityIndicator color={colors.onAccent} size="small" />
-                        ) : (
-                          <Text style={styles.primaryButtonTextSmall}>Mark taken</Text>
-                        )}
-                      </PressableScale>
-                    </View>
-                  )}
-                </View>
-                {snoozedUntil ? (
-                  <View style={styles.snoozeStatus}>
-                    <Text style={styles.snoozeStatusText}>
-                      Snoozed until {formatSnoozeTime(snoozedUntil)}
-                    </Text>
-                  </View>
-                ) : null}
+              <Animated.View key={slot.time} layout={cardLayout}>
+                <DoseSlotRow
+                  label={slot.label}
+                  taken={slot.taken}
+                  busy={busy}
+                  accent={accentColor}
+                  takenNote={pickCheer(TAKEN_NOTES, `${medication.id}-${slot.time}`)}
+                  snoozeLabel={
+                    snoozedUntil ? `Snoozed until ${formatSnoozeTime(snoozedUntil)}` : undefined
+                  }
+                  onTake={() => onMarkTaken(slot.time)}
+                  onSnooze={canSnooze ? () => onSnooze?.(slot.time) : undefined}
+                  onUndo={() => onUndo(slot)}
+                />
               </Animated.View>
             );
           })}
@@ -583,6 +636,7 @@ export function MedicationCard({
         actions={menuActions}
         onClose={() => setMenuOpen(false)}
       />
+    </Animated.View>
     </Animated.View>
   );
 }
