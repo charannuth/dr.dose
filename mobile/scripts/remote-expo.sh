@@ -21,24 +21,9 @@ done
 
 cd "$ROOT"
 
-echo "Starting Metro on port ${PORT}..."
-npx expo start --port "$PORT" &
-EXPO_PID=$!
-
-echo "Waiting for Metro..."
-ready=0
-for _ in $(seq 1 90); do
-  if curl -sf "http://127.0.0.1:${PORT}/status" 2>/dev/null | grep -q running; then
-    ready=1
-    break
-  fi
-  sleep 1
-done
-if [[ "$ready" -ne 1 ]]; then
-  echo "Metro did not start on port ${PORT} within 90s."
-  exit 1
-fi
-
+# Start the tunnel first so Metro can advertise the public URL. If Metro
+# starts first, the manifest points phones at <tunnel>:8081, which the
+# tunnel does not serve, and Expo Go fails to load the bundle.
 echo "Starting Cloudflare tunnel..."
 npx --yes cloudflared tunnel --url "http://127.0.0.1:${PORT}" >"$LOG" 2>&1 &
 CF_PID=$!
@@ -58,8 +43,26 @@ if [[ -z "$TUNNEL_URL" ]]; then
   exit 1
 fi
 
+echo "Starting Metro on port ${PORT}..."
+EXPO_PACKAGER_PROXY_URL="$TUNNEL_URL" npx expo start --port "$PORT" &
+EXPO_PID=$!
+
+echo "Waiting for Metro..."
+ready=0
+for _ in $(seq 1 90); do
+  if curl -sf "http://127.0.0.1:${PORT}/status" 2>/dev/null | grep -q running; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" -ne 1 ]]; then
+  echo "Metro did not start on port ${PORT} within 90s."
+  exit 1
+fi
+
 HOST="${TUNNEL_URL#https://}"
-EXP_URL="exp://${HOST}:443"
+EXP_URL="exp://${HOST}"
 
 echo ""
 echo "=============================================="
