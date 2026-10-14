@@ -1,15 +1,27 @@
+import type { TrackerCategory } from './genericTracker'
+import { GENERIC_TRACKERS } from './trackerDefs'
+
 export type TrackerId =
   | 'cycle'
   | 'hrt'
   | 'med_progress'
-  | 'vitals'
   | 'weight'
+  | 'vitals'
   | 'pain'
   | 'migraine'
   | 'respiratory'
+  | 'gut'
+  | 'skin'
   | 'mood'
   | 'sleep'
   | 'pregnancy'
+  | 'fertility'
+  | 'feeding'
+  | 'pelvic'
+  | 'breastcheck'
+  | 'affirming'
+  | 'nourish'
+  | 'movement'
   | 'custom'
 
 export type TrackerAccent = 'red' | 'purple' | 'blue' | 'green' | 'amber'
@@ -21,9 +33,10 @@ export type TrackerCatalogEntry = {
   available: boolean
   emoji: string
   accent: TrackerAccent
+  category: TrackerCategory
 }
 
-export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
+const CORE_TRACKERS: TrackerCatalogEntry[] = [
   {
     id: 'cycle',
     label: 'Cycle & period',
@@ -32,6 +45,7 @@ export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
     available: true,
     emoji: '🌸',
     accent: 'red',
+    category: 'cycle',
   },
   {
     id: 'hrt',
@@ -41,6 +55,7 @@ export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
     available: true,
     emoji: '🦋',
     accent: 'purple',
+    category: 'cycle',
   },
   {
     id: 'med_progress',
@@ -49,14 +64,7 @@ export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
     available: true,
     emoji: '💊',
     accent: 'green',
-  },
-  {
-    id: 'vitals',
-    label: 'Vitals',
-    description: 'Blood pressure, glucose, pulse, and more',
-    available: false,
-    emoji: '❤️',
-    accent: 'red',
+    category: 'everyday',
   },
   {
     id: 'weight',
@@ -66,64 +74,36 @@ export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
     available: true,
     emoji: '⚖️',
     accent: 'green',
-  },
-  {
-    id: 'pain',
-    label: 'Pain diary',
-    description: 'Pain scale and flare logging',
-    available: false,
-    emoji: '🔥',
-    accent: 'amber',
-  },
-  {
-    id: 'migraine',
-    label: 'Migraine',
-    description: 'Headache attacks, triggers, and relief meds',
-    available: false,
-    emoji: '🤕',
-    accent: 'purple',
-  },
-  {
-    id: 'respiratory',
-    label: 'Respiratory',
-    description: 'Peak flow and rescue inhaler use',
-    available: false,
-    emoji: '🫁',
-    accent: 'blue',
-  },
-  {
-    id: 'mood',
-    label: 'Mood & mental health',
-    description: 'Daily mood, anxiety, energy and what helped',
-    available: false,
-    emoji: '🌈',
-    accent: 'blue',
-  },
-  {
-    id: 'sleep',
-    label: 'Sleep',
-    description: 'Bedtime, wake time, quality and naps',
-    available: false,
-    emoji: '😴',
-    accent: 'purple',
-  },
-  {
-    id: 'pregnancy',
-    label: 'Pregnancy',
-    description: 'Week-by-week, symptoms, kicks and appointments',
-    available: false,
-    emoji: '🤰',
-    accent: 'amber',
-  },
-  {
-    id: 'custom',
-    label: 'Custom metric',
-    description: 'Name your own number or yes/no tracker',
-    available: false,
-    emoji: '✏️',
-    accent: 'blue',
+    category: 'everyday',
   },
 ]
+
+export const TRACKER_CATALOG: TrackerCatalogEntry[] = [
+  ...CORE_TRACKERS,
+  ...GENERIC_TRACKERS.map(
+    (d): TrackerCatalogEntry => ({
+      id: d.id as TrackerId,
+      label: d.label,
+      description: d.description,
+      available: true,
+      emoji: d.emoji,
+      accent: d.accent,
+      category: d.category,
+    }),
+  ),
+]
+
+const CATEGORY_ORDER: TrackerCategory[] = ['cycle', 'body', 'mind', 'family', 'everyday', 'custom']
+
+/** Add-list groups in display order, empty groups dropped. */
+export function trackersByCategory(
+  entries: TrackerCatalogEntry[],
+): { category: TrackerCategory; entries: TrackerCatalogEntry[] }[] {
+  return CATEGORY_ORDER.map((category) => ({
+    category,
+    entries: entries.filter((e) => e.category === category),
+  })).filter((g) => g.entries.length > 0)
+}
 
 export function trackerCatalogEntry(id: TrackerId): TrackerCatalogEntry | undefined {
   return TRACKER_CATALOG.find((t) => t.id === id)

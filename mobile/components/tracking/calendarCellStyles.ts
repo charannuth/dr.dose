@@ -1,6 +1,25 @@
 import type { ViewStyle } from 'react-native';
 import type { ColorPalette } from '../../constants/theme';
 import type { TrackingCalendarEventTone } from '../../lib/tracking/calendarTypes';
+import type { TrackerAccent } from '../../lib/tracking/catalog';
+
+export const TRACKER_ACCENTS: TrackerAccent[] = ['red', 'purple', 'blue', 'green', 'amber'];
+
+/** Fill + ink for generic tracker days, from the theme's accent pairs. */
+export function trackerAccentColors(accent: TrackerAccent, colors: ColorPalette): { bg: string; fg: string } {
+  switch (accent) {
+    case 'red':
+      return { bg: colors.accentRedBg, fg: colors.accentRed };
+    case 'purple':
+      return { bg: colors.accentPurpleBg, fg: colors.accentPurple };
+    case 'blue':
+      return { bg: colors.accentBlueBg, fg: colors.accentBlue };
+    case 'green':
+      return { bg: colors.accentGreenBg, fg: colors.accentGreen };
+    default:
+      return { bg: colors.accentAmberBg, fg: colors.accentAmber };
+  }
+}
 
 /** Calendar cell tints — kept vivid so phases stay distinguishable on light and dark surfaces. */
 function calendarTints(isDark: boolean) {
@@ -78,6 +97,11 @@ export function cellStylesFromClassNames(
   if (classNames.includes('weight-workout')) out.push({ backgroundColor: t.weightWorkout });
   if (classNames.includes('weight-off-schedule')) out.push({ opacity: 0.45 });
   if (classNames.includes('hrt-logged')) out.push({ backgroundColor: t.hrt });
+  for (const accent of TRACKER_ACCENTS) {
+    if (classNames.includes(`tracker-logged-${accent}`)) {
+      out.push({ backgroundColor: trackerAccentColors(accent, colors).bg });
+    }
+  }
   if (classNames.includes('doctor-visit-upcoming')) {
     out.push({ backgroundColor: t.doctorVisitUpcoming });
   }
@@ -145,6 +169,14 @@ export function eventToneStyle(
       return t.doctorNotes;
     case 'doctor-followup':
       return t.doctorFollowup;
+    case 'tracker-red':
+    case 'tracker-purple':
+    case 'tracker-blue':
+    case 'tracker-green':
+    case 'tracker-amber': {
+      const c = trackerAccentColors(tone.slice('tracker-'.length) as TrackerAccent, colors);
+      return { bg: c.bg, text: c.fg };
+    }
     case 'med-perfect':
       return { bg: colors.streakPerfectBg, text: colors.success };
     case 'med-partial':

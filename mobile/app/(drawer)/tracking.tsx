@@ -36,10 +36,14 @@ import { updateBodyMetricUnits } from '../../lib/medicalRecords';
 import {
   TRACKER_CATALOG,
   trackerCatalogEntry,
+  trackersByCategory,
   type TrackerAccent,
   type TrackerId,
 } from '../../lib/tracking/catalog';
 import { tapFeedback } from '../../lib/haptics';
+import { CATEGORY_LABELS, type TrackerCategory } from '../../lib/tracking/genericTracker';
+import { getTrackerDef } from '../../lib/tracking/trackerDefs';
+import { GenericTrackerPanel } from '../../components/tracking/GenericTrackerPanel';
 import {
   disableTracker,
   enableTracker,
@@ -78,6 +82,7 @@ export default function TrackingScreen() {
   );
   const [enabled, setEnabled] = useState<TrackerId[]>([]);
   const [activeTracker, setActiveTracker] = useState<TrackerId | null>(null);
+  const [addCategory, setAddCategory] = useState<TrackerCategory | 'all'>('all');
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileBusy, setProfileBusy] = useState(false);
@@ -302,6 +307,10 @@ export default function TrackingScreen() {
   }
 
   const enableableNotEnabled = TRACKER_CATALOG.filter((t) => t.available && !enabled.includes(t.id));
+  const addGroups = trackersByCategory(enableableNotEnabled);
+  const pickedGroups = addGroups.filter((g) => g.category === addCategory);
+  const visibleAddGroups = pickedGroups.length ? pickedGroups : addGroups;
+  const shownCategory = pickedGroups.length ? addCategory : 'all';
   const profileSummary = physicalProfileSummary(medicalRecord);
 
   function renderTrackerPanel(id: TrackerId) {
@@ -332,8 +341,18 @@ export default function TrackingScreen() {
         );
       case 'med_progress':
         return <MedProgressPanel />;
-      default:
-        return null;
+      default: {
+        const def = getTrackerDef(id);
+        return def ? (
+          <GenericTrackerPanel
+            key={id}
+            def={def}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            onDataMutated={bumpCalendarRefresh}
+          />
+        ) : null;
+      }
     }
   }
 
@@ -474,50 +493,68 @@ export default function TrackingScreen() {
               {enableableNotEnabled.length === 0 ? (
                 <Text style={trackingStyles.hint}>You've turned on every tracker that's ready.</Text>
               ) : (
-                <View style={{ gap: 10, marginBottom: spacing.md }}>
-                  {enableableNotEnabled.map((t) => {
-                    const tint = accentColor(t.accent);
-                    return (
-                      <Pressable
-                        key={t.id}
-                        disabled={trackerBusy}
-                        onPress={() => void handleAddTracker(t.id)}
-                        style={[
-                          styles.addCard,
-                          {
-                            borderColor: withAlpha(tint, 0.45),
-                            backgroundColor: withAlpha(tint, isDark ? 0.16 : 0.08),
-                          },
-                          trackerBusy && trackingStyles.disabled,
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${t.label}`}
-                      >
-                        <View style={[styles.addIcon, { backgroundColor: withAlpha(tint, isDark ? 0.32 : 0.2) }]}>
-                          <Text style={{ fontSize: 22 }}>{t.emoji}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.addTitle}>{t.label}</Text>
-                          <Text style={styles.addDesc}>{t.description}</Text>
-                        </View>
-                        <View style={[styles.addPill, { backgroundColor: tint }]}>
-                          <Text style={styles.addPillText}>＋ Add</Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <>
+                  {addGroups.length > 1 ? (
+                    <View style={[trackingStyles.chipWrap, { marginBottom: spacing.sm }]}>
+                      {(['all', ...addGroups.map((g) => g.category)] as const).map((c) => {
+                        const active = shownCategory === c;
+                        return (
+                          <Pressable
+                            key={c}
+                            onPress={() => {
+                              tapFeedback();
+                              setAddCategory(c);
+                            }}
+                            style={[trackingStyles.chip, active && trackingStyles.chipActive]}
+                            accessibilityRole="tab"
+                            accessibilityState={{ selected: active }}
+                          >
+                            <Text style={[trackingStyles.chipText, active && trackingStyles.chipTextActive]}>
+                              {c === 'all' ? 'All' : CATEGORY_LABELS[c]}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {visibleAddGroups.map((group) => (
+                    <View key={group.category} style={{ gap: 10, marginBottom: spacing.md }}>
+                      <Text style={styles.addGroupTitle}>{CATEGORY_LABELS[group.category]}</Text>
+                      {group.entries.map((t) => {
+                        const tint = accentColor(t.accent);
+                        return (
+                          <Pressable
+                            key={t.id}
+                            disabled={trackerBusy}
+                            onPress={() => void handleAddTracker(t.id)}
+                            style={[
+                              styles.addCard,
+                              {
+                                borderColor: withAlpha(tint, 0.45),
+                                backgroundColor: withAlpha(tint, isDark ? 0.16 : 0.08),
+                              },
+                              trackerBusy && trackingStyles.disabled,
+                            ]}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add ${t.label}`}
+                          >
+                            <View style={[styles.addIcon, { backgroundColor: withAlpha(tint, isDark ? 0.32 : 0.2) }]}>
+                              <Text style={{ fontSize: 22 }}>{t.emoji}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.addTitle}>{t.label}</Text>
+                              <Text style={styles.addDesc}>{t.description}</Text>
+                            </View>
+                            <View style={[styles.addPill, { backgroundColor: tint }]}>
+                              <Text style={styles.addPillText}>＋ Add</Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </>
               )}
-              <Text style={[trackingStyles.label, { marginTop: spacing.sm }]}>Coming soon</Text>
-              <View style={trackingStyles.chipWrap}>
-                {TRACKER_CATALOG.filter((t) => !t.available).map((t) => (
-                  <View key={t.id} style={[trackingStyles.chip, { opacity: 0.7 }]}>
-                    <Text style={trackingStyles.chipText}>
-                      {t.emoji} {t.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
             </View>
           </>
         )}
@@ -555,6 +592,14 @@ function makeTrackingScreenStyles(colors: ColorPalette) {
     },
     addTitle: { fontFamily: fonts.heading, fontSize: 15, color: colors.text },
     addDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
+    addGroupTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 13,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      marginTop: spacing.xs,
+    },
     addPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
     addPillText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   });

@@ -1,5 +1,7 @@
 import type { TextStyle, ViewStyle } from 'react-native';
 import type { ColorPalette } from '../../constants/theme';
+import type { TrackerAccent } from '../../lib/tracking/catalog';
+import { trackerAccentColors } from './calendarCellStyles';
 
 /**
  * Legend swatches use the same fills as calendar day cells / event pills
@@ -155,6 +157,10 @@ export function legendSwatchStyle(
         borderWidth: 2,
       };
     default:
+      if (swatchClass.startsWith('tracker-logged-')) {
+        const c = trackerAccentColors(swatchClass.slice('tracker-logged-'.length) as TrackerAccent, colors);
+        return { ...base, backgroundColor: c.bg, borderColor: c.fg, borderWidth: 2 };
+      }
       return base;
   }
 }

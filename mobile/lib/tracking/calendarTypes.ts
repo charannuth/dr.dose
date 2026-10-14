@@ -14,6 +14,11 @@ export type TrackingCalendarEventTone =
   | 'doctor-past'
   | 'doctor-notes'
   | 'doctor-followup'
+  | 'tracker-red'
+  | 'tracker-purple'
+  | 'tracker-blue'
+  | 'tracker-green'
+  | 'tracker-amber'
 
 /** Apple Calendar–style pill shown inside a day cell. */
 export type TrackingCalendarEvent = {
