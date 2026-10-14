@@ -196,7 +196,7 @@ export function TodayDashboard({ stats, medications, refreshKey, onMedicationTab
                     </View>)}</View> : null}
                     <View style={[s.details, divider]}>{content.details.slice(0, 3).map((detail, index) => <Text key={index} style={s.detail}>{detail}</Text>)}</View>
                   </> : null}
-                  {preview ? null : <ShineSweep delay={widgetIndex * 260} />}
+                  {preview ? null : <ShineSweep delay={600 + widgetIndex * 700} />}
                 </Pressable>
                 </WidgetMotion>
               );

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -62,6 +61,7 @@ import {
 import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { routes } from '../../lib/routes';
 import { fonts, radii, spacing } from '../../constants/theme';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -344,7 +344,7 @@ export default function AccountScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <AmbientScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>My account</Text>
           <Text style={styles.subtitle}>Your profile, preferences and care shortcuts</Text>
@@ -722,7 +722,7 @@ export default function AccountScreen() {
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Go to Today</Text>
         </Pressable>
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

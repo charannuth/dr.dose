@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +15,7 @@ import { formatInventoryCount, inventoryUnitLabel } from '../../lib/inventory';
 import { rescheduleAllReminders } from '../../lib/reminders';
 import { routes } from '../../lib/routes';
 import type { MedicationWithStatus } from '../../lib/types';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 export default function RefillsScreen() {
   const { user } = useAuth();
@@ -39,14 +40,14 @@ function RefillList({ userId }: { userId: string }) {
   }, [userId, retry]));
   return <SafeAreaView style={s.safe} edges={['bottom']}>
     <Stack.Screen options={{ title: 'Refills', headerRight: () => <Pressable style={s.button} onPress={() => router.back()} accessibilityRole="button"><Text style={s.link}>Done</Text></Pressable> }} />
-    <ScrollView contentContainerStyle={s.content}>
+    <AmbientScrollView contentContainerStyle={s.content}>
       <Text style={s.title}>Keep your supply up to date</Text><Text style={s.hint}>Choose a medication to record a refill or correct its remaining supply. Low counts appear first.</Text>
       {loading ? <ActivityIndicator /> : error ? <Pressable onPress={() => setRetry((v) => v + 1)} accessibilityRole="button"><Text style={s.error}>{error} Tap to retry.</Text></Pressable> : medications.length ? medications.map((med) => <Pressable key={med.id} style={s.card} onPress={() => router.push({ pathname: routes.refills, params: { id: med.id } })} accessibilityRole="button" accessibilityLabel={`Update refill for ${med.name}`}>
         <View style={s.row}><Text style={s.name}>{med.name}</Text><Text style={s.link}>›</Text></View>
         <Text style={s.hint}>{[med.dose_mg, med.dose_pills].filter(Boolean).join(' · ') || 'Medication supply'}</Text>
         <Text style={[s.supply, med.pills_remaining !== null && med.pills_remaining <= 7 && s.low]}>{med.pills_remaining === null ? 'Supply tracking off' : `${formatInventoryCount(med.pills_remaining, med)} remaining${med.pills_remaining <= 7 ? ' · Refill soon' : ''}`}</Text>
       </Pressable>) : <Text style={s.hint}>Your medications will appear here once you add them.</Text>}
-    </ScrollView>
+    </AmbientScrollView>
   </SafeAreaView>;
 }
 function RefillEditor({ userId, id }: { userId: string; id: string }) {

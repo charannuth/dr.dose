@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -34,6 +33,7 @@ import { openRows } from '../../lib/crypto/seal';
 import { filterMedicationsActiveOn } from '../../lib/medicationDates';
 import { supabase } from '../../lib/supabase';
 import type { Medication } from '../../lib/types';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 function makeInteractionStyles(colors: ColorPalette) {
   return {
@@ -324,7 +324,7 @@ export default function InteractionsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <ScrollView
+      <AmbientScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -566,7 +566,7 @@ export default function InteractionsScreen() {
         <Pressable onPress={() => router.push(routes.today)}>
           <Text style={[styles.link, styles.footerLink]}>Back to Today</Text>
         </Pressable>
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

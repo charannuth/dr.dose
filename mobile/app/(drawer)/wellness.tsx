@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
@@ -23,6 +23,7 @@ import type { CalendarSourceMeta } from '../../lib/tracking/calendarSources';
 import { todayLocalDate } from '../../lib/dates';
 import { tryNormalizeIsoDate } from '../../lib/isoDateInput';
 import { routes } from '../../lib/routes';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 const WELLNESS_SOURCE: CalendarSourceMeta[] = [{ id: 'all', label: 'Wellness', support: 'full' }];
 export default function WellnessScreen() {
@@ -64,7 +65,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
   function openLog() { router.push({ pathname: routes.wellnessEntry, params: { date: selectedDate } }); }
   return <SafeAreaView style={s.safe} edges={['bottom']}>
     <Drawer.Screen options={{ headerRight: () => <Pressable style={s.add} disabled={selectedDate > today} onPress={openLog} accessibilityRole="button" accessibilityLabel={`Log wellness for ${selectedDate}`} accessibilityState={{ disabled: selectedDate > today }}><Text style={[s.plus, selectedDate > today && { opacity: 0.35 }]}>+</Text></Pressable> }} />
-    <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setRefreshKey((key) => key + 1); }} />}>
+    <AmbientScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setRefreshKey((key) => key + 1); }} />}>
       <View style={s.intro}><Text style={s.title}>Your daily wellbeing</Text><Text style={s.hint}>Select a day, then tap + to add or update your check-in.</Text></View>
       {error || calendarError ? <Text style={s.error} accessibilityRole="alert">{error || calendarError}</Text> : null}
       <TrackingCalendar today={today} anchor={anchor} range={range} source="all" selectedDate={selectedDate} enabledTrackers={[]} sourceOptions={WELLNESS_SOURCE} hideOverviewHint hideDaySummary
@@ -81,7 +82,7 @@ function WellnessOverview({ userId, userEmail }: { userId: string; userEmail?: s
       </>}
       <CollapsibleSection title="Sources & information"><MedicalSourcesCard /></CollapsibleSection>
       <WellnessDisclaimer compact />
-    </ScrollView>
+    </AmbientScrollView>
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {

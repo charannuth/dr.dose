@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -20,6 +19,7 @@ import type { StreakStats } from '../../lib/streaks';
 import { StreakCard } from '../../components/streaks/StreakCard';
 import { StreakBadges } from '../../components/streaks/StreakBadges';
 import { StreakCelebration } from '../../components/StreakCelebration';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 function emptyStats(): StreakStats {
   return {
@@ -92,7 +92,7 @@ export default function StreaksScreen() {
           onDismiss={() => setPreviewStreakDays(null)}
         />
       ) : null}
-      <ScrollView
+      <AmbientScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
@@ -151,7 +151,7 @@ export default function StreaksScreen() {
           </Text>{' '}
           to see doses logged, missed slots, and wellness notes.
         </Text>
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

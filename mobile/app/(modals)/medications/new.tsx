@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -31,6 +30,7 @@ import {
 import type { MedicationInput } from '../../../lib/types';
 import { useTheme } from '../../../context/ThemeProvider';
 import { useThemedStyles } from '../../../hooks/useThemedStyles';
+import { AmbientScrollView } from '../../../components/AmbientBackground';
 
 type AddMode = 'choose' | 'review' | 'form';
 
@@ -231,7 +231,7 @@ export default function AddMedicationScreen() {
     const isSupplement = defaultCategory === 'supplement';
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <AmbientScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>{isSupplement ? 'Add supplement' : 'Add medication'}</Text>
           <Text style={styles.subtitle}>
             Scan your CVS or pharmacy label to auto-fill details, or type them in yourself.
@@ -272,7 +272,7 @@ export default function AddMedicationScreen() {
             Scanned details are only suggestions — you'll review them on the next screen, then
             confirm every step in the wizard before saving.
           </Text>
-        </ScrollView>
+        </AmbientScrollView>
       </SafeAreaView>
     );
   }

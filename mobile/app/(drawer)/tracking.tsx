@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -55,6 +54,7 @@ import {
   type PhysicalProfileInput,
 } from '../../lib/physicalProfile';
 import type { MedicalRecord } from '../../lib/medicalRecords';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 export default function TrackingScreen() {
   const { widgetTracker } = useLocalSearchParams<{ widgetTracker?: string }>();
@@ -345,7 +345,7 @@ export default function TrackingScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView
+      <AmbientScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
@@ -499,7 +499,7 @@ export default function TrackingScreen() {
         )}
 
         <MedicalSourcesCard />
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

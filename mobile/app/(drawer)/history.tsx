@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -26,6 +25,7 @@ import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { fetchWeeklySummary, type WeeklySummary } from '../../lib/weeklySummary';
 import { HistoryCalendar } from '../../components/history/HistoryCalendar';
 import { DayAdherenceDetail } from '../../components/history/DayAdherenceDetail';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 function makeHistoryStyles(colors: ColorPalette) {
   return {
@@ -186,7 +186,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <ScrollView
+      <AmbientScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
@@ -296,7 +296,7 @@ export default function HistoryScreen() {
           </Text>
           .
         </Text>
-      </ScrollView>
+      </AmbientScrollView>
     </SafeAreaView>
   );
 }

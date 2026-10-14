@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeProvider';
@@ -11,6 +11,7 @@ import { MedicalSourcesCard } from '../../components/MedicalSourcesCard';
 import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
 import { NavigationRow } from '../../components/forms/NavigationRow';
 import { fonts, type ColorPalette } from '../../constants/theme';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 const TOPICS = [
   { title: 'Customize Quick view', summary: 'Choose, resize and arrange your widgets', body: 'On Today, open Edit Quick view. Choose the information you want to see, select Compact or Detailed, and move widgets into your preferred order. Save to keep the layout.', action: 'Open Today', route: routes.today },
@@ -32,7 +33,7 @@ export default function HelpScreen() {
   const needle = query.trim().toLowerCase();
   const topics = TOPICS.filter((topic) => `${topic.title} ${topic.summary} ${topic.body}`.toLowerCase().includes(needle));
   return <SafeAreaView style={s.safe} edges={['left', 'right', 'bottom']}>
-    <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+    <AmbientScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <View style={s.header}><Text style={s.title}>How can we help?</Text><Text style={s.hint}>Quick answers and a direct path to what you need.</Text></View>
       <TextInput style={s.search} accessibilityLabel="Search help topics" placeholder="Search reminders, refills, calendars…" placeholderTextColor={colors.textMuted} value={query} onChangeText={setQuery} autoCorrect={false} clearButtonMode="while-editing" />
       <View><Text style={s.sectionTitle}>Help topics</Text>
@@ -45,7 +46,7 @@ export default function HelpScreen() {
       <View style={s.safety}><Text style={s.sectionTitle}>Safety first</Text><Text style={s.body}>Dr. Dose is for personal organization and does not provide medical advice. Follow your doctor or pharmacist’s instructions. For an urgent medical problem, contact local emergency services.</Text></View>
       <CollapsibleSection title="Sources & citations" summary="Read the references behind the app"><MedicalSourcesCard /></CollapsibleSection>
       <LegalLinks colors={colors} styles={{ legalRow: s.legalRow, legalLink: s.link, legalMuted: s.hint }} />
-    </ScrollView>
+    </AmbientScrollView>
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
@@ -12,6 +12,7 @@ import { DoctorMonthCalendar, type DoctorCalendarRange } from '../../components/
 import { getCalendarWindow } from '../../lib/tracking/calendarRange';
 import { todayLocalDate } from '../../lib/dates';
 import { routes } from '../../lib/routes';
+import { AmbientScrollView } from '../../components/AmbientBackground';
 
 export default function DoctorVisitsScreen() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function DoctorVisitsScreen() {
   async function refresh() { setRefreshing(true); try { await reload(); } finally { setRefreshing(false); } }
   return <SafeAreaView style={s.safe} edges={['bottom']}>
     <Drawer.Screen options={{ headerRight: () => <Pressable style={s.add} onPress={() => openAppointment()} accessibilityRole="button" accessibilityLabel={`Add appointment on ${selectedDate}`}><Text style={s.plus}>+</Text></Pressable> }} />
-    <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
+    <AmbientScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
       {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
       <DoctorMonthCalendar today={today} anchor={calendarAnchor} selectedDate={selectedDate} data={data} loading={loading}
         range={calendarRange} onRangeChange={setCalendarRange}
@@ -45,7 +46,7 @@ export default function DoctorVisitsScreen() {
         <DoctorVisitsPanel selectedDate={selectedDate} events={data.cells.get(selectedDate)?.events ?? []} loading={loading} onOpen={openAppointment} />
       </View>
       <Pressable style={s.report} onPress={() => router.push(routes.wellness)} accessibilityRole="button"><Text style={s.link}>Prepare wellness report ›</Text></Pressable>
-    </ScrollView>
+    </AmbientScrollView>
   </SafeAreaView>;
 }
 function makeStyles(c: ColorPalette) {
