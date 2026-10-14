@@ -6,6 +6,7 @@ import { useHeaderHeight, usePreventRemove } from 'expo-router/react-navigation'
 import { useReducedMotion } from 'react-native-reanimated';
 import { fonts, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useTheme } from '../../context/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
 import { DoctorAppointmentPanel } from '../../components/doctorVisits/DoctorAppointmentPanel';
 import { DoctorVisitNotesPanel } from '../../components/doctorVisits/DoctorVisitNotesPanel';
@@ -29,6 +30,7 @@ export default function AppointmentScreen() {
 
 function AppointmentEditor({ userId, date, id }: { userId: string; date: string; id?: string }) {
   const s = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const router = useRouter();
   const navigation = useNavigation();
   const reducedMotion = useReducedMotion();
@@ -96,7 +98,8 @@ function AppointmentEditor({ userId, date, id }: { userId: string; date: string;
   }
   const done = deleted || Boolean(saved && !dirty);
   return <SafeAreaView style={s.safe} edges={['bottom']}>
-    <Stack.Screen options={{ title: saved ? 'Appointment' : 'New appointment', headerStyle: { backgroundColor: s.safe.backgroundColor },
+    <Stack.Screen options={{ title: saved ? 'Appointment' : 'New appointment', headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false,
+      headerTintColor: colors.text, headerTitleStyle: { color: colors.text, fontFamily: fonts.heading },
       animation: reducedMotion ? 'none' : 'slide_from_right', headerBackVisible: false,
       headerLeft: () => <Pressable style={s.action} disabled={busy} onPress={close} accessibilityRole="button"><Text style={s.actionText}>{saved ? 'Back' : 'Cancel'}</Text></Pressable>,
       headerRight: () => <Pressable style={s.action} disabled={busy || !ready} onPress={done ? close : () => void save()} accessibilityRole="button" accessibilityState={{ disabled: busy || !ready }}>

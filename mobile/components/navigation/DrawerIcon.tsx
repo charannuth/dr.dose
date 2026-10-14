@@ -15,7 +15,14 @@ export type DrawerIconName =
   | 'signOut'
   | 'sun'
   | 'moon'
-  | 'chevron';
+  | 'chevron'
+  | 'bell'
+  | 'lock'
+  | 'globe'
+  | 'refill'
+  | 'list'
+  | 'legal'
+  | 'palette';
 
 function shapes(name: DrawerIconName): ReactNode {
   switch (name) {
@@ -98,6 +105,54 @@ function shapes(name: DrawerIconName): ReactNode {
       return <Path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />;
     case 'chevron':
       return <Path d="m9 18 6-6-6-6" />;
+    case 'bell':
+      return (
+        <>
+          <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </>
+      );
+    case 'lock':
+      return (
+        <>
+          <Rect x={3} y={11} width={18} height={11} rx={2} />
+          <Path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </>
+      );
+    case 'globe':
+      return (
+        <>
+          <Circle cx={12} cy={12} r={10} />
+          <Path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20" />
+        </>
+      );
+    case 'refill':
+      return (
+        <>
+          <Path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <Path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <Path d="M16 16h5v5" />
+        </>
+      );
+    case 'list':
+      return <Path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />;
+    case 'legal':
+      return (
+        <>
+          <Path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+          <Path d="M14 2v4a2 2 0 0 0 2 2h4M10 13H8M16 17H8" />
+        </>
+      );
+    case 'palette':
+      return (
+        <>
+          <Circle cx={13.5} cy={6.5} r={0.5} />
+          <Circle cx={17.5} cy={10.5} r={0.5} />
+          <Circle cx={8.5} cy={7.5} r={0.5} />
+          <Circle cx={6.5} cy={12.5} r={0.5} />
+          <Path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.56-2.5 5.56-5.55C21.97 6.01 17.46 2 12 2" />
+        </>
+      );
   }
 }
 

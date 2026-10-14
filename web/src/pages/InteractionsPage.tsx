@@ -370,7 +370,7 @@ export function InteractionsPage() {
                 <MedicationNameInput
                   value={extraDrug}
                   onChange={setExtraDrug}
-                  placeholder="e.g. ibuprofen, Advil, Lexapro"
+                  placeholder="e.g. ibuprofen, Advil, Benadryl"
                   ariaLabel="Drug name to check"
                 />
               </div>

@@ -18,8 +18,8 @@ export function MenuAvatarButton({ user, onPress }: { user: User | null; onPress
   return (
     <Pressable
       onPress={() => {
-        tapFeedback();
         onPress();
+        tapFeedback();
       }}
       accessibilityRole="button"
       accessibilityLabel="Open menu"

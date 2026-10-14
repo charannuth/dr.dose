@@ -25,6 +25,7 @@ export const SENSITIVE_FIELDS = {
     'emergency_notes',
     'other_notes',
     'gender',
+    'details',
     // date_of_birth / height_cm / weight_kg stay plaintext while DB columns
     // are still date/numeric (post-028). Re-add after re-running 027.
   ] as const,
@@ -171,7 +172,7 @@ const ARRAY_FIELDS = new Set([
   'custom_symptoms_during',
 ])
 
-const OBJECT_FIELDS = new Set(['substance_use', 'prefs', 'data'])
+const OBJECT_FIELDS = new Set(['substance_use', 'prefs', 'data', 'details'])
 
 function ensureStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String)

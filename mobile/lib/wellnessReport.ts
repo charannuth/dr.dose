@@ -75,7 +75,15 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export function buildWellnessReportHtml(data: WellnessReportData): string {
+export type DoctorReportOptions = {
+  /** Medical history section (from Medical records), shown first. */
+  medicalHistoryHtml?: string
+  /** Include the last 14 days of wellness, as-needed use and medication notes. */
+  includeWellness?: boolean
+}
+
+export function buildWellnessReportHtml(data: WellnessReportData, options: DoctorReportOptions = {}): string {
+  const includeWellness = options.includeWellness !== false
   const comparisonLines = data.weekComparisons
     .map(formatComparisonLine)
     .filter((line): line is string => line != null)
@@ -165,37 +173,8 @@ export function buildWellnessReportHtml(data: WellnessReportData): string {
     .map(([key, level]) => `<li>${escapeHtml(key)}: ${escapeHtml(level ?? '')}</li>`)
     .join('')
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Dr. Dose — Wellness report</title>
-  <style>
-    body { font-family: system-ui, sans-serif; font-size: 12pt; line-height: 1.45; color: #111; max-width: 720px; margin: 1.5rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
-    h2 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
-    h3 { font-size: 1rem; margin: 1rem 0 0.35rem; }
-    h4 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
-    .disclaimer { background: #f4f4f5; border: 1px solid #d4d4d8; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 0.9rem; }
-    table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 0.9rem; }
-    th, td { border: 1px solid #ccc; padding: 0.4rem 0.5rem; text-align: left; vertical-align: top; }
-    th { background: #f4f4f5; }
-    ul { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
-    .meta { color: #555; font-size: 0.9rem; margin: 0 0 0.5rem; }
-    .med-block { margin-bottom: 1.25rem; page-break-inside: avoid; }
-    @media print { body { margin: 0.5in; } }
-  </style>
-</head>
-<body>
-  <h1>Dr. Dose — Wellness & medication summary</h1>
-  <p class="meta">Generated ${escapeHtml(data.generatedAt)}${data.userEmail ? ` · ${escapeHtml(data.userEmail)}` : ''}</p>
-
-  <div class="disclaimer">
-    <strong>Not medical advice.</strong> This report summarizes your self-reported logs and educational medication information.
-    It does not diagnose conditions or recommend treatment. Consult your doctor or pharmacist for medical decisions.
-    Trends may reflect many factors, not only your medications.
-  </div>
-
+  const wellnessHtml = includeWellness
+    ? `
   <h2>Your baseline</h2>
   <ul>
     <li>Usual bedtime: ${escapeHtml(data.profile.usual_bedtime || '—')}</li>
@@ -225,6 +204,42 @@ export function buildWellnessReportHtml(data: WellnessReportData): string {
   <h2>Medication briefings</h2>
   ${medSections || '<p><em>No active medications.</em></p>'}
 
+`
+    : ''
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dr. Dose — Report for your doctor</title>
+  <style>
+    body { font-family: system-ui, sans-serif; font-size: 12pt; line-height: 1.45; color: #111; max-width: 720px; margin: 1.5rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    h2 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
+    h3 { font-size: 1rem; margin: 1rem 0 0.35rem; }
+    h4 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
+    .disclaimer { background: #f4f4f5; border: 1px solid #d4d4d8; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 0.9rem; }
+    table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 0.9rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.5rem; text-align: left; vertical-align: top; }
+    th { background: #f4f4f5; }
+    ul { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
+    .meta { color: #555; font-size: 0.9rem; margin: 0 0 0.5rem; }
+    .med-block { margin-bottom: 1.25rem; page-break-inside: avoid; }
+    @media print { body { margin: 0.5in; } }
+  </style>
+</head>
+<body>
+  <h1>Dr. Dose — Health summary for your doctor</h1>
+  <p class="meta">Generated ${escapeHtml(data.generatedAt)}${data.userEmail ? ` · ${escapeHtml(data.userEmail)}` : ''}</p>
+
+  <div class="disclaimer">
+    <strong>Not medical advice.</strong> This report summarizes your self-reported logs and educational medication information.
+    It does not diagnose conditions or recommend treatment. Consult your doctor or pharmacist for medical decisions.
+    Trends may reflect many factors, not only your medications.
+  </div>
+
+${options.medicalHistoryHtml ?? ''}
+  ${wellnessHtml}
   <div class="disclaimer">
     Bring this printout or PDF to your appointment. Dr. Dose is for personal tracking only.
   </div>

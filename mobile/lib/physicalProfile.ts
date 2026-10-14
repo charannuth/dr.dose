@@ -1,3 +1,4 @@
+import { emptyDetails } from './medicalRecordDetails'
 import {
   fetchMedicalRecord,
   upsertMedicalRecord,
@@ -96,6 +97,7 @@ export async function upsertPhysicalProfile(
         family_history: existing.family_history ?? '',
         emergency_notes: existing.emergency_notes ?? '',
         other_notes: existing.other_notes ?? '',
+        details: existing.details ?? emptyDetails(),
       }
     : {
         blood_type: '',
@@ -111,6 +113,7 @@ export async function upsertPhysicalProfile(
         family_history: '',
         emergency_notes: '',
         other_notes: '',
+        details: emptyDetails(),
       }
 
   return upsertMedicalRecord(userId, base)

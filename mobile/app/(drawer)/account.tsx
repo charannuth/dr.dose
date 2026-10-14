@@ -1,22 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { CollapsibleSection } from '../../components/forms/CollapsibleSection';
-import { NavigationRow } from '../../components/forms/NavigationRow';
+import { useFocusEffect, useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { LegalLinks } from '../../components/LegalLinks';
 import { PasswordInput } from '../../components/PasswordInput';
+import { ProfileAvatar } from '../../components/ProfileAvatar';
 import { AccountMedicationsSection } from '../../components/account/AccountMedicationsSection';
 import { ProfilePictureEditor } from '../../components/account/ProfilePictureEditor';
-import { ProfileStreakSummary } from '../../components/account/ProfileStreakSummary';
+import { Segmented, SettingsGroup, SettingsRow, SettingsSheet } from '../../components/account/SettingsList';
 import { TimezonePickerField } from '../../components/account/TimezonePickerField';
 import { StreakBadges } from '../../components/streaks/StreakBadges';
 import { useTheme } from '../../context/ThemeProvider';
@@ -29,6 +21,7 @@ import {
 } from '../../lib/passwordPolicy';
 import { useStreakStats } from '../../hooks/useStreakStats';
 import { getDisplayName } from '../../lib/profile';
+import { getEarnedStreakBadges } from '../../lib/streakBadges';
 import {
   getNotificationPermission,
   notificationPermissionHint,
@@ -58,16 +51,24 @@ import {
   type SameTimeDoseMode,
   type ThemeMode,
 } from '../../lib/settings';
-import { STREAK_CALENDAR_DAYS } from '../../lib/streaks';
 import { routes } from '../../lib/routes';
-import { fonts, radii, spacing } from '../../constants/theme';
+import { tapFeedback } from '../../lib/haptics';
+import { fonts, radii, spacing, withAlpha } from '../../constants/theme';
 import { AmbientScrollView } from '../../components/AmbientBackground';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
+  { value: 'system', label: 'Auto' },
 ];
+
+type Sheet = 'profile' | 'password' | 'medications' | 'badges' | 'timezone' | 'reminders' | 'dosing' | 'legal' | null;
+
+/** "America/New_York" → "New York". */
+function shortZone(tz: string) {
+  const last = tz.split('/').pop() ?? tz;
+  return last.replace(/_/g, ' ');
+}
 
 export default function AccountScreen() {
   const { user, signOut, updateDisplayName, deleteAccount, updatePassword } = useAuth();
@@ -98,6 +99,7 @@ export default function AccountScreen() {
   const [nextPassword, setNextPassword] = useState('');
   const [confirmNextPassword, setConfirmNextPassword] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [sheet, setSheet] = useState<Sheet>(null);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -112,6 +114,15 @@ export default function AccountScreen() {
     void loadTimezone().then(setTimezoneState);
     void getSameTimeDoseMode().then(setSameTimeDoseModeState);
   }, []);
+
+  // Links inside a sheet (e.g. Add medication) navigate away; close the sheet so it isn't left on top.
+  useFocusEffect(useCallback(() => () => setSheet(null), []));
+
+  function openSheet(next: Sheet) {
+    setMessage(null);
+    setSettingsError(null);
+    setSheet(next);
+  }
 
   async function savePassword() {
     setSettingsError(null);
@@ -206,11 +217,6 @@ export default function AccountScreen() {
     setMessage(
       'Timezone saved. Dose reminders follow this zone until your phone timezone changes, then they switch to the phone.',
     );
-  }
-
-  async function handleThemeChange(mode: ThemeMode) {
-    await setThemeMode(mode);
-    setMessage(`Theme set to ${mode === 'system' ? 'System' : mode === 'dark' ? 'Dark' : 'Light'}.`);
   }
 
   async function handleRemindersToggle(enabled: boolean) {
@@ -340,404 +346,496 @@ export default function AccountScreen() {
     );
   }
 
+
   const simNote = simulatorReminderNote();
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : null;
+  const badgeCount = streakStats ? getEarnedStreakBadges(streakStats.longestStreak).length : 0;
+  const doseModeLabel = SAME_TIME_DOSE_MODES.find((o) => o.value === sameTimeDoseMode)?.label;
+  const soundLabel = REMINDER_SOUNDS.find((o) => o.id === reminderSound)?.label;
+  const version = Constants.expoConfig?.version;
+  const tint = {
+    health: colors.accentGreen,
+    activity: colors.accentAmber,
+    prefs: colors.accentBlue,
+    account: colors.accentPurple,
+  };
+
+  const feedback = (
+    <>
+      {settingsError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{settingsError}</Text>
+        </View>
+      ) : null}
+      {message ? (
+        <View style={styles.successBanner}>
+          <Text style={styles.successText}>{message}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+
+  const stats = streakStats
+    ? [
+        { label: 'Day streak', value: String(streakStats.currentStreak) },
+        { label: 'Best streak', value: String(streakStats.longestStreak) },
+        {
+          label: 'Today',
+          value: streakStats.todayExpected > 0 ? `${streakStats.todayTaken}/${streakStats.todayExpected}` : '—',
+        },
+      ]
+    : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <AmbientScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.title}>My account</Text>
-          <Text style={styles.subtitle}>Your profile, preferences and care shortcuts</Text>
-        </View>
-
-        {streakError ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{streakError}</Text>
-          </View>
-        ) : null}
-
-        {!streakLoading && streakStats ? (
-          <>
-            <ProfileStreakSummary
-              user={user}
-              displayName={displayNameResolved}
-              email={user?.email}
-              stats={streakStats}
-            />
-            <CollapsibleSection title="Your milestone collection" summary="Tulips, gardens and earned badges">
-              <StreakBadges longestStreak={streakStats.longestStreak} compact />
-            </CollapsibleSection>
-            <View style={styles.teaserRow}>
-              <Pressable style={styles.teaser} onPress={() => router.push(routes.streaks)}>
-                <Text style={styles.teaserLabel}>Streaks</Text>
-                <Text style={styles.teaserText}>
-                  Current{' '}
-                  <Text style={styles.strong}>
-                    {streakStats.currentStreak} day{streakStats.currentStreak === 1 ? '' : 's'}
-                  </Text>
-                  {' '}
-                  · badge milestones →
+        <View style={styles.hero}>
+          <Pressable
+            style={styles.heroTop}
+            onPress={() => {
+              tapFeedback();
+              openSheet('profile');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+          >
+            <ProfileAvatar user={user} displayName={displayNameResolved} email={user?.email} size="lg" />
+            <View style={styles.heroText}>
+              <Text style={styles.name} numberOfLines={1}>
+                {displayNameResolved?.trim() || 'Add your name'}
+              </Text>
+              {user?.email ? (
+                <Text style={styles.email} numberOfLines={1}>
+                  {user.email}
                 </Text>
-              </Pressable>
-              <Pressable style={styles.teaser} onPress={() => router.push(routes.history)}>
-                <Text style={styles.teaserLabel}>History</Text>
-                <Text style={styles.teaserText}>
-                  {STREAK_CALENDAR_DAYS}-day calendar · doses & notes →
-                </Text>
-              </Pressable>
+              ) : null}
+              {memberSince ? <Text style={styles.since}>Member since {memberSince}</Text> : null}
             </View>
-          </>
-        ) : streakLoading ? (
-          <Text style={styles.hint}>Loading streak stats…</Text>
-        ) : null}
+            <Text style={styles.editLink}>Edit</Text>
+          </Pressable>
 
-        <View>
-          <Text style={styles.sectionTitle}>Your care</Text>
-          <NavigationRow title="Refills" subtitle="Update supply and refill quantities" onPress={() => router.push(routes.refills)} />
-          <NavigationRow title="Medical records" subtitle="Allergies, conditions and personal history" onPress={() => router.push(routes.medicalRecords)} />
-          <NavigationRow title="Drug safety check" subtitle="Review warnings for your medications" onPress={() => router.push(routes.interactions)} />
-          <NavigationRow title="Wellness" subtitle="Daily check-ins and baseline" onPress={() => router.push(routes.wellness)} />
+          {stats ? (
+            <Pressable
+              style={styles.statRow}
+              onPress={() => {
+                tapFeedback();
+                router.push(routes.streaks);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Open streaks"
+            >
+              {stats.map((s, i) => (
+                <View key={s.label} style={[styles.stat, i > 0 && styles.statDivider]}>
+                  <Text style={styles.statValue}>{s.value}</Text>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                </View>
+              ))}
+            </Pressable>
+          ) : streakLoading ? (
+            <ActivityIndicator color={colors.accent} style={{ paddingVertical: 12 }} />
+          ) : streakError ? (
+            <Text style={styles.heroError}>{streakError}</Text>
+          ) : null}
         </View>
-        <CollapsibleSection title="Manage medications" summary="Add, edit or remove medications"><AccountMedicationsSection /></CollapsibleSection>
 
-        <View>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <CollapsibleSection title="Profile" summary="Photo and display name"><View style={{ gap: 12 }}>
-          <ProfilePictureEditor />
+        {sheet === null ? feedback : null}
 
+        <SettingsGroup title="Your health">
+          <SettingsRow icon="today" tint={tint.health} title="Medications" onPress={() => openSheet('medications')} />
+          <SettingsRow icon="refill" tint={tint.health} title="Refills" onPress={() => router.push(routes.refills)} />
+          <SettingsRow icon="records" tint={tint.health} title="Medical records" onPress={() => router.push(routes.medicalRecords)} />
+          <SettingsRow icon="safety" tint={tint.health} title="Drug safety check" onPress={() => router.push(routes.interactions)} />
+        </SettingsGroup>
+
+        <SettingsGroup title="Activity">
+          <SettingsRow
+            icon="streaks"
+            tint={tint.activity}
+            title="Badges"
+            value={streakStats ? `${badgeCount} earned` : null}
+            onPress={() => openSheet('badges')}
+          />
+          <SettingsRow icon="history" tint={tint.activity} title="History" onPress={() => router.push(routes.history)} />
+        </SettingsGroup>
+
+        <SettingsGroup title="Preferences">
+          <SettingsRow
+            icon="bell"
+            tint={tint.prefs}
+            title="Reminders"
+            value={remindersOn ? soundLabel ?? 'On' : 'Off'}
+            onPress={() => openSheet('reminders')}
+          />
+          <SettingsRow
+            icon="palette"
+            tint={tint.prefs}
+            title="Appearance"
+            right={<Segmented options={THEME_OPTIONS} value={themeMode} onChange={(m) => void setThemeMode(m)} />}
+          />
+          <SettingsRow icon="globe" tint={tint.prefs} title="Time zone" value={shortZone(timezone)} onPress={() => openSheet('timezone')} />
+          <SettingsRow icon="list" tint={tint.prefs} title="Same-time doses" value={doseModeLabel} onPress={() => openSheet('dosing')} />
+        </SettingsGroup>
+
+        <SettingsGroup title="Account">
+          <SettingsRow icon="account" tint={tint.account} title="Profile" value={displayNameResolved?.trim() || null} onPress={() => openSheet('profile')} />
+          <SettingsRow icon="lock" tint={tint.account} title="Password" onPress={() => openSheet('password')} />
+          <SettingsRow icon="help" tint={tint.account} title="Help & safety" onPress={() => router.push(routes.help)} />
+          <SettingsRow icon="legal" tint={tint.account} title="Privacy & terms" onPress={() => openSheet('legal')} />
+        </SettingsGroup>
+
+        <SettingsGroup>
+          <SettingsRow title="Sign out" destructive chevron={false} onPress={() => void handleSignOut()} />
+        </SettingsGroup>
+
+        <View style={styles.footer}>
+          <Pressable onPress={confirmDeleteAccount} disabled={deleting} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.deleteLink}>{deleting ? 'Deleting account…' : 'Delete account'}</Text>
+          </Pressable>
+          <Text style={styles.version}>Dr. Dose{version ? ` ${version}` : ''}</Text>
+        </View>
+      </AmbientScrollView>
+
+      <SettingsSheet visible={sheet === 'profile'} title="Profile" onClose={() => setSheet(null)}>
+        <ProfilePictureEditor />
+        <View style={styles.field}>
           <Text style={styles.fieldLabel}>Display name</Text>
           <TextInput
             style={styles.input}
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="Optional"
+            placeholder="How should we greet you?"
             placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            onSubmitEditing={() => void saveDisplayName()}
           />
-          <Pressable
-            style={[styles.secondaryBtn, profileBusy && styles.btnDisabled]}
-            disabled={profileBusy}
-            onPress={() => void saveDisplayName()}
-          >
-            <Text style={styles.secondaryBtnText}>{profileBusy ? 'Saving…' : 'Save name'}</Text>
-          </Pressable>
+        </View>
+        <View style={styles.infoCard}>
+          <InfoLine label="Email" value={user?.email ?? '—'} styles={styles} />
+          {created ? <InfoLine label="Joined" value={created} styles={styles} /> : null}
+        </View>
+        {feedback}
+        <PrimaryButton label={profileBusy ? 'Saving…' : 'Save'} disabled={profileBusy} onPress={() => void saveDisplayName()} styles={styles} />
+      </SettingsSheet>
 
-          </View></CollapsibleSection>
-          <CollapsibleSection title="Change password" summary="Keep your sign-in secure"><View style={{ gap: 12 }}>
-          <Text style={styles.hint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
-          <PasswordInput
-            style={styles.input}
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            placeholder="Current password"
-            placeholderTextColor={colors.textMuted}
-            iconColor={colors.textMuted}
-            autoCapitalize="none"
-          />
-          <PasswordInput
-            style={styles.input}
-            value={nextPassword}
-            onChangeText={setNextPassword}
-            placeholder="New password"
-            placeholderTextColor={colors.textMuted}
-            iconColor={colors.textMuted}
-            autoCapitalize="none"
-          />
-          <PasswordInput
-            style={styles.input}
-            value={confirmNextPassword}
-            onChangeText={setConfirmNextPassword}
-            placeholder="Confirm new password"
-            placeholderTextColor={colors.textMuted}
-            iconColor={colors.textMuted}
-            autoCapitalize="none"
-          />
-          <Pressable
-            style={[styles.secondaryBtn, passwordBusy && styles.btnDisabled]}
-            disabled={passwordBusy}
-            onPress={() => void savePassword()}
-          >
-            <Text style={styles.secondaryBtnText}>
-              {passwordBusy ? 'Updating…' : 'Update password'}
-            </Text>
-          </Pressable>
+      <SettingsSheet visible={sheet === 'password'} title="Password" onClose={() => setSheet(null)}>
+        <Text style={styles.hint}>{PASSWORD_REQUIREMENTS_HINT}</Text>
+        <PasswordInput
+          style={styles.input}
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          placeholder="Current password"
+          placeholderTextColor={colors.textMuted}
+          iconColor={colors.textMuted}
+          autoCapitalize="none"
+        />
+        <PasswordInput
+          style={styles.input}
+          value={nextPassword}
+          onChangeText={setNextPassword}
+          placeholder="New password"
+          placeholderTextColor={colors.textMuted}
+          iconColor={colors.textMuted}
+          autoCapitalize="none"
+        />
+        <PasswordInput
+          style={styles.input}
+          value={confirmNextPassword}
+          onChangeText={setConfirmNextPassword}
+          placeholder="Confirm new password"
+          placeholderTextColor={colors.textMuted}
+          iconColor={colors.textMuted}
+          autoCapitalize="none"
+        />
+        {feedback}
+        <PrimaryButton label={passwordBusy ? 'Updating…' : 'Update password'} disabled={passwordBusy} onPress={() => void savePassword()} styles={styles} />
+        <Text style={styles.hint}>Your password also unlocks your encrypted health data, so it's re-keyed when you change it.</Text>
+      </SettingsSheet>
 
-          </View></CollapsibleSection>
-          <CollapsibleSection title="Appearance & time" summary={`${themeMode === 'system' ? 'System theme' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'} · ${timezone}`}><View style={{ gap: 12 }}>
-          <Text style={styles.fieldLabel}>Appearance</Text>
-          <View style={styles.themeRow}>
-            {THEME_OPTIONS.map((opt) => {
-              const active = themeMode === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.themeChip, active && styles.themeChipActive]}
-                  onPress={() => void handleThemeChange(opt.value)}
-                >
-                  <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+      <SettingsSheet visible={sheet === 'medications'} title="Medications" onClose={() => setSheet(null)}>
+        <AccountMedicationsSection />
+      </SettingsSheet>
+
+      <SettingsSheet visible={sheet === 'badges'} title="Badges" onClose={() => setSheet(null)}>
+        {streakStats ? <StreakBadges longestStreak={streakStats.longestStreak} compact /> : null}
+        <SecondaryButton
+          label="See streaks and milestones"
+          onPress={() => {
+            setSheet(null);
+            router.push(routes.streaks);
+          }}
+          styles={styles}
+        />
+      </SettingsSheet>
+
+      <SettingsSheet visible={sheet === 'timezone'} title="Time zone" onClose={() => setSheet(null)}>
+        <TimezonePickerField value={timezone} onChange={(tz) => void handleTimezoneChange(tz)} />
+        <Text style={styles.hint}>
+          A dose at 10:00 PM rings at 10:00 PM on the phone clock. After a trip, open the app once so
+          reminders move off the old time zone.
+        </Text>
+        {feedback}
+      </SettingsSheet>
+
+      <SettingsSheet visible={sheet === 'dosing'} title="Same-time doses" onClose={() => setSheet(null)}>
+        <Text style={styles.hint}>
+          When several medications share a dose time, choose how marking them works. Each logged dose
+          is the same as tapping Mark taken on that medication.
+        </Text>
+        <View style={styles.optionList}>
+          {SAME_TIME_DOSE_MODES.map((opt) => (
+            <OptionRow
+              key={opt.value}
+              label={opt.label}
+              hint={opt.hint}
+              selected={sameTimeDoseMode === opt.value}
+              onPress={() => void handleSameTimeDoseModeChange(opt.value)}
+              styles={styles}
+              colors={colors}
+            />
+          ))}
+        </View>
+        {feedback}
+      </SettingsSheet>
+
+      <SettingsSheet visible={sheet === 'reminders'} title="Reminders" onClose={() => setSheet(null)}>
+        <View style={styles.switchCard}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.switchLabel}>Reminders</Text>
+            <Text style={styles.hint}>Doses, low supply and doctor visits</Text>
           </View>
+          {busy ? <ActivityIndicator color={colors.accent} /> : null}
+          <Switch value={remindersOn} disabled={busy} onValueChange={(v) => void handleRemindersToggle(v)} />
+        </View>
+        <Text style={styles.hint}>
+          Lock-screen alerts at each dose time, at 10:00 AM while a refill is at 7 or fewer, and at
+          9:00 AM on visit and follow-up days.
+        </Text>
+        {permissionStatus !== 'granted' ? <Text style={styles.hint}>{notificationPermissionHint(permissionStatus)}</Text> : null}
+        {simNote ? <Text style={styles.hint}>{simNote}</Text> : null}
+        {permissionStatus === 'denied' ? (
+          <SecondaryButton label="Open iPhone Settings" onPress={openNotificationSettings} styles={styles} />
+        ) : null}
 
-          <TimezonePickerField value={timezone} onChange={(tz) => void handleTimezoneChange(tz)} />
-          <Text style={styles.hint}>
-            A dose at 10:00 PM rings at 10:00 PM on the phone clock. After a trip, open the app once
-            so reminders move off the old timezone.
-          </Text>
+        {remindersOn ? (
+          <>
+            <Text style={styles.fieldLabel}>Sound</Text>
+            <View style={styles.optionList}>
+              {REMINDER_SOUNDS.map((opt) => (
+                <OptionRow
+                  key={opt.id}
+                  label={opt.label}
+                  selected={reminderSound === opt.id}
+                  onPress={() => void handleReminderSoundChange(opt.id)}
+                  styles={styles}
+                  colors={colors}
+                />
+              ))}
+            </View>
+            <Text style={styles.hint}>Tap a sound to hear it. Keep your ringer on so alerts are audible.</Text>
+            <SecondaryButton label="Check reminders now" disabled={busy} onPress={() => void handleCheckRemindersNow()} styles={styles} />
+          </>
+        ) : null}
 
-          </View></CollapsibleSection>
-          <CollapsibleSection title="Dose logging" summary="How same-time doses are marked"><View style={{ gap: 12 }}>
-          <Text style={styles.hint}>
-            When several medications share a dose time, choose how batch marking works. Each
-            logged dose is identical to tapping Mark taken on that medication.
-          </Text>
-          <View style={styles.themeRow}>
-            {SAME_TIME_DOSE_MODES.map((opt) => {
-              const active = sameTimeDoseMode === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.themeChip, active && styles.themeChipActive]}
-                  onPress={() => void handleSameTimeDoseModeChange(opt.value)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.hint}>
-            {SAME_TIME_DOSE_MODES.find((o) => o.value === sameTimeDoseMode)?.hint}
-          </Text>
+        {feedback}
 
-          </View></CollapsibleSection>
-          <CollapsibleSection title="Reminders" summary={remindersOn ? 'Enabled · sounds and scheduling' : 'Off · enable dose, visit and refill alerts'}>
-          <View style={styles.reminderSection}>
+        {reminderDebug && remindersOn ? (
+          <View style={styles.debugBox}>
             <Text style={styles.hint}>
-              Lock-screen alerts for scheduled dose times, low supply refills (10:00 AM daily while
-            at or below 7 remaining), and upcoming doctor visits (9:00 AM on visit and follow-up
-            days).
+              App clock: <Text style={styles.strong}>{reminderDebug.nowLabel}</Text> ({reminderDebug.timezone}) · Today:{' '}
+              {reminderDebug.today}
             </Text>
-            {simNote ? <Text style={styles.hint}>{simNote}</Text> : null}
-            <Text style={styles.hint}>{notificationPermissionHint(permissionStatus)}</Text>
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Enable reminders</Text>
-              <Switch
-                value={remindersOn}
-                disabled={busy}
-                onValueChange={(v) => void handleRemindersToggle(v)}
+            <Text style={styles.hint}>
+              Pending: {reminderDebug.doseNotificationCount} dose · {reminderDebug.visitNotificationCount} visit ·{' '}
+              {reminderDebug.refillNotificationCount} refill
+            </Text>
+            {reminderDebug.slots.length === 0 ? (
+              <Text style={styles.hint}>No dose slots for today.</Text>
+            ) : (
+              reminderDebug.slots.map((slot) => (
+                <Text key={`${slot.medicationName}-${slot.scheduleTime}`} style={styles.hint}>
+                  <Text style={styles.strong}>{slot.medicationName}</Text> {slot.scheduleLabel}
+                  {slot.taken
+                    ? ' — taken'
+                    : slot.scheduledNotification
+                      ? ' — notification scheduled'
+                      : slot.skipReason
+                        ? ` — ${slot.skipReason}`
+                        : ''}
+                </Text>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {__DEV__ ? (
+          <View style={{ gap: 8 }}>
+            <Text style={styles.fieldLabel}>Developer tests</Text>
+            <SecondaryButton
+              label="Send test reminder in 15s"
+              styles={styles}
+              onPress={() => {
+                void (async () => {
+                  const result = await scheduleTestReminder(15);
+                  if (result.ok) {
+                    Alert.alert('Test scheduled', 'You should see an alert in about 15 seconds (Notification Center in the simulator).');
+                  } else {
+                    Alert.alert('Test failed', result.reason);
+                  }
+                })();
+              }}
+            />
+            {user && remindersOn ? (
+              <SecondaryButton
+                label="Test next dose in 60s"
+                styles={styles}
+                onPress={() => {
+                  void (async () => {
+                    const result = await scheduleTestNextDoseReminder(user.id, 60);
+                    if (result.ok) {
+                      Alert.alert('Dose test scheduled', `Simulating your next dose (${result.label}) in 60 seconds.`);
+                    } else {
+                      Alert.alert('Dose test failed', result.reason);
+                    }
+                  })();
+                }}
               />
-            </View>
-            {permissionStatus === 'denied' ? (
-              <Pressable onPress={openNotificationSettings}>
-                <Text style={styles.link}>Open iPhone Settings</Text>
-              </Pressable>
             ) : null}
-            {remindersOn ? (
-              <View style={styles.soundBlock}>
-                <Text style={styles.switchLabel}>Reminder sound</Text>
-                <Text style={styles.hint}>
-                  Pick the chime for dose reminders. Tap one to hear it. Make sure your
-                  ringer is on and Silent mode is off so alerts are audible.
-                </Text>
-                <View style={styles.themeRow}>
-                  {REMINDER_SOUNDS.map((opt) => {
-                    const active = reminderSound === opt.id;
-                    return (
-                      <Pressable
-                        key={opt.id}
-                        style={[styles.themeChip, active && styles.themeChipActive]}
-                        onPress={() => void handleReminderSoundChange(opt.id)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                      >
-                        <Text
-                          style={[styles.themeChipText, active && styles.themeChipTextActive]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : null}
-            {remindersOn ? (
-              <Pressable
-                style={styles.secondaryBtn}
-                disabled={busy}
-                onPress={() => void handleCheckRemindersNow()}
-              >
-                <Text style={styles.secondaryBtnText}>Check reminders now</Text>
-              </Pressable>
-            ) : null}
-            {reminderDebug && remindersOn ? (
-              <View style={styles.debugBox}>
-                <Text style={styles.hint}>
-                  App clock: <Text style={styles.strong}>{reminderDebug.nowLabel}</Text> (
-                  {reminderDebug.timezone}) · Today: {reminderDebug.today}
-                </Text>
-                <Text style={styles.hint}>
-                  Pending: {reminderDebug.doseNotificationCount} dose ·{' '}
-                  {reminderDebug.visitNotificationCount} visit ·{' '}
-                  {reminderDebug.refillNotificationCount} refill
-                </Text>
-                {reminderDebug.slots.length === 0 ? (
-                  <Text style={styles.hint}>No dose slots for today.</Text>
-                ) : (
-                  reminderDebug.slots.map((slot) => (
-                    <Text key={`${slot.medicationName}-${slot.scheduleTime}`} style={styles.hint}>
-                      <Text style={styles.strong}>{slot.medicationName}</Text> {slot.scheduleLabel}
-                      {slot.taken
-                        ? ' — taken'
-                        : slot.scheduledNotification
-                          ? ' — notification scheduled'
-                          : slot.skipReason
-                            ? ` — ${slot.skipReason}`
-                            : ''}
-                    </Text>
-                  ))
-                )}
-              </View>
-            ) : null}
-            {__DEV__ ? (
-              <>
-                <Pressable
-                  style={styles.devButton}
-                  onPress={() => {
-                    void (async () => {
-                      const result = await scheduleTestReminder(15);
-                      if (result.ok) {
-                        Alert.alert(
-                          'Test scheduled',
-                          'You should see an alert in about 15 seconds (Notification Center in the simulator).',
-                        );
-                      } else {
-                        Alert.alert('Test failed', result.reason);
-                      }
-                    })();
-                  }}
-                >
-                  <Text style={styles.devButtonText}>Send test reminder in 15s</Text>
-                </Pressable>
-                {user && remindersOn ? (
-                  <Pressable
-                    style={styles.devButton}
-                    onPress={() => {
-                      void (async () => {
-                        const result = await scheduleTestNextDoseReminder(user.id, 60);
-                        if (result.ok) {
-                          Alert.alert(
-                            'Dose test scheduled',
-                            `Simulating your next dose (${result.label}) in 60 seconds.`,
-                          );
-                        } else {
-                          Alert.alert('Dose test failed', result.reason);
-                        }
-                      })();
-                    }}
-                  >
-                    <Text style={styles.devButtonText}>Test next dose in 60s</Text>
-                  </Pressable>
-                ) : null}
-                {user && remindersOn ? (
-                  <Pressable
-                    style={styles.devButton}
-                    onPress={() => {
-                      void (async () => {
-                        const result = await scheduleTestRefillReminder(user.id, 30);
-                        if (result.ok) {
-                          Alert.alert(
-                            'Refill test scheduled',
-                            `Simulating a refill alert for ${result.label} in 30 seconds.`,
-                          );
-                        } else {
-                          Alert.alert('Refill test failed', result.reason);
-                        }
-                      })();
-                    }}
-                  >
-                    <Text style={styles.devButtonText}>Test refill alert in 30s</Text>
-                  </Pressable>
-                ) : null}
-              </>
+            {user && remindersOn ? (
+              <SecondaryButton
+                label="Test refill alert in 30s"
+                styles={styles}
+                onPress={() => {
+                  void (async () => {
+                    const result = await scheduleTestRefillReminder(user.id, 30);
+                    if (result.ok) {
+                      Alert.alert('Refill test scheduled', `Simulating a refill alert for ${result.label} in 30 seconds.`);
+                    } else {
+                      Alert.alert('Refill test failed', result.reason);
+                    }
+                  })();
+                }}
+              />
             ) : null}
           </View>
+        ) : null}
+      </SettingsSheet>
 
-          </CollapsibleSection>
-          {settingsError ? <Text style={styles.inlineError}>{settingsError}</Text> : null}
-          {message ? <Text style={styles.inlineSuccess}>{message}</Text> : null}
-        </View>
-
-        <NavigationRow title="Help & safety" subtitle="Answers, troubleshooting and app guidance" onPress={() => router.push(routes.help)} />
-        <CollapsibleSection title="Legal" summary="Privacy and terms">
-          <LegalLinks
-            colors={colors}
-            styles={{
-              legalRow: styles.legalRow,
-              legalLink: styles.link,
-              legalMuted: styles.legalMuted,
-            }}
-          />
-        </CollapsibleSection>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Sign-in</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Email</Text>
-            <Text style={styles.detailValue}>{user?.email}</Text>
-          </View>
-          {created ? (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Account created</Text>
-              <Text style={styles.detailValue}>{created}</Text>
-            </View>
-          ) : null}
-          <Pressable style={styles.signOutBtn} onPress={() => void handleSignOut()}>
-            <Text style={styles.signOutText}>Sign out</Text>
-          </Pressable>
-        </View>
-
-        <CollapsibleSection title="Delete account" summary="Permanently remove your account and data">
-          <Text style={styles.hint}>
-            Permanently delete your account and all associated data. This action cannot be
-            undone.
-          </Text>
-          <Pressable
-            style={[styles.deleteBtn, deleting && styles.btnDisabled]}
-            disabled={deleting}
-            onPress={confirmDeleteAccount}
-          >
-            <Text style={styles.deleteText}>
-              {deleting ? 'Deleting…' : 'Delete account'}
-            </Text>
-          </Pressable>
-        </CollapsibleSection>
-
-        <Pressable onPress={() => router.push(routes.today)}>
-          <Text style={[styles.link, styles.footerLink]}>Go to Today</Text>
-        </Pressable>
-      </AmbientScrollView>
+      <SettingsSheet visible={sheet === 'legal'} title="Privacy & terms" onClose={() => setSheet(null)}>
+        <Text style={styles.hint}>
+          Your health details are encrypted on your phone before they're saved, so only you can read them.
+        </Text>
+        <LegalLinks
+          colors={colors}
+          styles={{ legalRow: styles.legalRow, legalLink: styles.link, legalMuted: styles.legalMuted }}
+        />
+      </SettingsSheet>
     </SafeAreaView>
+  );
+}
+
+type Styles = ReturnType<typeof makeStyles>;
+
+function InfoLine({ label, value, styles }: { label: string; value: string; styles: Styles }) {
+  return (
+    <View style={styles.infoLine}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function PrimaryButton({ label, onPress, disabled, styles }: { label: string; onPress: () => void; disabled?: boolean; styles: Styles }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.primaryBtn, (disabled || pressed) && styles.btnDim]}
+      disabled={disabled}
+      onPress={() => {
+        tapFeedback();
+        onPress();
+      }}
+      accessibilityRole="button"
+    >
+      <Text style={styles.primaryBtnText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function SecondaryButton({ label, onPress, disabled, styles }: { label: string; onPress: () => void; disabled?: boolean; styles: Styles }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.secondaryBtn, (disabled || pressed) && styles.btnDim]}
+      disabled={disabled}
+      onPress={() => {
+        tapFeedback();
+        onPress();
+      }}
+      accessibilityRole="button"
+    >
+      <Text style={styles.secondaryBtnText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function OptionRow({
+  label,
+  hint,
+  selected,
+  onPress,
+  styles,
+  colors,
+}: {
+  label: string;
+  hint?: string;
+  selected: boolean;
+  onPress: () => void;
+  styles: Styles;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) {
+  return (
+    <Pressable
+      style={[styles.option, selected && { borderColor: colors.accent, backgroundColor: withAlpha(colors.accent, 0.08) }]}
+      onPress={() => {
+        tapFeedback();
+        onPress();
+      }}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+    >
+      <View style={[styles.radio, selected && { borderColor: colors.accent }]}>
+        {selected ? <View style={styles.radioDot} /> : null}
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={styles.optionLabel}>{label}</Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </View>
+    </Pressable>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: 'transparent' },
-    scroll: { padding: 20, paddingBottom: 40, gap: 24 },
-    header: { gap: spacing.xs },
-    title: { fontSize: 26, fontFamily: fonts.heading, color: colors.text },
-    subtitle: { color: colors.textMuted, fontSize: 15 },
-    card: { paddingVertical: 16, borderBottomWidth: 1, borderColor: colors.border, gap: 12 },
-    sectionTitle: { fontSize: 17, fontWeight: '900', color: colors.text },
-    hint: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
-    fieldLabel: { fontSize: 15, fontWeight: '800', color: colors.text },
+    scroll: { padding: 20, paddingBottom: 48, gap: 22 },
+    hero: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.lg },
+    heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    heroText: { flex: 1, gap: 2 },
+    name: { fontFamily: fonts.heading, fontSize: 22, color: colors.text },
+    email: { fontFamily: fonts.bodyRegular, fontSize: 14, color: colors.textMuted },
+    since: { fontFamily: fonts.bodyRegular, fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    editLink: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.accent },
+    heroError: { fontFamily: fonts.bodyRegular, fontSize: 13, color: colors.error },
+    statRow: { flexDirection: 'row', backgroundColor: colors.bg, borderRadius: radii.md, paddingVertical: 12 },
+    stat: { flex: 1, alignItems: 'center', gap: 2 },
+    statDivider: { borderLeftWidth: 1, borderLeftColor: colors.border },
+    statValue: { fontFamily: fonts.heading, fontSize: 20, color: colors.text },
+    statLabel: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMuted },
+    hint: { fontFamily: fonts.bodyRegular, fontSize: 14, color: colors.textMuted, lineHeight: 20 },
+    field: { gap: 8 },
+    fieldLabel: { fontFamily: fonts.bodySemibold, fontSize: 13, letterSpacing: 0.4, textTransform: 'uppercase', color: colors.textMuted },
     input: {
       borderWidth: 1,
       borderColor: colors.border,
@@ -745,107 +843,55 @@ function makeStyles(colors: ReturnType<typeof useTheme>['colors']) {
       paddingHorizontal: spacing.md,
       paddingVertical: 12,
       fontSize: 16,
+      fontFamily: fonts.bodyRegular,
       color: colors.text,
-      backgroundColor: colors.bg,
-    },
-    secondaryBtn: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      paddingVertical: 12,
-      alignItems: 'center',
-      backgroundColor: colors.bg,
-    },
-    secondaryBtnText: { fontWeight: '700', color: colors.text },
-    btnDisabled: { opacity: 0.5 },
-    themeRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-    themeChip: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      backgroundColor: colors.bg,
-    },
-    themeChipActive: {
-      borderColor: colors.accent,
       backgroundColor: colors.surface,
     },
-    themeChipText: { fontWeight: '700', color: colors.textMuted },
-    themeChipTextActive: { color: colors.accent },
-    reminderSection: { marginTop: spacing.md, gap: spacing.sm },
-    soundBlock: { gap: spacing.sm, marginTop: spacing.xs },
-    switchRow: {
+    infoCard: { backgroundColor: colors.surface, borderRadius: radii.md, paddingHorizontal: 14 },
+    infoLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12 },
+    infoLabel: { fontFamily: fonts.bodyMedium, fontSize: 15, color: colors.text },
+    infoValue: { flexShrink: 1, fontFamily: fonts.bodyRegular, fontSize: 15, color: colors.textMuted },
+    primaryBtn: { minHeight: 48, borderRadius: radii.md, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+    primaryBtnText: { fontFamily: fonts.bodySemibold, fontSize: 16, color: colors.onAccent },
+    secondaryBtn: {
+      minHeight: 46,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 14,
+    },
+    secondaryBtnText: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.text },
+    btnDim: { opacity: 0.6 },
+    optionList: { gap: 8 },
+    option: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.md,
-    },
-    switchLabel: { fontWeight: '800', color: colors.text, flex: 1 },
-    link: { color: colors.accent, fontWeight: '700', fontSize: 15 },
-    debugBox: {
-      marginTop: spacing.sm,
-      padding: spacing.md,
+      gap: 12,
+      padding: 14,
       borderRadius: radii.md,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.bg,
-      gap: 4,
+      backgroundColor: colors.surface,
     },
-    devButton: {
-      marginTop: spacing.xs,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingVertical: 10,
-      alignItems: 'center',
-      backgroundColor: colors.bg,
-    },
-    devButtonText: { fontSize: 14, fontWeight: '700', color: colors.accent },
-    inlineError: { color: colors.error, fontWeight: '600' },
-    inlineSuccess: { color: colors.successText, fontWeight: '600' },
-    detailRow: { gap: 4, marginTop: spacing.sm },
-    detailLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted },
-    detailValue: { fontSize: 15, color: colors.text },
-    signOutBtn: {
-      marginTop: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      paddingVertical: 12,
-      alignItems: 'center',
-    },
-    signOutText: { fontWeight: '700', color: colors.error, fontSize: 16 },
-    deleteBtn: {
-      marginTop: spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.error,
-      borderRadius: radii.md,
-      paddingVertical: 12,
-      alignItems: 'center',
-      backgroundColor: colors.errorBg,
-    },
-    deleteText: { fontWeight: '800', color: colors.error, fontSize: 16 },
-    teaserRow: { gap: spacing.sm },
-    teaser: { paddingVertical: 14, borderBottomWidth: 1, borderColor: colors.border, gap: 6 },
-    teaserLabel: { fontWeight: '900', color: colors.text, fontSize: 15 },
-    teaserText: { color: colors.textMuted, lineHeight: 20 },
-    strong: { fontWeight: '900', color: colors.text },
-    errorBanner: {
-      backgroundColor: colors.errorBg,
-      borderRadius: radii.md,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.errorBorder,
-    },
-    errorBannerText: { color: colors.error, fontWeight: '700' },
-    footerLink: { textAlign: 'center', marginTop: spacing.sm },
-    legalRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 4,
-    },
+    radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
+    optionLabel: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.text },
+    switchCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: radii.md, padding: 14 },
+    switchLabel: { fontFamily: fonts.bodySemibold, fontSize: 16, color: colors.text },
+    link: { color: colors.accent, fontFamily: fonts.bodySemibold, fontSize: 15 },
+    strong: { fontFamily: fonts.bodySemibold, color: colors.text },
+    debugBox: { padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 4 },
+    errorBanner: { backgroundColor: colors.errorBg, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.errorBorder },
+    errorText: { color: colors.error, fontFamily: fonts.bodyMedium, fontSize: 14 },
+    successBanner: { backgroundColor: colors.successBg, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.successBorder },
+    successText: { color: colors.successText, fontFamily: fonts.bodyMedium, fontSize: 14 },
+    footer: { alignItems: 'center', gap: 10, marginTop: 4 },
+    deleteLink: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.textMuted, textDecorationLine: 'underline' },
+    version: { fontFamily: fonts.bodyRegular, fontSize: 12, color: withAlpha(colors.textMuted, 0.7) },
+    legalRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
     legalMuted: { color: colors.textMuted, fontSize: 14 },
   });
 }

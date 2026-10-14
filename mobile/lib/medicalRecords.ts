@@ -1,6 +1,7 @@
 import { normalizeBodyMetricUnit, type BodyMetricUnit } from './bodyMetrics'
 import { openRow, sealRow } from './crypto/seal'
 import { supabase } from './supabase'
+import { emptyDetails, parseDetails, type MedicalRecordDetails } from './medicalRecordDetails'
 
 export type BloodType =
   | 'A+'
@@ -29,6 +30,8 @@ export type MedicalRecord = {
   family_history: string | null
   emergency_notes: string | null
   other_notes: string | null
+  /** Structured extras (migration 031); empty when the column is missing. */
+  details: MedicalRecordDetails
   created_at: string
   updated_at: string
 }
@@ -47,6 +50,7 @@ export type MedicalRecordInput = {
   family_history: string
   emergency_notes: string
   other_notes: string
+  details: MedicalRecordDetails
 }
 
 export const emptyMedicalRecordInput = (): MedicalRecordInput => ({
@@ -63,6 +67,7 @@ export const emptyMedicalRecordInput = (): MedicalRecordInput => ({
   family_history: '',
   emergency_notes: '',
   other_notes: '',
+  details: emptyDetails(),
 })
 
 export function recordToInput(record: MedicalRecord | null): MedicalRecordInput {
@@ -81,6 +86,7 @@ export function recordToInput(record: MedicalRecord | null): MedicalRecordInput 
     family_history: record.family_history ?? '',
     emergency_notes: record.emergency_notes ?? '',
     other_notes: record.other_notes ?? '',
+    details: parseDetails(JSON.parse(JSON.stringify(record.details ?? {}))),
   }
 }
 
@@ -96,7 +102,12 @@ export function isMedicalRecordFilled(input: MedicalRecordInput): boolean {
     input.past_surgeries.trim().length > 0 ||
     input.family_history.trim().length > 0 ||
     input.emergency_notes.trim().length > 0 ||
-    input.other_notes.trim().length > 0
+    input.other_notes.trim().length > 0 ||
+    input.details.vaccines.length > 0 ||
+    input.details.careTeam.length > 0 ||
+    input.details.surgeries.length > 0 ||
+    input.details.family.length > 0 ||
+    Boolean(input.details.emergencyContact.name)
   )
 }
 
@@ -144,6 +155,7 @@ function normalizeMedicalRecord(row: Record<string, unknown>): MedicalRecord {
         : Array.isArray(opened.family_history)
           ? (opened.family_history as string[]).join('\n')
           : null,
+    details: parseDetails(opened.details),
   }
 }
 
@@ -164,12 +176,12 @@ export async function fetchMedicalRecord(
 export async function upsertMedicalRecord(
   userId: string,
   input: MedicalRecordInput,
-): Promise<MedicalRecord> {
+): Promise<MedicalRecord & { detailsUnsaved?: boolean }> {
   if (!supabase) throw new Error('Supabase is not configured')
 
   const height = parseOptionalNumber(input.height_cm)
   const weight = parseOptionalNumber(input.weight_kg)
-  const sealed = sealRow('medical_records', {
+  const base = {
     user_id: userId,
     blood_type: input.blood_type || null,
     date_of_birth: input.date_of_birth.trim() || null,
@@ -184,16 +196,36 @@ export async function upsertMedicalRecord(
     family_history: input.family_history.trim() || null,
     emergency_notes: input.emergency_notes.trim() || null,
     other_notes: input.other_notes.trim() || null,
-  })
+  }
 
-  const { data, error } = await supabase
+  const first = await supabase
     .from('medical_records')
-    .upsert(sealed, { onConflict: 'user_id' })
+    .upsert(sealRow('medical_records', { ...base, details: JSON.stringify(input.details) }), { onConflict: 'user_id' })
     .select('*')
     .single()
+  if (!first.error) return normalizeMedicalRecord(first.data as Record<string, unknown>)
+  if (!isMissingDetailsColumn(first.error)) throw first.error
 
+  // Migration 031 not applied yet: save everything else, keep details on device for this session.
+  const { data, error } = await supabase
+    .from('medical_records')
+    .upsert(sealRow('medical_records', base), { onConflict: 'user_id' })
+    .select('*')
+    .single()
   if (error) throw error
-  return normalizeMedicalRecord(data as Record<string, unknown>)
+  return { ...normalizeMedicalRecord(data as Record<string, unknown>), details: input.details, detailsUnsaved: true }
+}
+
+export const DETAILS_MIGRATION_NOTICE =
+  'Reactions, vaccines, care team and emergency contact need a quick database update (migration 031) before they can save. Everything else was saved.'
+
+function isMissingDetailsColumn(error: { code?: string; message?: string }): boolean {
+  const msg = (error.message ?? '').toLowerCase()
+  return (
+    error.code === 'PGRST204' ||
+    error.code === '42703' ||
+    (msg.includes('details') && (msg.includes('column') || msg.includes('schema cache')))
+  )
 }
 
 /** Persist unit preference immediately (creates a row if needed). */
