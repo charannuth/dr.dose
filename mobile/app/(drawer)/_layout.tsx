@@ -222,6 +222,11 @@ function DrawerLayoutInner({
           headerShadowVisible: true,
           headerTitleAlign: 'center',
           drawerStyle: { backgroundColor: colors.bg, width: 312 },
+          // Slide the menu over the page instead of moving the whole page (and
+          // its animated background) with it: far less to redraw each frame.
+          drawerType: 'front',
+          // Pages left in the background stop re-rendering until you come back.
+          freezeOnBlur: true,
           sceneStyle: { backgroundColor: colors.bg },
           drawerActiveTintColor: colors.accent,
           drawerInactiveTintColor: colors.textMuted,

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   DrawerContentScrollView,
+  useDrawerProgress,
   useDrawerStatus,
   type DrawerContentComponentProps,
 } from 'expo-router/build/react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInLeft } from 'react-native-reanimated';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
 import Constants from 'expo-constants';
 import type { ColorPalette } from '../../constants/theme';
 import { accentBgKey, fonts, radii, spacing } from '../../constants/theme';
@@ -25,6 +26,21 @@ import { DrawerIcon } from './DrawerIcon';
 import { DrawerTodayCard } from './DrawerTodayCard';
 import { DRAWER_SECTIONS, type DrawerNavEntry } from './drawerNav';
 
+const STATS_MAX_AGE_MS = 15_000;
+/** Roughly how long the drawer spring takes to settle. */
+const OPEN_SETTLE_MS = 400;
+
+function sameStats(a: StreakStats | null, b: StreakStats): boolean {
+  return Boolean(
+    a &&
+      a.todayTaken === b.todayTaken &&
+      a.todayExpected === b.todayExpected &&
+      a.currentStreak === b.currentStreak &&
+      a.hasMedications === b.hasMedications &&
+      a.last7Days.every((d, i) => d.date === b.last7Days[i]?.date && d.perfect === b.last7Days[i]?.perfect),
+  );
+}
+
 function greeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -37,7 +53,6 @@ function NavRow({
   focused,
   badge,
   index,
-  animationKey,
   colors,
   styles,
   onPress,
@@ -46,19 +61,25 @@ function NavRow({
   focused: boolean;
   badge?: string | null;
   index: number;
-  animationKey: number;
   colors: ColorPalette;
   styles: ReturnType<typeof makeStyles>;
   onPress: () => void;
 }) {
   const accent = colors[item.accent];
   const accentBg = colors[accentBgKey(item.accent)];
+  const progress = useDrawerProgress();
+  const reducedMotion = useReducedMotion();
+  // Rows slide in with the drawer itself, staggered, entirely on the UI thread.
+  // Nothing re-renders or remounts when the menu opens, so the slide stays smooth.
+  const start = Math.min(0.2 + index * 0.04, 0.6);
+  const entrance = useAnimatedStyle(() => {
+    if (reducedMotion) return {};
+    const t = interpolate(progress.value, [start, start + 0.4], [0, 1], Extrapolation.CLAMP);
+    return { opacity: 0.35 + t * 0.65, transform: [{ translateX: (1 - t) * -18 }] };
+  });
 
   return (
-    <Animated.View
-      key={`${item.route}-${animationKey}`}
-      entering={FadeInLeft.duration(260).delay(60 + index * 28)}
-    >
+    <Animated.View style={entrance}>
       <PressableScale
         onPress={onPress}
         haptic
@@ -98,7 +119,7 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
   const drawerStatus = useDrawerStatus();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState<StreakStats | null>(null);
-  const [openCount, setOpenCount] = useState(0);
+  const lastFetch = useRef(0);
   const streaksRef = useRef<View>(null);
   const navRef = useRef<View>(null);
   const { registerTarget, unregisterTarget } = useDemoTourTargets();
@@ -112,18 +133,32 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
     };
   }, [registerTarget, unregisterTarget]);
 
-  // Refresh the progress card and replay the entrance each time the menu opens.
+  // Refresh the progress card without competing with the open animation:
+  // loading streaks reads and decrypts a year of dose logs on the JS thread,
+  // so it runs once at start-up and then only after the menu has finished
+  // opening, at most every 15 seconds.
   useEffect(() => {
-    if (drawerStatus !== 'open' || !user) return;
-    setOpenCount((n) => n + 1);
+    if (!user) return;
+    if (lastFetch.current && drawerStatus !== 'open') return;
+    if (Date.now() - lastFetch.current < STATS_MAX_AGE_MS) return;
     let active = true;
-    fetchStreakStats(user.id)
-      .then((s) => {
-        if (active) setStats(s);
-      })
-      .catch(() => {});
+    let clearTimer = () => {};
+    const task = InteractionManager.runAfterInteractions(() => {
+      const timer = setTimeout(() => {
+        fetchStreakStats(user.id)
+          .then((next) => {
+            if (!active) return;
+            lastFetch.current = Date.now();
+            setStats((prev) => (sameStats(prev, next) ? prev : next));
+          })
+          .catch(() => {});
+      }, lastFetch.current ? OPEN_SETTLE_MS : 0);
+      clearTimer = () => clearTimeout(timer);
+    });
     return () => {
       active = false;
+      task.cancel();
+      clearTimer();
     };
   }, [drawerStatus, user]);
 
@@ -199,7 +234,6 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
                   focused={focusedRoute === item.route}
                   badge={badges[item.route]}
                   index={rowIndex++}
-                  animationKey={openCount}
                   colors={colors}
                   styles={styles}
                   onPress={() => go(item.route)}

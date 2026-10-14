@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, type ComponentProps, type ReactNode, type Ref } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useIsFocused } from 'expo-router';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
   Easing,
@@ -108,9 +109,11 @@ function AmbientOrb({
  * page scrolls, which gives a calm parallax. It never takes touches, and it
  * holds still when Reduce Motion is on.
  */
-export function AmbientBackground() {
+export function AmbientBackground({ paused = false }: { paused?: boolean }) {
   const { colors, isDark } = useTheme();
   const reducedMotion = useReducedMotion();
+  // Screens kept alive in the background don't need to animate.
+  const still = reducedMotion || paused;
   const contextScroll = useContext(AmbientScrollContext);
   const fallbackScroll = useSharedValue(0);
   const scrollY = contextScroll ?? fallbackScroll;
@@ -118,10 +121,17 @@ export function AmbientBackground() {
   const orbOpacity = isDark ? 0.16 : 0.2;
 
   useEffect(() => {
-    if (reducedMotion) return;
-    clock.value = withRepeat(withTiming(1, { duration: FLOAT_MS, easing: Easing.linear }), -1, false);
+    if (still) return;
+    // Resume from where the float paused so orbs don't jump.
+    const from = clock.value % 1;
+    clock.value = from;
+    clock.value = withRepeat(
+      withTiming(from + 1, { duration: FLOAT_MS, easing: Easing.linear }),
+      -1,
+      false,
+    );
     return () => cancelAnimation(clock);
-  }, [clock, reducedMotion]);
+  }, [clock, still]);
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}>
@@ -153,10 +163,11 @@ export function AmbientBackground() {
 /** Navigator `screenLayout`: paints the ambient canvas under each screen. */
 export function AmbientScreenLayout({ children }: { children: ReactNode }) {
   const scrollY = useSharedValue(0);
+  const focused = useIsFocused();
   return (
     <AmbientScrollContext.Provider value={scrollY}>
       <View style={styles.fill}>
-        <AmbientBackground />
+        <AmbientBackground paused={!focused} />
         {children}
       </View>
     </AmbientScrollContext.Provider>
