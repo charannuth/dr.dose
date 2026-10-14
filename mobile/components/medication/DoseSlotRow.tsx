@@ -4,8 +4,8 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  Easing,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import type { ColorPalette } from '../../constants/theme';
@@ -15,7 +15,6 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { PressableScale } from '../PressableScale';
 import { DoseBurst } from './DoseBurst';
 
-const POP_SPRING = { damping: 9, stiffness: 260, mass: 0.6 };
 
 function makeStyles(colors: ColorPalette) {
   return {
@@ -137,8 +136,9 @@ export function DoseSlotRow({
   useEffect(() => {
     if (taken && !wasTaken.current && !reducedMotion) {
       setBurst((n) => n + 1);
-      checkScale.value = 0.3;
-      checkScale.value = withSpring(1, POP_SPRING);
+      // A short eased grow with no overshoot: the check settles instead of bouncing.
+      checkScale.value = 0.75;
+      checkScale.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
       flash.value = withSequence(withTiming(1, { duration: 120 }), withTiming(0, { duration: 650 }));
     }
     wasTaken.current = taken;
@@ -160,7 +160,7 @@ export function DoseSlotRow({
         ]}
       />
       <PressableScale
-        scaleTo={0.82}
+        scaleTo={0.94}
         disabled={busy || taken}
         onPress={onTake}
         hitSlop={6}
@@ -203,7 +203,7 @@ export function DoseSlotRow({
       {taken ? (
         <PressableScale
           style={styles.undoBtn}
-          scaleTo={0.9}
+          scaleTo={0.97}
           disabled={busy}
           onPress={onUndo}
           accessibilityRole="button"
@@ -216,7 +216,7 @@ export function DoseSlotRow({
           {onSnooze ? (
             <PressableScale
               style={[styles.ghostBtn, { borderColor: withAlpha(accent, 0.45) }]}
-              scaleTo={0.92}
+              scaleTo={0.97}
               disabled={busy}
               onPress={onSnooze}
               accessibilityRole="button"
@@ -228,7 +228,7 @@ export function DoseSlotRow({
           ) : null}
           <PressableScale
             style={[styles.takeBtn, { backgroundColor: accent }]}
-            scaleTo={0.9}
+            scaleTo={0.97}
             disabled={busy}
             onPress={onTake}
             accessibilityRole="button"

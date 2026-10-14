@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Animated, {
-  FadeInDown,
+  Easing,
+  FadeIn,
   LinearTransition,
-  useAnimatedStyle,
   useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { formatDoseDisplay } from '../lib/dose';
 import { formatInventoryRemaining } from '../lib/inventory';
@@ -288,20 +284,6 @@ export function MedicationCard({
   const styles = useThemedStyles(makeMedicationCardStyles);
   const [menuOpen, setMenuOpen] = useState(false);
   const reducedMotion = useReducedMotion();
-  const cardScale = useSharedValue(1);
-  const wasAllDone = useRef(medication.allDosesTakenToday);
-
-  // Finishing the day's last dose gets a little hop on top of the row's confetti.
-  useEffect(() => {
-    if (medication.allDosesTakenToday && !wasAllDone.current && !reducedMotion) {
-      cardScale.value = withSequence(
-        withTiming(1.035, { duration: 140 }),
-        withSpring(1, { damping: 8, stiffness: 220 }),
-      );
-    }
-    wasAllDone.current = medication.allDosesTakenToday;
-  }, [medication.allDosesTakenToday, reducedMotion, cardScale]);
-  const cardBounce = useAnimatedStyle(() => ({ transform: [{ scale: cardScale.value }] }));
 
   const slotSource = visibleScheduleTime
     ? medication.slots.filter((s) => s.time === visibleScheduleTime)
@@ -351,7 +333,8 @@ export function MedicationCard({
     medication.medication_route,
     medication.medication_form,
   );
-  const cardLayout = LinearTransition.springify().damping(22).stiffness(200);
+  // Eased rather than sprung so rows glide into place without overshooting.
+  const cardLayout = LinearTransition.duration(240).easing(Easing.out(Easing.cubic));
 
   const prnBusy = busySlot === `${medication.id}-prn`;
   const migrateToPrnBusy = busySlot === `${medication.id}-migrate-prn`;
@@ -442,7 +425,6 @@ export function MedicationCard({
         { backgroundColor: tileBackground, borderColor: accentColor },
         asNeeded && styles.cardPrn,
         { borderLeftWidth: 4, borderLeftColor: accentColor },
-        cardBounce,
       ]}
     >
       <View style={styles.header}>
@@ -509,7 +491,7 @@ export function MedicationCard({
 
       {allDone && !visibleScheduleTime ? (
         <Animated.View
-          entering={reducedMotion ? undefined : FadeInDown.springify().damping(14)}
+          entering={reducedMotion ? undefined : FadeIn.duration(260)}
           style={[styles.cheer, { backgroundColor: withAlpha(accentColor, 0.16) }]}
         >
           <Text style={styles.cheerEmoji}>🎉</Text>
