@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.charannuth.drdose",
+      "bundleIdentifier": "com.drdose.app",
       "buildNumber": "56",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
@@ -81,7 +81,7 @@
       [
         "expo-widgets",
         {
-          "groupIdentifier": "group.com.charannuth.drdose",
+          "groupIdentifier": "group.com.drdose.app",
           "widgets": [
             {
               "name": "SnoozeDoseActivity",
@@ -113,10 +113,10 @@
               "appExtensions": [
                 {
                   "targetName": "ExpoWidgetsTarget",
-                  "bundleIdentifier": "com.charannuth.drdose.ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.drdose.app.ExpoWidgetsTarget",
                   "entitlements": {
                     "com.apple.security.application-groups": [
-                      "group.com.charannuth.drdose"
+                      "group.com.drdose.app"
                     ]
                   }
                 }

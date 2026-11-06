@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const BUNDLE_ID = 'com.charannuth.drdose';
+const BUNDLE_ID = 'com.drdose.app';
 
 export type AppUpdateInfo = {
   updateAvailable: boolean;

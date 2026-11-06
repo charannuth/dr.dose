@@ -28,7 +28,7 @@ You need a **dev build** installed (same `expo run:ios` with a device selected i
 
 Dose reminders are **local notifications** only. A free Personal Team cannot use the **Push Notifications** capability (remote APNs). The repo config plugin `plugins/withLocalNotificationsOnly.js` strips `aps-environment` so Xcode can sign the app.
 
-If Xcode still shows Push Notifications under **Signing & Capabilities**, remove it with the **−** button, set **Bundle Identifier** to `com.charannuth.drdose`, then run:
+If Xcode still shows Push Notifications under **Signing & Capabilities**, remove it with the **−** button, set **Bundle Identifier** to `com.drdose.app`, then run:
 
 ```bash
 cd mobile

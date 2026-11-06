@@ -132,3 +132,14 @@ npx eas-cli login
 ```
 
 EAS retains signing credentials and project env vars; no need to re-run `eas init` if `app.json` already has `projectId`.
+
+---
+
+## Apple account migration (Nov 2026)
+
+The original developer membership (bundle `com.charannuth.drdose`, App Store Connect app ID `6780679549`) expired and could not be renewed, so iOS moved to a new Apple Developer account with a new bundle ID, `com.drdose.app`. The references above describe the old account and are kept for history.
+
+- `mobile/app.json` and `mobile/lib/appUpdate.ts` use the new iOS bundle ID, widget extension ID and app group. The Android package is unchanged.
+- `mobile/eas.json` no longer sets `ascAppId`. Add the new app's Apple ID from App Store Connect (App Information) once the app record exists, or let `eas submit` prompt for it.
+- The first iOS build on the new account must be run interactively (`eas build -p ios --profile production`) so EAS can sign in to the new Apple Account and create fresh certificates and profiles.
+- Users move to the new App Store listing and sign in. Their data lives in Supabase and is unaffected.

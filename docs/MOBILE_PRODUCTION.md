@@ -15,7 +15,7 @@ Step-by-step guide to ship **Dr. Dose** on iOS using [EAS Build](https://docs.ex
 3. In [App Store Connect](https://appstoreconnect.apple.com), create an app:
    - **Platform:** iOS
    - **Name:** Dr. Dose
-   - **Bundle ID:** `com.charannuth.drdose` (must match `mobile/app.json`)
+   - **Bundle ID:** `com.drdose.app` (must match `mobile/app.json`)
    - **SKU:** e.g. `dr-dose-ios`
    - **Primary language:** English
 
