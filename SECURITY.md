@@ -23,10 +23,14 @@ We will acknowledge receipt and work on a fix before any public disclosure when 
 
 ## Sensitive data
 
-This application handles health-related information with **client-side (zero-access) encryption**:
+This application handles health-related information with **client-side encryption**:
 medication names, doses, notes, and related PHI are encrypted on-device before sync. The data
-encryption key is wrapped with the user's login password (and a recovery “account backup”).
-Operators with database access should see ciphertext only for those fields after users migrate.
+encryption key is wrapped with the user's login password. For password-reset recovery, a copy of
+the key is also held by the `vault-escrow` Supabase Edge Function, encrypted with
+`VAULT_ESCROW_KEY` (an Edge Function secret that is never stored in the database). Operators with
+database access alone see ciphertext only; operators who also hold the Edge Function secret could
+decrypt escrowed keys, so restrict access to Supabase project secrets. Users can still request an
+optional recovery phrase in settings.
 
 Never commit secrets, API keys, `.env` files, vault passphrases, recovery phrases, or real
 patient data to the repository.

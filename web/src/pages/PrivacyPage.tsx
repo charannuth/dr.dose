@@ -24,19 +24,17 @@ export function PrivacyPage() {
           Health content you enter (medications, doses, notes, medical history, wellness and
           tracking notes, and similar fields) is <strong>encrypted on your device</strong> before
           it is synced to our database. We store ciphertext and a wrapped encryption key for your
-          account. The key is unlocked with your login password on your device; we do not hold a
-          copy that lets us read your encrypted health fields in our dashboard.
+          account. The key is unlocked with your login password on your device. To make sure
+          you never lose access to your own data, a protected copy of that key is also held by
+          our recovery service, encrypted with a secret that is kept separately from the
+          database. It is used only to restore your access after a password reset; it is not
+          used to browse or analyze your health information.
         </p>
         <p>
           Structural details needed to run reminders (for example dose times and schedule type)
-          remain as metadata so the app can function. When you first create an account you are
-          asked to save an <strong>account backup</strong> (a recovery phrase). You need that
-          backup only if you forget your password and reset it. Changing your password while
-          signed in does not require the backup.
-        </p>
-        <p>
-          If you reset a forgotten password and no longer have your account backup, encrypted
-          health fields from before the reset cannot be recovered by us.
+          remain as metadata so the app can function. You do not need to save any recovery
+          phrase. If you forget your password, reset it and sign in with the new password; your
+          health data comes back automatically.
         </p>
       </section>
 
