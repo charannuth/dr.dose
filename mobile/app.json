@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.drdose.app",
-      "buildNumber": "56",
+      "buildNumber": "60",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
