@@ -34,6 +34,13 @@ import {
   simulatorReminderNote,
 } from '../../lib/notifications';
 import { cancelAllLocalReminders, rescheduleAllReminders } from '../../lib/reminders';
+import {
+  authenticateForAppLock,
+  getAppLockEnabled,
+  getAppLockLabel,
+  isAppLockAvailable,
+  setAppLockEnabled,
+} from '../../lib/appLock';
 import { runReminderCheck, type ReminderCheckResult } from '../../lib/reminderDebug';
 import {
   getReminders,
@@ -100,6 +107,8 @@ export default function AccountScreen() {
   const [confirmNextPassword, setConfirmNextPassword] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [appLockOn, setAppLockOn] = useState(false);
+  const [appLockLabel, setAppLockLabel] = useState('Face ID');
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -108,6 +117,8 @@ export default function AccountScreen() {
   }, [user?.user_metadata?.display_name]);
 
   useEffect(() => {
+    void getAppLockEnabled().then(setAppLockOn);
+    void getAppLockLabel().then(setAppLockLabel);
     void getReminders().then((r) => setRemindersOn(r.enabled));
     void getReminderSound().then(setReminderSoundState);
     void getNotificationPermission().then(setPermissionStatus);
@@ -217,6 +228,23 @@ export default function AccountScreen() {
     setMessage(
       'Timezone saved. Dose reminders follow this zone until your phone timezone changes, then they switch to the phone.',
     );
+  }
+
+  async function handleAppLockToggle(enabled: boolean) {
+    if (enabled && !(await isAppLockAvailable())) {
+      Alert.alert(
+        'Set up Face ID first',
+        'Turn on Face ID or a passcode in the iPhone Settings app, then try again.',
+      );
+      return;
+    }
+    // Confirm it is really the owner before changing the lock either way.
+    const ok = await authenticateForAppLock(
+      enabled ? `Turn on ${appLockLabel} for Dr. Dose` : `Turn off ${appLockLabel} for Dr. Dose`,
+    );
+    if (!ok) return;
+    await setAppLockEnabled(enabled);
+    setAppLockOn(enabled);
   }
 
   async function handleRemindersToggle(enabled: boolean) {
@@ -481,6 +509,13 @@ export default function AccountScreen() {
         <SettingsGroup title="Account">
           <SettingsRow icon="account" tint={tint.account} title="Profile" value={displayNameResolved?.trim() || null} onPress={() => openSheet('profile')} />
           <SettingsRow icon="lock" tint={tint.account} title="Password" onPress={() => openSheet('password')} />
+          <SettingsRow
+            icon="lock"
+            tint={tint.account}
+            title={appLockLabel === 'device lock' ? 'App lock' : appLockLabel}
+            chevron={false}
+            right={<Switch value={appLockOn} onValueChange={(v) => void handleAppLockToggle(v)} />}
+          />
           <SettingsRow icon="help" tint={tint.account} title="Help & safety" onPress={() => router.push(routes.help)} />
           <SettingsRow icon="legal" tint={tint.account} title="Privacy & terms" onPress={() => openSheet('legal')} />
         </SettingsGroup>

@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   bannerText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   modal: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15,23,42,0.55)',
   },
   modalScroll: {

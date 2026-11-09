@@ -68,6 +68,12 @@
           "cameraPermission": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture."
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Dr. Dose uses Face ID to lock your health data when you turn on the lock in Account."
+        }
+      ],
       "expo-splash-screen",
       "expo-status-bar",
       "expo-font",
