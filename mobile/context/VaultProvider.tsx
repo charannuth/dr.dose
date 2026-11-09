@@ -20,7 +20,7 @@ import {
   tryRestoreVaultSession,
 } from '../lib/crypto/session'
 import { migrateUserVaultData } from '../lib/crypto/migrate'
-import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
+import { VAULT_ENFORCEMENT_ENABLED, isDemoReviewAccount } from '../lib/crypto/flags'
 import {
   peekPendingLoginPassword,
   takePendingLoginPassword,
@@ -36,10 +36,22 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [recoveryMnemonicOnce, setRecoveryMnemonicOnce] = useState<string | null>(null)
   const [migrating, setMigrating] = useState(false)
 
-  const rememberBackup = useCallback(async (userId: string, mnemonic: string) => {
-    setRecoveryMnemonicOnce(mnemonic)
-    await persistPendingRecoveryMnemonic(userId, mnemonic)
-  }, [])
+  const demoAccount = isDemoReviewAccount(user?.email)
+
+  const rememberBackup = useCallback(
+    async (userId: string, mnemonic: string) => {
+      if (demoAccount) {
+        // Demo/review account: never show the backup prompt.
+        setRecoveryMnemonicOnce(null)
+        await clearPendingRecoveryMnemonic(userId)
+        await markBackupAcknowledged(userId)
+        return
+      }
+      setRecoveryMnemonicOnce(mnemonic)
+      await persistPendingRecoveryMnemonic(userId, mnemonic)
+    },
+    [demoAccount],
+  )
 
   const runMigrate = useCallback(async (userId: string) => {
     setMigrating(true)
@@ -90,7 +102,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           await rememberBackup(user.id, mnemonic)
         } else {
           const pendingBackup = await loadPendingRecoveryMnemonic(user.id)
-          if (pendingBackup) setRecoveryMnemonicOnce(pendingBackup)
+          if (pendingBackup && !demoAccount) setRecoveryMnemonicOnce(pendingBackup)
         }
         setStatus('unlocked')
         return
@@ -99,7 +111,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const restored = await tryRestoreVaultSession(user.id)
       if (restored && isVaultUnlocked()) {
         const pendingBackup = await loadPendingRecoveryMnemonic(user.id)
-        if (pendingBackup) setRecoveryMnemonicOnce(pendingBackup)
+        if (pendingBackup && !demoAccount) setRecoveryMnemonicOnce(pendingBackup)
         setStatus('unlocked')
         await runMigrate(user.id)
         return
@@ -115,7 +127,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       }
       setStatus('needs_unlock')
     }
-  }, [user, runMigrate, rememberBackup])
+  }, [user, runMigrate, rememberBackup, demoAccount])
 
   useEffect(() => {
     void refresh()
@@ -139,7 +151,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       setError(null)
       await unlockVaultWithPassphrase(user.id, passphrase)
       const pendingBackup = await loadPendingRecoveryMnemonic(user.id)
-      if (pendingBackup) {
+      if (pendingBackup && !demoAccount) {
         setRecoveryMnemonicOnce(pendingBackup)
       } else if (!(await hasBackupAcknowledged(user.id))) {
         const mnemonic = await rotateRecoveryMnemonic(user.id)
@@ -148,7 +160,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       await runMigrate(user.id)
       setStatus('unlocked')
     },
-    [user, runMigrate, rememberBackup],
+    [user, runMigrate, rememberBackup, demoAccount],
   )
 
   const recover = useCallback(
