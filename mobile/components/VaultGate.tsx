@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
@@ -23,6 +24,7 @@ import { PasswordInput } from './PasswordInput'
 export function VaultGate({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth()
   const vault = useVault()
+  const insets = useSafeAreaInsets()
   const [mnemonic, setMnemonic] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -44,47 +46,65 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
         ) : null}
         {vault.recoveryMnemonicOnce ? (
           <View style={styles.modal}>
-            <ScrollView contentContainerStyle={styles.modalInner}>
-              <Text style={styles.title}>Save your account backup</Text>
-              <Text style={styles.body}>
-                Dr. Dose locks your health details so only you can open them. Save this
-                backup in Notes or email it to yourself. You need it only if you forget
-                your password and reset it. We cannot recover it for you.
-              </Text>
-              <Text style={styles.mnemonic} selectable>
-                {vault.recoveryMnemonicOnce}
-              </Text>
-              <Pressable
-                style={styles.secondary}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(vault.recoveryMnemonicOnce!)
-                  setBackupSaved(true)
-                }}
-              >
-                <Text style={styles.secondaryText}>Copy backup</Text>
-              </Pressable>
-              <Pressable
-                style={styles.secondary}
-                onPress={async () => {
-                  await Share.share({ message: vault.recoveryMnemonicOnce! })
-                  setBackupSaved(true)
-                }}
-              >
-                <Text style={styles.secondaryText}>Share…</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.primary, !backupSaved && styles.primaryDisabled]}
-                disabled={!backupSaved}
-                onPress={() => {
-                  vault.clearRecoveryMnemonic()
-                  setBackupSaved(false)
-                }}
-              >
-                <Text style={styles.primaryText}>I’ve saved it — Continue</Text>
-              </Pressable>
-              {!backupSaved ? (
-                <Text style={styles.hint}>Copy or Share once to continue.</Text>
-              ) : null}
+            <ScrollView
+              contentContainerStyle={[
+                styles.modalScroll,
+                {
+                  paddingTop: insets.top + 20,
+                  paddingBottom: insets.bottom + 20,
+                },
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalCard}>
+                <Text style={styles.title}>Save your account backup</Text>
+                <Text style={styles.body}>
+                  Dr. Dose locks your health details so only you can open them. Save this
+                  backup in Notes or email it to yourself. You need it only if you forget
+                  your password and reset it. We cannot recover it for you.
+                </Text>
+                <Text style={styles.mnemonic} selectable>
+                  {vault.recoveryMnemonicOnce}
+                </Text>
+                <Pressable
+                  style={styles.secondary}
+                  accessibilityRole="button"
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(vault.recoveryMnemonicOnce!)
+                    setBackupSaved(true)
+                  }}
+                >
+                  <Text style={styles.secondaryText}>Copy backup</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.secondary}
+                  accessibilityRole="button"
+                  onPress={async () => {
+                    try {
+                      const result = await Share.share({ message: vault.recoveryMnemonicOnce! })
+                      if (result.action === Share.sharedAction) setBackupSaved(true)
+                    } catch {
+                      // share sheet failed; user can still use Copy backup
+                    }
+                  }}
+                >
+                  <Text style={styles.secondaryText}>Share…</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.primary, !backupSaved && styles.primaryDisabled]}
+                  disabled={!backupSaved}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    vault.clearRecoveryMnemonic()
+                    setBackupSaved(false)
+                  }}
+                >
+                  <Text style={styles.primaryText}>I’ve saved it — Continue</Text>
+                </Pressable>
+                {!backupSaved ? (
+                  <Text style={styles.hint}>Copy or Share once to continue.</Text>
+                ) : null}
+              </View>
             </ScrollView>
           </View>
         ) : null}
@@ -308,12 +328,15 @@ const styles = StyleSheet.create({
   },
   bannerText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   modal: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15,23,42,0.55)',
-    justifyContent: 'center',
-    padding: 20,
   },
-  modalInner: {
+  modalScroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
