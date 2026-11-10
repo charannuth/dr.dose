@@ -28,7 +28,7 @@
       }
     },
     "android": {
-      "package": "com.charannuth.drdose",
+      "package": "com.drdose.app",
       "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -38,7 +38,11 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -65,7 +69,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Dr. Dose uses your photo library so you can choose a profile picture or scan a medication label from a saved photo.",
-          "cameraPermission": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture."
+          "cameraPermission": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture.",
+          "microphonePermission": false
         }
       ],
       "expo-splash-screen",

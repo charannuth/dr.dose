@@ -62,3 +62,6 @@ coverage/
 *.pem
 .cache/
 .vercel
+
+# Google Play service account key used by eas submit (never commit)
+mobile/google-play-service-account.json
