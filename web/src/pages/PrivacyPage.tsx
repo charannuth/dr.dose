@@ -5,7 +5,7 @@ export function PrivacyPage() {
     <main className="page">
       <header className="page-header">
         <h2>Privacy policy</h2>
-        <p className="page-subtitle">Last updated: August 15, 2026</p>
+        <p className="page-subtitle">Last updated: November 12, 2026</p>
       </header>
 
       <section className="help-section">
@@ -58,7 +58,7 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Device permissions</strong> — local notification permission for dose
-            reminders; photo library or camera for profile pictures and on-device label OCR.
+            reminders; photo library or camera for profile pictures and on-device label scanning.
           </li>
         </ul>
       </section>
@@ -76,9 +76,31 @@ export function PrivacyPage() {
         <h3>Third-party services</h3>
         <p>
           We use Supabase for authentication and database hosting. Medication name search may
-          call the public NIH RxNorm API with the text you type. Cloud AI enrichment of
-          pharmacy labels is disabled; label OCR runs on your device. Drug interaction checks
-          use a local reference database in the app.
+          call the public NIH RxNorm API with the text you type.
+        </p>
+        <p>
+          <strong>Pharmacy label scanning.</strong> When you scan a label, the photo is read on
+          your device using the phone&rsquo;s built-in text recognition, and the drug name,
+          strength and directions are picked out on your device. The photo is never uploaded.
+          If the app can&rsquo;t make sense of a label, it asks &ldquo;Use AI to read this
+          label?&rdquo; Only if you tap <em>Use AI</em>, the text read from the label (not the
+          photo) is sent to Google&rsquo;s Gemini API to fill in the details. Before sending, the
+          app removes lines and numbers that identify you, such as patient and prescriber names,
+          addresses, phone numbers, dates and Rx numbers. Google processes this text under the{' '}
+          <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">
+            Gemini API terms
+          </a>
+          . If you say no, nothing from the label leaves your device. You can also ask for AI
+          from the review screen; the same consent prompt is shown first.
+        </p>
+        <p>
+          <strong>Safety checks.</strong> After a scan, and when you add a medication, the app
+          checks the drug against your allergies, conditions and current medications. This uses a
+          reference database built into the app, plus public U.S. government drug references:
+          the drug&rsquo;s name may be sent to the NIH RxNorm API to identify it, and to the FDA
+          (openFDA) to fetch its official label. Your allergies, conditions and medication list
+          are never sent; they are compared with that information on your device. Results are
+          informational and are not medical advice.
         </p>
         <p>
           Local notifications use generic wording (they do not include medication names) so
