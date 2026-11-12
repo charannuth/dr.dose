@@ -17,12 +17,17 @@ import type { LabelScanPrefill } from '../../lib/labelScanPrefill';
 import { isLabelAiAvailable } from '../../lib/labelScanAI';
 import type { PrescriptionPrefill } from '../../lib/prescriptionScan';
 import { prefillToWizard } from '../../lib/prescriptionScan';
+import { ScanSafetyCard } from './ScanSafetyCard';
 
 type Props = {
   scan: PrescriptionPrefill;
+  /** Active medications already on the user's list, for the automatic safety check. */
+  currentMedicationNames: string[];
   onConfirm: (prefill: LabelScanPrefill) => void;
   onRescan: () => void;
   onCancel: () => void;
+  /** Asks for consent, then re-reads the label text with AI. Omitted when AI is unavailable. */
+  onUseAI?: () => void;
 };
 
 function FieldBadge({ ai }: { ai?: boolean }) {
@@ -44,7 +49,14 @@ function FieldBadge({ ai }: { ai?: boolean }) {
   );
 }
 
-export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props) {
+export function ScanReviewScreen({
+  scan,
+  currentMedicationNames,
+  onConfirm,
+  onRescan,
+  onCancel,
+  onUseAI,
+}: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const aiFields = useMemo(() => new Set(scan.aiFields ?? []), [scan.aiFields]);
@@ -94,26 +106,29 @@ export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props)
           tap to edit anything that looks wrong before continuing.
         </Text>
 
+        <ScanSafetyCard
+          drugName={name}
+          brandName={brandName.trim() || undefined}
+          currentMedicationNames={currentMedicationNames}
+        />
+
         {scan.aiEnhanced ? (
           <View style={styles.aiBanner}>
             <Text style={styles.aiBannerText}>
-              AI helped interpret this label
-              {isLabelAiAvailable() ? ' (text only — your photo stayed on your device)' : ''}.
-            </Text>
-          </View>
-        ) : isLabelAiAvailable() ? (
-          <View style={styles.localBanner}>
-            <Text style={styles.localBannerText}>
-              Read on your device. AI is enabled but could not add more detail from this label —
-              please review every field below.
+              You chose to use AI for this label. Only the label text was sent to Google Gemini;
+              your photo stayed on your device. Fields marked AI came from it.
             </Text>
           </View>
         ) : (
           <View style={styles.localBanner}>
             <Text style={styles.localBannerText}>
-              Parsed on your device. Optional AI can improve accuracy when a free Gemini API key
-              is configured.
+              Read on your device. Nothing from this label left your phone.
             </Text>
+            {onUseAI && isLabelAiAvailable() ? (
+              <Pressable onPress={onUseAI} accessibilityRole="button" style={styles.aiLink}>
+                <Text style={styles.aiLinkText}>Details look wrong? Use AI to read this label</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
@@ -350,6 +365,8 @@ function makeStyles(colors: ColorPalette) {
       borderWidth: 1,
       borderColor: colors.accentBlue,
     },
+    aiLink: { paddingTop: spacing.sm },
+    aiLinkText: { fontFamily: fonts.bodySemibold, fontSize: 13, color: colors.accent },
     localBannerText: {
       fontFamily: fonts.bodyRegular,
       fontSize: 13,

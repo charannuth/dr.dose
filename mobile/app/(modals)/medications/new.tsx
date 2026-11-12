@@ -22,11 +22,14 @@ import { MedicationFormWizard } from '../../../components/medication/MedicationF
 import { ScanReviewScreen } from '../../../components/medication/ScanReviewScreen';
 import type { LabelScanPrefill } from '../../../lib/labelScanPrefill';
 import {
+  enhancePrescriptionWithAI,
   hasUsefulPrefill,
   isLabelAiAvailable,
   recognizePrescription,
   type PrescriptionPrefill,
 } from '../../../lib/prescriptionScan';
+import { describeMissingFields, type LabelParseField } from '../../../lib/labelParseQuality';
+import { getLastLabelAiError } from '../../../lib/labelScanAI';
 import type { MedicationInput } from '../../../lib/types';
 import { useTheme } from '../../../context/ThemeProvider';
 import { useThemedStyles } from '../../../hooks/useThemedStyles';
@@ -96,6 +99,9 @@ export default function AddMedicationScreen() {
   const [prefill, setPrefill] = useState<LabelScanPrefill | null>(null);
   const [scanConfirmed, setScanConfirmed] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState<'device' | 'ai'>('device');
+  /** Bumped when the scan result is replaced so the review screen resets its fields. */
+  const [scanVersion, setScanVersion] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -133,30 +139,21 @@ export default function AddMedicationScreen() {
         return;
       }
 
-      // Cloud AI is opt-in per scan: OCR text (not the photo) would leave the device.
-      let useCloudAi = false;
-      if (isLabelAiAvailable()) {
-        useCloudAi = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Enhance with AI?',
-            'On-device OCR always runs. Optionally send the scanned label text (not the photo) to Google to fill more fields. Skip to keep everything on this device.',
-            [
-              { text: 'On-device only', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Enhance with AI', onPress: () => resolve(true) },
-            ],
-          );
-        });
+      // Layer 1: on-device OCR + local rules. Nothing leaves the phone.
+      setScanStatus('device');
+      const local = await recognizePrescription(result.assets[0].uri);
+      let parsed = local.prefill;
+
+      // Layer 2: only when local rules couldn't make sense of the label, offer AI.
+      if (!local.quality.confident && isLabelAiAvailable() && parsed.rawText.trim()) {
+        const consent = await askAiConsent(local.quality.missing);
+        if (consent) {
+          setScanStatus('ai');
+          parsed = await runAiEnhancement(parsed);
+        }
       }
 
-      const parsed = await recognizePrescription(result.assets[0].uri, { useCloudAi });
-      setScanResult(parsed);
-      setMode('review');
-      if (!hasUsefulPrefill(parsed)) {
-        Alert.alert(
-          'Limited details detected',
-          "We couldn't read much from this photo. Review what we found, edit any fields, or tap Rescan with a clearer picture.",
-        );
-      }
+      showScanResult(parsed);
     } catch (err) {
       Alert.alert(
         'Scan failed',
@@ -164,6 +161,74 @@ export default function AddMedicationScreen() {
       );
       setPrefill(null);
       setMode('form');
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function askAiConsent(missing: LabelParseField[]): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Use AI to read this label?',
+        `We read the label on your device but couldn't find ${describeMissingFields(missing)}. ` +
+          'AI can usually read messy labels. If you agree, the text from the label (not the photo) ' +
+          "is sent to Google's Gemini AI, after we remove phone numbers, dates and Rx numbers. " +
+          'Say no to keep everything on this device and fill in the rest yourself.',
+        [
+          { text: 'No, keep on device', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Use AI', onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      );
+    });
+  }
+
+  async function runAiEnhancement(local: PrescriptionPrefill): Promise<PrescriptionPrefill> {
+    const { prefill: next, aiUsed } = await enhancePrescriptionWithAI(local);
+    if (!aiUsed) {
+      const detail = getLastLabelAiError()?.message;
+      Alert.alert(
+        "AI couldn't read this label",
+        `${detail ? `${detail} ` : ''}We'll show what we read on your device so you can fix it.`,
+      );
+    }
+    return next;
+  }
+
+  function showScanResult(parsed: PrescriptionPrefill) {
+    setScanResult(parsed);
+    setScanVersion((v) => v + 1);
+    setMode('review');
+    if (!hasUsefulPrefill(parsed)) {
+      Alert.alert(
+        'Limited details detected',
+        "We couldn't read much from this photo. Review what we found, edit any fields, or tap Rescan with a clearer picture.",
+      );
+    }
+  }
+
+  /** From the review screen: the user asked for AI even though local parsing looked OK. */
+  async function readWithAiFromReview() {
+    if (!scanResult) return;
+    const consent = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Use AI to read this label?',
+        "The text from the label (not the photo) is sent to Google's Gemini AI, after we remove " +
+          'phone numbers, dates and Rx numbers. Any edits you made on this screen will be replaced.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Use AI', onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      );
+    });
+    if (!consent) return;
+    setScanStatus('ai');
+    setScanning(true);
+    try {
+      const next = await runAiEnhancement(scanResult);
+      setScanResult(next);
+      setScanVersion((v) => v + 1);
     } finally {
       setScanning(false);
     }
@@ -195,12 +260,13 @@ export default function AddMedicationScreen() {
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.scanningWrap}>
           <ActivityIndicator size="large" color={colors.accentBlue} />
-          <Text style={styles.scanningText}>Reading your label…</Text>
+          <Text style={styles.scanningText}>
+            {scanStatus === 'ai' ? 'Reading your label with AI…' : 'Reading your label…'}
+          </Text>
           <Text style={styles.scanningHint}>
-            OCR runs on your device.
-            {isLabelAiAvailable()
-              ? ' Optional AI may analyze the text to fill more fields — never the photo itself.'
-              : ''}
+            {scanStatus === 'ai'
+              ? 'Sending the label text (not the photo) to Google Gemini.'
+              : 'This happens on your device. Nothing is uploaded.'}
           </Text>
         </View>
       </SafeAreaView>
@@ -211,7 +277,10 @@ export default function AddMedicationScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <ScanReviewScreen
+          key={scanVersion}
           scan={scanResult}
+          currentMedicationNames={existingNames}
+          onUseAI={isLabelAiAvailable() ? () => void readWithAiFromReview() : undefined}
           onConfirm={(next) => {
             setPrefill(next);
             setScanConfirmed(true);
@@ -245,8 +314,9 @@ export default function AddMedicationScreen() {
             >
               <Text style={[styles.cardTitle, styles.cardTitleScan]}>Scan pharmacy label</Text>
               <Text style={styles.cardDesc}>
-                Point your camera at the prescription sticker. We'll read the drug name, strength,
-                directions, and more — then you review everything before saving.
+                Point your camera at the prescription sticker. We'll read the drug name, strength
+                and directions on your device, check it against your allergies and medications,
+                then you review everything before saving.
               </Text>
             </Pressable>
           ) : null}

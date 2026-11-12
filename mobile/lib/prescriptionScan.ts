@@ -5,6 +5,7 @@ import { isMedicationRouteId, type MedicationRouteId } from './medicationForms';
 import type { MedicationScheduleType } from './medicationSchedule';
 import { isLabelAiAvailable, parseLabelWithAI } from './labelScanAI';
 import type { LabelScanPrefill } from './labelScanPrefill';
+import { assessLabelParse, type LabelNameSource, type LabelParseQuality } from './labelParseQuality';
 
 /**
  * Fields we can suggest from a scanned pharmacy label. Everything is optional —
@@ -13,6 +14,8 @@ import type { LabelScanPrefill } from './labelScanPrefill';
 export type PrescriptionPrefill = {
   rawText: string;
   name?: string;
+  /** How the local parser found the name (catalog match is most reliable). */
+  nameSource?: LabelNameSource;
   brandName?: string;
   doseMg?: string;
   route?: MedicationRouteId;
@@ -297,10 +300,19 @@ export function parsePrescriptionText(rawText: string): PrescriptionPrefill {
   const nameMatch = findName(flat) ?? findName(text);
   if (nameMatch) {
     result.name = nameMatch.name;
+    result.nameSource = 'catalog';
   } else {
     const pharmacyName = findPharmacyDrugName(text);
-    const likely = pharmacyName ?? findLikelyDrugLine(text);
-    if (likely) result.name = likely;
+    if (pharmacyName) {
+      result.name = pharmacyName;
+      result.nameSource = 'pharmacy-line';
+    } else {
+      const likely = findLikelyDrugLine(text);
+      if (likely) {
+        result.name = likely;
+        result.nameSource = 'guess';
+      }
+    }
   }
 
   const brand = findBrandName(flat);
@@ -349,6 +361,7 @@ function mergePrefills(local: PrescriptionPrefill, ai: PrescriptionPrefill): Pre
   return {
     rawText: local.rawText,
     name: pick('name'),
+    nameSource: local.nameSource,
     brandName: pick('brandName'),
     doseMg: pick('doseMg'),
     route: pick('route'),
@@ -364,25 +377,38 @@ function mergePrefills(local: PrescriptionPrefill, ai: PrescriptionPrefill): Pre
   };
 }
 
-/** Run on-device OCR, optional AI text analysis, and return confirmable suggestions. */
-export async function recognizePrescription(
-  uri: string,
-  options: { useCloudAi?: boolean } = {},
-): Promise<PrescriptionPrefill> {
+export type LocalLabelScan = {
+  prefill: PrescriptionPrefill;
+  quality: LabelParseQuality;
+};
+
+/**
+ * Layer 1: on-device OCR (Apple Vision / ML Kit via expo-mlkit-ocr) plus local rules.
+ * Nothing leaves the device.
+ */
+export async function recognizePrescription(uri: string): Promise<LocalLabelScan> {
   const recognition = await recognizeText(uri);
   const rawText = recognition?.text ?? '';
-  const local = parsePrescriptionText(rawText);
+  const prefill = parsePrescriptionText(rawText);
+  return { prefill, quality: assessLabelParse(prefill) };
+}
 
-  if (!options.useCloudAi || !isLabelAiAvailable()) return local;
-
+/**
+ * Layer 2 (optional): send the OCR text — never the photo — to Google Gemini.
+ * Only call this after the user has said yes to "Use AI to read this label?".
+ * Returns the local result unchanged when AI is unavailable or fails.
+ */
+export async function enhancePrescriptionWithAI(
+  local: PrescriptionPrefill,
+): Promise<{ prefill: PrescriptionPrefill; aiUsed: boolean }> {
+  if (!isLabelAiAvailable() || !local.rawText.trim()) return { prefill: local, aiUsed: false };
   try {
-    const ai = await parseLabelWithAI(rawText);
-    if (ai) return mergePrefills(local, ai);
+    const ai = await parseLabelWithAI(local.rawText);
+    if (ai) return { prefill: mergePrefills(local, ai), aiUsed: true };
   } catch {
-    // AI is optional; local parsing still works offline.
+    // AI is optional; the on-device result still stands.
   }
-
-  return local;
+  return { prefill: local, aiUsed: false };
 }
 
 export function hasUsefulPrefill(prefill: PrescriptionPrefill | null | undefined): boolean {

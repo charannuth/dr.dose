@@ -1,6 +1,7 @@
 import { isMedicationRouteId, type MedicationRouteId } from './medicationForms';
 import type { MedicationScheduleType } from './medicationSchedule';
 import type { PrescriptionPrefill } from './prescriptionScan';
+import { redactLabelTextForAI } from './labelParseQuality';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim();
 /** Prefer a current Flash model; 2.0-flash remains a fallback if needed. */
@@ -113,9 +114,10 @@ export function getLastLabelAiError(): LabelAiError | null {
 }
 
 /**
- * Optional: send OCR text to Google Gemini for structured extraction.
- * Only the text is sent — not the photo. Returns null when AI is unavailable or fails.
- * Callers should ask the user before invoking (label text is health-related).
+ * Optional second layer: send OCR text to Google Gemini for structured extraction.
+ * Only the text is sent, never the photo, and personal identifiers (patient/prescriber
+ * lines, addresses, phone numbers, dates, Rx numbers) are stripped first.
+ * Callers MUST ask the user ("Use AI to read this label?") before invoking.
  */
 export async function parseLabelWithAI(rawText: string): Promise<PrescriptionPrefill | null> {
   lastLabelAiError = null;
@@ -138,7 +140,11 @@ export async function parseLabelWithAI(rawText: string): Promise<PrescriptionPre
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: `${AI_PROMPT}\n\n--- OCR TEXT ---\n${rawText.slice(0, 8000)}` }],
+            parts: [
+              {
+                text: `${AI_PROMPT}\n\n--- OCR TEXT ---\n${redactLabelTextForAI(rawText).slice(0, 8000)}`,
+              },
+            ],
           },
         ],
         generationConfig: {
