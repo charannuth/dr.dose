@@ -4,6 +4,7 @@ import {
   DOSE_REMINDER_CHANNEL_ID,
   ensureNotificationInfrastructure,
 } from './notificationSetup';
+import { DEFAULT_REMINDER_SOUND_FILE } from './settings';
 
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -93,7 +94,7 @@ export async function scheduleTestReminder(
     content: {
       title: 'Dr. Dose test reminder',
       body: 'If you see this alert, local notifications are working.',
-      sound: 'default',
+      sound: DEFAULT_REMINDER_SOUND_FILE,
       interruptionLevel: 'timeSensitive',
       data: { screen: 'today' },
       ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),

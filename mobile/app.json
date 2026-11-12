@@ -54,6 +54,7 @@
           "color": "#0891b2",
           "defaultChannel": "dose-reminders",
           "sounds": [
+            "./assets/sounds/ding.wav",
             "./assets/sounds/chime.wav",
             "./assets/sounds/bell.wav",
             "./assets/sounds/alert.wav"

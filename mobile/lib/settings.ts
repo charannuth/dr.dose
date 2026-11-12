@@ -34,6 +34,9 @@ export const SAME_TIME_DOSE_MODES: {
   },
 ];
 
+/** Bundled tone used for "Default" and for refill / visit / test alerts. */
+export const DEFAULT_REMINDER_SOUND_FILE = 'ding.wav';
+
 /** Bundled reminder chimes (see app.json expo-notifications "sounds"). */
 export type ReminderSound = 'default' | 'chime' | 'bell' | 'alert';
 
@@ -43,7 +46,8 @@ export const REMINDER_SOUNDS: {
   /** Bundled file name used by iOS content + the Android channel; null = system default. */
   file: string | null;
 }[] = [
-  { id: 'default', label: 'Default', file: null },
+  // iOS stayed silent for the system 'default' sound, so Default is a bundled tone too.
+  { id: 'default', label: 'Default', file: DEFAULT_REMINDER_SOUND_FILE },
   { id: 'chime', label: 'Chime', file: 'chime.wav' },
   { id: 'bell', label: 'Bell', file: 'bell.wav' },
   { id: 'alert', label: 'Alert', file: 'alert.wav' },

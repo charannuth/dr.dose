@@ -8,7 +8,7 @@ import {
 import { getExpoNotifications } from './expoNotifications';
 import { DOSE_REMINDER_CHANNEL_ID, ensureNotificationInfrastructure } from './notificationSetup';
 import { todayLocalDate } from './dates';
-import { getReminders } from './settings';
+import { DEFAULT_REMINDER_SOUND_FILE, getReminders } from './settings';
 
 const VISIT_PREFIX = 'doctor-visit-reminder';
 const FOLLOWUP_PREFIX = 'doctor-followup-reminder';
@@ -137,7 +137,7 @@ export async function rescheduleDoctorVisitReminders(
       content: {
         title: item.title,
         body: item.body,
-        sound: 'default',
+        sound: DEFAULT_REMINDER_SOUND_FILE,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { screen: 'doctor-visits', visitId: item.id.split(':')[1] },
         ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),
