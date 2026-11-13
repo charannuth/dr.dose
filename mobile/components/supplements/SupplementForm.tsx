@@ -49,6 +49,7 @@ import {
   type SupplementFrequencyId,
   type SupplementUnit,
 } from '../../lib/supplements';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 type DoseTimeRow = { id: string; time: string };
 
@@ -256,7 +257,7 @@ export function SupplementForm({
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, READABLE_COLUMN]} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{initial ? 'Edit supplement' : 'Add supplement'}</Text>
         <Text style={styles.subtitle}>
           Type any supplement or browse common ones. It doesn't need to be in our list.

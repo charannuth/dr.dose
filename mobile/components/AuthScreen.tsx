@@ -29,6 +29,7 @@ import type { ColorPalette } from '../constants/theme';
 import { radii, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { READABLE_COLUMN } from '../constants/layout';
 
 function makeAuthStyles(colors: ColorPalette) {
   return {
@@ -341,7 +342,7 @@ export function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, READABLE_COLUMN]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.card}>
