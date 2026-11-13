@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.drdose.app",
-      "buildNumber": "56",
+      "buildNumber": "61",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
@@ -54,6 +54,7 @@
           "color": "#0891b2",
           "defaultChannel": "dose-reminders",
           "sounds": [
+            "./assets/sounds/ding.wav",
             "./assets/sounds/chime.wav",
             "./assets/sounds/bell.wav",
             "./assets/sounds/alert.wav"
@@ -66,6 +67,12 @@
         {
           "photosPermission": "Dr. Dose uses your photo library so you can choose a profile picture or scan a medication label from a saved photo.",
           "cameraPermission": "Dr. Dose uses the camera so you can scan medication labels and take a profile picture."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Dr. Dose uses Face ID to lock your health data when you turn on the lock in Account."
         }
       ],
       "expo-splash-screen",

@@ -32,6 +32,8 @@ Dr. Dose uses **Supabase PostgreSQL** with migrations in `supabase/migrations/`.
 | 028 | `028_rollback_027_for_live_app.sql` | Restores text[] / numeric / date / jsonb after 027 | Keeps pre-E2EE App Store clients working |
 | 029 | `029_cycle_custom_symptoms.sql` | `custom_symptoms_pre` / `custom_symptoms_during` on `cycle_settings` | Persistent user-defined cycle symptom chips |
 | 030 | `030_tracker_preferences_and_entries.sql` | `tracker_preferences`, `tracker_day_entries` (client-encrypted JSON) | Tracker personalization, extended cycle / HRT / weight logging |
+| 031 | `031_medical_record_details.sql` | Medical record detail fields | Medical records page |
+| 032 | `032_vault_server_escrow.sql` | `user_crypto.wrapped_dek_server` (key held by `vault-escrow` Edge Function) | Password-reset recovery without the 12 words |
 
 **Production (current):** Apply **026** (`user_crypto`). **Do not leave 027 applied alone** while the App Store build is still pre-E2EE — that broke `text[]` consumers (`undefined is not a function` on As needed). Live production was rolled back with **028**. The shipping E2EE client stores encrypted arrays as single-element `text[]` (`[ciphertext]`) so it works on the post-028 schema. Re-apply **027** only when promoting a matching client to the App Store (and coordinating with force-update). Apply **029** for custom period symptom labels and **030** for tracker personalization and the extended cycle / HRT day logs.
 

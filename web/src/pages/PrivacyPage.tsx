@@ -5,7 +5,7 @@ export function PrivacyPage() {
     <main className="page">
       <header className="page-header">
         <h2>Privacy policy</h2>
-        <p className="page-subtitle">Last updated: August 15, 2026</p>
+        <p className="page-subtitle">Last updated: November 13, 2026</p>
       </header>
 
       <section className="help-section">
@@ -24,19 +24,17 @@ export function PrivacyPage() {
           Health content you enter (medications, doses, notes, medical history, wellness and
           tracking notes, and similar fields) is <strong>encrypted on your device</strong> before
           it is synced to our database. We store ciphertext and a wrapped encryption key for your
-          account. The key is unlocked with your login password on your device; we do not hold a
-          copy that lets us read your encrypted health fields in our dashboard.
+          account. The key is unlocked with your login password on your device. To make sure
+          you never lose access to your own data, a protected copy of that key is also held by
+          our recovery service, encrypted with a secret that is kept separately from the
+          database. It is used only to restore your access after a password reset; it is not
+          used to browse or analyze your health information.
         </p>
         <p>
           Structural details needed to run reminders (for example dose times and schedule type)
-          remain as metadata so the app can function. When you first create an account you are
-          asked to save an <strong>account backup</strong> (a recovery phrase). You need that
-          backup only if you forget your password and reset it. Changing your password while
-          signed in does not require the backup.
-        </p>
-        <p>
-          If you reset a forgotten password and no longer have your account backup, encrypted
-          health fields from before the reset cannot be recovered by us.
+          remain as metadata so the app can function. You do not need to save any recovery
+          phrase. If you forget your password, reset it and sign in with the new password; your
+          health data comes back automatically.
         </p>
       </section>
 
@@ -58,7 +56,7 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Device permissions</strong> — local notification permission for dose
-            reminders; photo library or camera for profile pictures and on-device label OCR.
+            reminders; photo library or camera for profile pictures and label scanning.
           </li>
         </ul>
       </section>
@@ -76,9 +74,22 @@ export function PrivacyPage() {
         <h3>Third-party services</h3>
         <p>
           We use Supabase for authentication and database hosting. Medication name search may
-          call the public NIH RxNorm API with the text you type. Cloud AI enrichment of
-          pharmacy labels is disabled; label OCR runs on your device. Drug interaction checks
-          use a local reference database in the app.
+          call the public NIH RxNorm API with the text you type. Drug interaction checks use a
+          local reference database in the app.
+        </p>
+        <p>
+          <strong>Label scanning.</strong> When you scan a pharmacy label, text recognition
+          (OCR) always runs on your device. Before each scan the app asks whether you also want
+          to enhance the result with AI. Only if you choose that option, the recognized label
+          text (not the photo) is sent to Google&apos;s Gemini API to fill in more fields, such
+          as the medication name, strength, and directions. Label text can include health
+          information and, depending on the label, your name or your pharmacy&apos;s details.
+          Google processes it under the{' '}
+          <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">
+            Gemini API Additional Terms of Service
+          </a>
+          . We do not send your account details with it, and we do not store the text on our
+          servers. If you choose on-device only, nothing from the scan leaves your phone.
         </p>
         <p>
           Local notifications use generic wording (they do not include medication names) so

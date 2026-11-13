@@ -3,7 +3,7 @@ import { fetchMedicationsWithStatus } from './medications';
 import { getRefillAlerts } from './refills';
 import { getExpoNotifications } from './expoNotifications';
 import { DOSE_REMINDER_CHANNEL_ID, ensureNotificationInfrastructure } from './notificationSetup';
-import { getReminders } from './settings';
+import { DEFAULT_REMINDER_SOUND_FILE, getReminders } from './settings';
 
 const REFILL_PREFIX = 'refill-reminder';
 
@@ -85,7 +85,7 @@ export async function rescheduleRefillReminders(
       content: {
         title: 'Refill soon',
         body: `A medication is running low (${alert.remainingLabel} left). Open Dr. Dose to update supply.`,
-        sound: 'default',
+        sound: DEFAULT_REMINDER_SOUND_FILE,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { screen: 'today', medicationId: alert.medicationId, kind: 'refill' },
         ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),
@@ -134,7 +134,7 @@ export async function scheduleTestRefillReminder(
     content: {
       title: 'Refill soon',
       body: `A medication is running low (${alert.remainingLabel} left). Open Dr. Dose to update supply.`,
-      sound: 'default',
+      sound: DEFAULT_REMINDER_SOUND_FILE,
       data: { screen: 'today', medicationId: alert.medicationId, kind: 'refill' },
       ...(Platform.OS === 'android' ? { channelId: DOSE_REMINDER_CHANNEL_ID } : {}),
     },

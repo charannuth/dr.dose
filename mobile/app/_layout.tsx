@@ -24,6 +24,7 @@ import { DemoTourTargetsProvider } from '../context/DemoTourTargetsContext';
 import { ConfigGuard } from '../components/ConfigGuard';
 import { RootErrorBoundary } from '../components/RootErrorBoundary';
 import { ForceUpdateModal } from '../components/ForceUpdateModal';
+import { AppLockGate } from '../components/AppLockGate';
 import { useForceAppUpdate } from '../hooks/useForceAppUpdate';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -66,7 +67,9 @@ function AppShell() {
   return (
     <>
       <ThemedStatusBar />
-      <Stack screenOptions={{ headerShown: false }} />
+      <AppLockGate>
+        <Stack screenOptions={{ headerShown: false }} />
+      </AppLockGate>
       <ForceUpdateModal info={forceUpdate} />
     </>
   );

@@ -31,6 +31,7 @@ export type UserCryptoRow = {
   recovery_salt: string
   wrapped_dek_recovery: string
   migrated_at: string | null
+  wrapped_dek_server?: string | null
 }
 
 export async function fetchUserCrypto(userId: string): Promise<UserCryptoRow | null> {

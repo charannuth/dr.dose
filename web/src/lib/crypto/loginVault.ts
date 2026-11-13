@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { migrateUserVaultData } from './migrate'
 import { isVaultUnlocked, tryRestoreVaultSession } from './session'
+import { storeVaultEscrow, unlockVaultFromEscrow } from './escrow'
 import {
   fetchUserCrypto,
   rewrapUnlockedVault,
@@ -9,7 +10,7 @@ import {
 } from './vault'
 
 export type EnsureVaultResult = {
-  /** Present only when a new vault was created — show account backup UI. */
+  /** Present only when a new vault was created. No longer shown to users: the server holds recovery. */
   recoveryMnemonic: string | null
   /** True when login password did not unlock; user must enter account backup. */
   needsAccountBackup: boolean
@@ -21,6 +22,16 @@ async function migrateBestEffort(userId: string): Promise<void> {
     await migrateUserVaultData(userId)
   } catch (e) {
     console.warn('[vault] migrate failed after unlock', e)
+  }
+}
+
+/** Keep the server copy of the vault key in place (also backfills existing accounts). */
+async function ensureEscrowBestEffort(userId: string): Promise<void> {
+  try {
+    const row = await fetchUserCrypto(userId)
+    if (row && !row.wrapped_dek_server) await storeVaultEscrow()
+  } catch (e) {
+    console.warn('[vault] escrow backfill failed', e)
   }
 }
 
@@ -41,12 +52,14 @@ export async function ensureVaultWithLoginPassword(
       await rewrapUnlockedVault(userId, password)
     }
     await migrateBestEffort(userId)
+    await ensureEscrowBestEffort(userId)
     return { recoveryMnemonic: null, needsAccountBackup: false }
   }
 
   const row = await fetchUserCrypto(userId)
   if (!row) {
     const { recoveryMnemonic } = await setupVault(userId, password)
+    await storeVaultEscrow()
     await migrateBestEffort(userId)
     return { recoveryMnemonic, needsAccountBackup: false }
   }
@@ -54,9 +67,17 @@ export async function ensureVaultWithLoginPassword(
   try {
     await unlockVaultWithPassphrase(userId, password)
   } catch {
+    // Password changed (reset) so it no longer opens the vault: recover from the
+    // server-held key and re-lock it with the password just used.
+    if (await unlockVaultFromEscrow(userId)) {
+      await rewrapUnlockedVault(userId, password)
+      await migrateBestEffort(userId)
+      return { recoveryMnemonic: null, needsAccountBackup: false }
+    }
     return { recoveryMnemonic: null, needsAccountBackup: true }
   }
   await migrateBestEffort(userId)
+  await ensureEscrowBestEffort(userId)
   return { recoveryMnemonic: null, needsAccountBackup: false }
 }
 

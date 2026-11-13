@@ -138,7 +138,13 @@ function decryptScalar(
     // Legacy plaintext during migration
     if (asJsonArray && value.startsWith('[')) {
       try {
-        return JSON.parse(value)
+        const parsed = JSON.parse(value) as unknown
+        // Migration 027 turned text[] columns into JSON text, so an array that
+        // was already encrypted ({"e1:..."}) now arrives as '["e1:..."]'.
+        if (isEncryptedArrayValue(parsed)) {
+          return decryptScalar(dek, table, column, rowId, parsed, asJsonArray, asJsonObject)
+        }
+        return parsed
       } catch {
         return value
       }
@@ -276,6 +282,16 @@ export function isEncryptedArrayValue(value: unknown): boolean {
   )
 }
 
+/** A text column holding a JSON array whose only element is ciphertext. */
+function isEncryptedJsonArrayString(value: string): boolean {
+  if (!value.startsWith('[')) return false
+  try {
+    return isEncryptedArrayValue(JSON.parse(value))
+  } catch {
+    return false
+  }
+}
+
 /** True if any sensitive field still looks like legacy plaintext. */
 export function rowNeedsMigration(
   table: EncryptedTable,
@@ -286,8 +302,8 @@ export function rowNeedsMigration(
     const v = row[field]
     if (v == null || v === '' || v === '[]' || v === '{}') continue
     if (typeof v === 'string') {
-      if (!isCiphertext(v)) return true
-      continue
+      if (isCiphertext(v) || isEncryptedJsonArrayString(v)) continue
+      return true
     }
     if (Array.isArray(v)) {
       if (v.length === 0 || isEncryptedArrayValue(v)) continue
