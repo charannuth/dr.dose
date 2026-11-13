@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, radii, spacing, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { CollapsibleSection } from '../forms/CollapsibleSection';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 export type MoreSection = { key: string; title: string; summary?: string; content: ReactNode };
 
@@ -38,7 +39,7 @@ export function WellnessMoreSheet({
             <Text style={s.doneText}>Done</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 32 }]}>
+        <ScrollView contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 32 }, READABLE_COLUMN]}>
           <Pressable style={s.baseline} onPress={onEditBaseline} accessibilityRole="button">
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={s.rowTitle}>Your baseline</Text>

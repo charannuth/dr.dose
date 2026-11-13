@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { withAlpha, type AccentKey } from '../constants/theme';
 import { useTheme } from '../context/ThemeProvider';
+import { READABLE_COLUMN } from '../constants/layout';
 
 /** Scroll offset of the current screen, written by AmbientScrollView. */
 const AmbientScrollContext = createContext<SharedValue<number> | null>(null);
@@ -178,6 +179,7 @@ export function AmbientScreenLayout({ children }: { children: ReactNode }) {
 export function AmbientScrollView({
   onScroll,
   scrollEventThrottle,
+  contentContainerStyle,
   ref,
   ...props
 }: ComponentProps<typeof ScrollView> & { ref?: Ref<ScrollView> }) {
@@ -186,6 +188,7 @@ export function AmbientScrollView({
     <ScrollView
       {...props}
       ref={ref}
+      contentContainerStyle={[contentContainerStyle, READABLE_COLUMN]}
       scrollEventThrottle={scrollEventThrottle ?? 16}
       onScroll={(event) => {
         if (scrollY) scrollY.value = event.nativeEvent.contentOffset.y;

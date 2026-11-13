@@ -17,6 +17,7 @@ import type { LabelScanPrefill } from '../../lib/labelScanPrefill';
 import { isLabelAiAvailable } from '../../lib/labelScanAI';
 import type { PrescriptionPrefill } from '../../lib/prescriptionScan';
 import { prefillToWizard } from '../../lib/prescriptionScan';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 type Props = {
   scan: PrescriptionPrefill;
@@ -87,7 +88,7 @@ export function ScanReviewScreen({ scan, onConfirm, onRescan, onCancel }: Props)
 
   return (
     <View style={styles.wrap}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, READABLE_COLUMN]} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Review scanned label</Text>
         <Text style={styles.subtitle}>
           We read your pharmacy label and filled in what we could. Please check every field —
