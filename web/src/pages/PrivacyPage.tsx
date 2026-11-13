@@ -5,7 +5,7 @@ export function PrivacyPage() {
     <main className="page">
       <header className="page-header">
         <h2>Privacy policy</h2>
-        <p className="page-subtitle">Last updated: August 15, 2026</p>
+        <p className="page-subtitle">Last updated: November 13, 2026</p>
       </header>
 
       <section className="help-section">
@@ -56,7 +56,7 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Device permissions</strong> — local notification permission for dose
-            reminders; photo library or camera for profile pictures and on-device label OCR.
+            reminders; photo library or camera for profile pictures and label scanning.
           </li>
         </ul>
       </section>
@@ -74,9 +74,22 @@ export function PrivacyPage() {
         <h3>Third-party services</h3>
         <p>
           We use Supabase for authentication and database hosting. Medication name search may
-          call the public NIH RxNorm API with the text you type. Cloud AI enrichment of
-          pharmacy labels is disabled; label OCR runs on your device. Drug interaction checks
-          use a local reference database in the app.
+          call the public NIH RxNorm API with the text you type. Drug interaction checks use a
+          local reference database in the app.
+        </p>
+        <p>
+          <strong>Label scanning.</strong> When you scan a pharmacy label, text recognition
+          (OCR) always runs on your device. Before each scan the app asks whether you also want
+          to enhance the result with AI. Only if you choose that option, the recognized label
+          text (not the photo) is sent to Google&apos;s Gemini API to fill in more fields, such
+          as the medication name, strength, and directions. Label text can include health
+          information and, depending on the label, your name or your pharmacy&apos;s details.
+          Google processes it under the{' '}
+          <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">
+            Gemini API Additional Terms of Service
+          </a>
+          . We do not send your account details with it, and we do not store the text on our
+          servers. If you choose on-device only, nothing from the scan leaves your phone.
         </p>
         <p>
           Local notifications use generic wording (they do not include medication names) so
