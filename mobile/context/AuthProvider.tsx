@@ -136,11 +136,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured');
+    // The profile photo lives in a public Storage bucket that is not removed by
+    // the auth.users cascade, so delete it first while we still have a session.
+    const userId = session?.user?.id;
+    if (userId) {
+      try {
+        await deleteAvatar(userId);
+      } catch {
+        /* no photo, or already gone: continue with account deletion */
+      }
+    }
     const { error } = await supabase.rpc('delete_user_account');
     if (error) throw error;
     // Account is gone; clear the now-invalid local session.
     await supabase.auth.signOut();
-  }, []);
+  }, [session?.user?.id]);
 
   const refreshSession = useCallback(async () => {
     if (!supabase) return;
