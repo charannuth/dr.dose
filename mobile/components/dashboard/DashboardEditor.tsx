@@ -7,6 +7,7 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { moveWidget, WIDGET_CATALOG, type DashboardLayout, type WidgetKind, type WidgetSize } from '../../lib/dashboardLayout';
 import { newId } from '../../lib/uuid';
 import { WidgetSizePicker } from './WidgetSizePicker';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 type Props = {
   value: DashboardLayout;
@@ -52,7 +53,7 @@ export function DashboardEditor({ value, onChange, onSave, onCancel, saving, dra
           <WidgetSizePicker title={selectedTitle} value={selected.size} disabled={saving || dragging}
             onChange={(size) => onChange({ ...value, widgets: value.widgets.map((widget) => widget.id === selected.id ? { ...widget, size } : widget) })} />
         </View> : null}
-        <ScrollView scrollEnabled={!dragging} contentContainerStyle={s.content}>
+        <ScrollView scrollEnabled={!dragging} contentContainerStyle={[s.content, READABLE_COLUMN]}>
           <Text style={s.description}>Make room for what matters to you. Choose widgets, change their size, and arrange them in your preferred order.</Text>
           <Text style={s.label}>Layout</Text>
           <View style={s.row}>

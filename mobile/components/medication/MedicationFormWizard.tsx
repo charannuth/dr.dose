@@ -88,6 +88,7 @@ import {
   type WizardPage,
 } from './medicationWizardState';
 import type { LabelScanPrefill } from '../../lib/labelScanPrefill';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 /** A dose-time row stores 12h + AM/PM; the wheel picker works in 24h "HH:mm". */
 function rowToHHmm(row: DoseTimeRow): string {
@@ -915,7 +916,7 @@ export function MedicationFormWizard({
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} style={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={READABLE_COLUMN} keyboardShouldPersistTaps="handled">
         {/* Keyed on page so each step mounts fresh and plays its entrance. */}
         <Animated.View
           key={page}

@@ -15,6 +15,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import { VAULT_ENFORCEMENT_ENABLED } from '../lib/crypto/flags'
 import { PasswordInput } from './PasswordInput'
+import { READABLE_COLUMN } from '../constants/layout'
 
 /**
  * Blocks health UI until the silent vault is unlocked.
@@ -182,7 +183,7 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.centerPad}>
+    <ScrollView contentContainerStyle={[styles.centerPad, READABLE_COLUMN]}>
       <Text style={styles.brand}>Dr. Dose</Text>
       <Text style={styles.title}>Unlock health data</Text>
       <Text style={styles.body}>

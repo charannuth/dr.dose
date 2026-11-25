@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ColorPalette } from '../../constants/theme';
 import { fonts, radii, spacing } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 type Props = {
   visible: boolean;
@@ -82,7 +83,7 @@ export function PersonalizeSheet({
             <Text style={[styles.save, { color: accent, opacity: busy ? 0.5 : 1 }]}>Save</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.scroll, READABLE_COLUMN]} keyboardShouldPersistTaps="handled">
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           {children}
         </ScrollView>

@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeProvider';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { tapFeedback } from '../../lib/haptics';
 import { DrawerIcon, type DrawerIconName } from '../navigation/DrawerIcon';
+import { READABLE_COLUMN } from '../../constants/layout';
 
 /** A titled card of rows with hairline dividers, like iOS Settings. */
 export function SettingsGroup({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
@@ -109,7 +110,7 @@ export function SettingsSheet({ visible, title, onClose, children }: { visible: 
             <Text style={s.done}>Done</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={[s.sheetContent, { paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.sheetContent, { paddingBottom: insets.bottom + 32 }, READABLE_COLUMN]} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
