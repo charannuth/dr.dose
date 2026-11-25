@@ -1,6 +1,6 @@
 # Mobile production — TestFlight & App Store
 
-Step-by-step guide to ship **Dr. Dose** on iOS using [EAS Build](https://docs.expo.dev/build/introduction/). Android follows the same EAS flow with `--platform android` once you add a Play Console listing.
+Step-by-step guide to ship **Dr. Dose** on iOS using [EAS Build](https://docs.expo.dev/build/introduction/). For Android, see [ANDROID.md](ANDROID.md).
 
 **Prerequisites:** Apple Developer Program membership ($99/year), Expo account (free), Supabase project already used by web.
 
