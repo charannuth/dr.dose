@@ -92,10 +92,14 @@ function encryptScalar(
   if (Array.isArray(value)) {
     // Encrypt array as one JSON ciphertext. Wrap in a single-element array so
     // it still fits Postgres text[] columns (live DB after 028 rollback).
-    const json = JSON.stringify(value)
     if (value.length === 1 && typeof value[0] === 'string' && isCiphertext(value[0])) {
       return value
     }
+    // Never seal ciphertext inside the plaintext list: that is how an encrypted
+    // empty list ended up shown as a symptom chip ("e1:…"). Open any such
+    // elements first so the stored value is a clean, single-layer list.
+    const plainList = unwrapCiphertextElements(dek, table, column, rowId, value)
+    const json = JSON.stringify(plainList)
     const ct = encryptString(dek, json, aadFor(table, column, rowId))
     return [ct]
   }
@@ -126,12 +130,15 @@ function decryptScalar(
     ) {
       const plain = decryptString(dek, value[0], aadFor(table, column, rowId))
       try {
-        return JSON.parse(plain)
+        const parsed = JSON.parse(plain) as unknown
+        return Array.isArray(parsed)
+          ? unwrapCiphertextElements(dek, table, column, rowId, parsed)
+          : parsed
       } catch {
         return plain
       }
     }
-    return value
+    return asJsonArray ? unwrapCiphertextElements(dek, table, column, rowId, value) : value
   }
   if (typeof value !== 'string') return value
   if (!isCiphertext(value)) {
@@ -154,12 +161,60 @@ function decryptScalar(
   const plain = decryptString(dek, value, aadFor(table, column, rowId))
   if (asJsonArray || asJsonObject || plain.startsWith('[') || plain.startsWith('{')) {
     try {
-      return JSON.parse(plain)
+      const parsed = JSON.parse(plain) as unknown
+      if (asJsonArray && Array.isArray(parsed)) {
+        return unwrapCiphertextElements(dek, table, column, rowId, parsed)
+      }
+      return parsed
     } catch {
       return plain
     }
   }
   return plain
+}
+
+/**
+ * A plaintext list can hold ciphertext elements when an encrypted list was
+ * read while the vault was locked and saved back with new items, or when a
+ * list was sealed twice. Open each such element (it is usually an encrypted
+ * list itself) and splice its items in. Anything that will not open is
+ * dropped so raw ciphertext never reaches the UI.
+ */
+function unwrapCiphertextElements(
+  dek: Uint8Array,
+  table: string,
+  column: string,
+  rowId: string | null | undefined,
+  list: unknown[],
+  depth = 0,
+): unknown[] {
+  if (!list.some((v) => typeof v === 'string' && isCiphertext(v))) return list
+  const out: unknown[] = []
+  for (const item of list) {
+    if (typeof item !== 'string' || !isCiphertext(item)) {
+      out.push(item)
+      continue
+    }
+    if (depth > 4) continue
+    let plain: string
+    try {
+      plain = decryptString(dek, item, aadFor(table, column, rowId))
+    } catch {
+      continue
+    }
+    try {
+      const parsed = JSON.parse(plain) as unknown
+      if (Array.isArray(parsed)) {
+        out.push(...unwrapCiphertextElements(dek, table, column, rowId, parsed, depth + 1))
+        continue
+      }
+    } catch {
+      // plain string element
+    }
+    if (plain.trim()) out.push(plain)
+  }
+  // Keep order, drop duplicates introduced by splicing.
+  return [...new Set(out)]
 }
 
 const ARRAY_FIELDS = new Set([
