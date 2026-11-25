@@ -743,6 +743,8 @@ export default function TodayScreen() {
       await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log dose');
+      // Let the card know so it keeps the draft instead of showing "Logged".
+      throw err;
     } finally {
       setBusySlot(null);
     }
