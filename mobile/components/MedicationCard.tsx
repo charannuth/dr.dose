@@ -31,7 +31,7 @@ type MedicationCardProps = {
   onSnooze?: (scheduleTime: string) => void;
   /** Active snoozes for this med, keyed by schedule time ("HH:mm") -> ISO remindAt. */
   snoozeByTime?: Record<string, string>;
-  onLogPrn?: (payload: PrnDoseLogPayload) => void;
+  onLogPrn?: (payload: PrnDoseLogPayload) => Promise<void> | void;
   onUndo: (slot: DoseSlotStatus) => void;
   onMoveToAsNeeded?: () => void;
   onMoveToDailySchedule?: () => void;
@@ -88,7 +88,13 @@ function makeMedicationCardStyles(colors: ColorPalette) {
     },
     notes: {
       fontSize: 14,
+      lineHeight: 20,
       color: colors.text,
+    },
+    notesToggle: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 13,
+      marginTop: 4,
     },
     pills: {
       fontSize: 13,
@@ -283,6 +289,7 @@ export function MedicationCard({
   const { colors } = useTheme();
   const styles = useThemedStyles(makeMedicationCardStyles);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const reducedMotion = useReducedMotion();
 
   const slotSource = visibleScheduleTime
@@ -393,7 +400,10 @@ export function MedicationCard({
   let badge: { label: string; tone: 'success' | 'pending' | 'partial' } | null =
     null;
 
-  if (asNeeded) {
+  if (asNeeded && !supplementPrn) {
+    // The PRN panel shows the count, last dose and supply, so keep the badge simple.
+    badge = { label: 'As needed', tone: 'pending' };
+  } else if (asNeeded) {
     badge =
       dosesTakenToday > 0
         ? {
@@ -413,6 +423,9 @@ export function MedicationCard({
   } else {
     badge = { label: 'No times set', tone: 'pending' };
   }
+
+  // Pharmacy label text can run for paragraphs; show two lines until asked.
+  const notesLong = (medication.notes?.length ?? 0) > 110;
 
   const showProgress = !asNeeded && dosesTotalToday > 0;
   const allDone = showProgress && allDosesTakenToday;
@@ -434,7 +447,7 @@ export function MedicationCard({
           <Text style={styles.dosage}>
             {formatDoseDisplay(medication)}
             {asNeeded
-              ? ' · as needed (PRN)'
+              ? ''
               : dosesTotalToday > 1
                 ? ` · ${dosesTotalToday} doses per day`
                 : dosesTotalToday === 1
@@ -505,9 +518,27 @@ export function MedicationCard({
         <Text style={styles.dateRange}>{formatMedicationDateRange(medication)}</Text>
       ) : null}
 
-      {medication.notes ? <Text style={styles.notes}>{medication.notes}</Text> : null}
+      {medication.notes ? (
+        notesLong ? (
+          <Pressable
+            onPress={() => setNotesExpanded((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: notesExpanded }}
+            accessibilityHint={notesExpanded ? 'Shows less' : 'Shows the full directions'}
+          >
+            <Text style={styles.notes} numberOfLines={notesExpanded ? undefined : 2}>
+              {medication.notes}
+            </Text>
+            <Text style={[styles.notesToggle, { color: accentColor }]}>
+              {notesExpanded ? 'Show less' : 'Show full directions'}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.notes}>{medication.notes}</Text>
+        )
+      ) : null}
 
-      {medication.pills_remaining != null ? (
+      {medication.pills_remaining != null && !(asNeeded && !supplementPrn) ? (
         <Text style={[styles.pills, lowSupply && styles.pillsLow]}>
           {formatInventoryRemaining(medication.pills_remaining, medication)}
           {lowSupply ? ' — refill soon' : ''}
@@ -544,14 +575,17 @@ export function MedicationCard({
             <PressableScale
               style={styles.primaryButton}
               disabled={prnBusy}
-              onPress={() =>
-                onLogPrn?.({
-                  amount: formatDoseDisplay(medication) || '1 dose',
-                  symptoms: [],
-                  reason: '',
-                  notes: '',
-                })
-              }
+              onPress={() => {
+                // Errors are shown by the screen; nothing to keep here.
+                void Promise.resolve(
+                  onLogPrn?.({
+                    amount: formatDoseDisplay(medication) || '1 dose',
+                    symptoms: [],
+                    reason: '',
+                    notes: '',
+                  }),
+                ).catch(() => {});
+              }}
             >
               {prnBusy ? (
                 <ActivityIndicator color={colors.onAccent} size="small" />
@@ -561,37 +595,14 @@ export function MedicationCard({
             </PressableScale>
           </>
         ) : (
-          <>
           <PrnDoseLogPanel
             medication={medication}
+            accent={accentColor}
             disabled={prnBusy}
+            busySlot={busySlot}
             onLog={(payload) => onLogPrn?.(payload)}
+            onUndo={onUndo}
           />
-          {medication.slots.length > 0 ? (
-            <View style={styles.slots}>
-              {medication.slots.map((slot, index) => {
-                const slotKey = `${medication.id}-${slot.time}`;
-                const busy = busySlot === slotKey;
-                return (
-                  <View key={`${slot.time}-${index}`} style={styles.slotTaken}>
-                    <Text style={styles.slotTime}>Taken {slot.label}</Text>
-                    <Pressable
-                      style={styles.secondaryButton}
-                      disabled={busy}
-                      onPress={() => onUndo(slot)}
-                    >
-                      <Text style={styles.secondaryButtonText}>
-                        {busy ? '…' : 'Undo'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <Text style={styles.emptySlots}>No doses logged today yet.</Text>
-          )}
-          </>
         )
       ) : orderedSlots.length > 0 ? (
         <View style={styles.doseRows}>
