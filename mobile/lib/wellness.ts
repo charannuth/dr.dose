@@ -1,4 +1,5 @@
 import { openRow, openRows, sealRow } from './crypto/seal'
+import { asStringArray } from './asStringArray'
 import { supabase } from './supabase'
 import { localDateString, todayLocalDate } from './dates'
 import { validateWellnessLog } from './wellnessForm'
@@ -44,7 +45,8 @@ export function buildPresetSymptomChipOptions(
 
   for (const symptom of [...presets, ...selected]) {
     const trimmed = symptom.trim()
-    if (!trimmed || seen.has(trimmed)) continue
+    // Skip anything still encrypted ("e1:…") so ciphertext is never a chip.
+    if (!trimmed || trimmed.startsWith('e1:') || seen.has(trimmed)) continue
     seen.add(trimmed)
     options.push(trimmed)
   }
@@ -230,9 +232,7 @@ function profileFromRow(row: Record<string, unknown>): WellnessProfile {
   return {
     ...(opened as unknown as WellnessProfile),
     substance_use: (opened.substance_use ?? {}) as WellnessProfile['substance_use'],
-    symptom_focus: Array.isArray(opened.symptom_focus)
-      ? (opened.symptom_focus as string[])
-      : [],
+    symptom_focus: asStringArray(opened.symptom_focus),
   }
 }
 
@@ -240,7 +240,7 @@ function logFromDbRow(row: Record<string, unknown>): WellnessLog {
   const opened = openRow('wellness_logs', row)
   return {
     ...(opened as unknown as WellnessLog),
-    symptoms: Array.isArray(opened.symptoms) ? (opened.symptoms as string[]) : [],
+    symptoms: asStringArray(opened.symptoms),
   }
 }
 
@@ -313,7 +313,7 @@ export async function fetchWellnessLogsForDates(
     (data ?? []) as Record<string, unknown>[],
   ).map((row) => ({
     ...(row as unknown as WellnessLog),
-    symptoms: Array.isArray(row.symptoms) ? (row.symptoms as string[]) : [],
+    symptoms: asStringArray(row.symptoms),
   }))
 }
 

@@ -9,7 +9,7 @@ export function asStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .map((v) => (v == null ? '' : String(v).trim()))
-      .filter(Boolean)
+      .filter(isDisplayableItem)
   }
   if (typeof value === 'string') {
     const trimmed = value.trim()
@@ -20,7 +20,7 @@ export function asStringArray(value: unknown): string[] {
         if (Array.isArray(parsed)) {
           return parsed
             .map((v) => (v == null ? '' : String(v).trim()))
-            .filter(Boolean)
+            .filter(isDisplayableItem)
         }
       } catch {
         // fall through
@@ -31,4 +31,12 @@ export function asStringArray(value: unknown): string[] {
     return []
   }
   return []
+}
+
+/**
+ * Encrypted values start with "e1:". If one is still sealed here (vault locked,
+ * or an older double-sealed list), it must never be shown as a label.
+ */
+function isDisplayableItem(v: string): boolean {
+  return v.length > 0 && !v.startsWith('e1:')
 }
